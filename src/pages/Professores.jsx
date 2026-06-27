@@ -493,7 +493,6 @@ function ModalProfessor({ professor, onClose, onSalvo, token, todosAlunos }) {
               <>
                 <div className="grid grid-cols-1 gap-4">
                   <InputField label="Nome Completo *" value={form.nome} onChange={e => set('nome', e.target.value)} required />
-                  <InputField label="URL da Foto (opcional)" type="url" placeholder="https://..." value={form.foto_url} onChange={e => set('foto_url', e.target.value)} />
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <InputField label="CPF" placeholder="000.000.000-00" value={form.cpf} onChange={e => set('cpf', e.target.value)} />
