@@ -297,6 +297,7 @@ function AbaFinanceiro({ professorId, token }) {
   const [anoFiltro, setAnoFiltro] = useState(hoje.getFullYear());
   const [dados, setDados] = useState(null);
   const [carregando, setCarregando] = useState(false);
+  const [expandirAlunos, setExpandirAlunos] = useState(false);
 
   const carregar = async () => {
     setCarregando(true);
@@ -313,9 +314,11 @@ function AbaFinanceiro({ professorId, token }) {
   useEffect(() => { if (professorId) carregar(); }, [professorId, mesFiltro, anoFiltro]);
 
   const anos = Array.from({ length: 5 }, (_, i) => hoje.getFullYear() - 2 + i);
+  const fmt = (v) => `R$ ${Number(v || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
   return (
     <div className="space-y-4">
+      {/* Filtro de período */}
       <div className="flex gap-2">
         <select
           value={mesFiltro}
@@ -336,20 +339,144 @@ function AbaFinanceiro({ professorId, token }) {
       {carregando ? (
         <p className="text-zinc-500 text-sm">Calculando...</p>
       ) : dados ? (
-        <div className="grid grid-cols-2 gap-3">
-          {[
-            { label: 'Valor/Hora', valor: `R$ ${Number(dados.valor_hora).toFixed(2)}`, cor: 'text-zinc-200' },
-            { label: 'Valor Mensal', valor: `R$ ${Number(dados.valor_mensal).toFixed(2)}`, cor: 'text-zinc-200' },
-            { label: 'Total Alunos', valor: dados.total_alunos, cor: 'text-blue-400' },
-            { label: 'Aulas no Período', valor: dados.total_aulas, cor: 'text-amber-400' },
-            { label: 'Total Previsto', valor: `R$ ${Number(dados.total_previsto).toFixed(2)}`, cor: 'text-zinc-300' },
-            { label: 'Total Recebido', valor: `R$ ${Number(dados.total_recebido).toFixed(2)}`, cor: 'text-emerald-400' },
-          ].map(({ label, valor, cor }) => (
-            <div key={label} className="bg-zinc-800/50 rounded-lg p-3 border border-zinc-700/30">
-              <p className="text-xs text-zinc-500 mb-1">{label}</p>
-              <p className={`text-lg font-bold ${cor}`}>{valor}</p>
+        <div className="space-y-4">
+
+          {/* Configuração do repasse */}
+          <div className="bg-zinc-800/30 border border-zinc-700/40 rounded-xl p-3 flex items-center justify-between">
+            <div className="text-xs text-zinc-400">
+              <span className="text-zinc-500">Repasse configurado: </span>
+              <span className="font-bold text-emerald-400">{dados.porcentagem_professor}% professor</span>
+              <span className="text-zinc-600"> / </span>
+              <span className="font-bold text-blue-400">{dados.porcentagem_escola}% escola</span>
             </div>
-          ))}
+            <div className="text-xs text-zinc-500">
+              {dados.total_alunos} aluno(s) · {dados.total_aulas} aulas
+            </div>
+          </div>
+
+          {/* Valor por aula */}
+          {dados.alunos?.length > 0 && (
+            <div className="bg-zinc-800/20 border border-zinc-700/30 rounded-lg px-3 py-2 text-xs text-zinc-400 flex justify-between">
+              <span>Valor por aula (base):</span>
+              <span className="text-zinc-200 font-mono">
+                {fmt(dados.alunos[0]?.valor_por_aula)}
+                {dados.alunos.length > 1 && <span className="text-zinc-600 ml-1">(varia por aluno)</span>}
+              </span>
+            </div>
+          )}
+
+          {/* Cards de Previsto */}
+          <div>
+            <p className="text-xs font-bold text-zinc-500 uppercase mb-2">📋 Receita Prevista</p>
+            <div className="bg-zinc-800/40 border border-zinc-700/30 rounded-xl overflow-hidden">
+              <div className="flex items-center justify-between px-4 py-3 border-b border-zinc-700/30">
+                <span className="text-sm text-zinc-300">Total</span>
+                <span className="text-sm font-bold text-zinc-100">{fmt(dados.total_previsto)}</span>
+              </div>
+              <div className="flex items-center justify-between px-4 py-2.5">
+                <div className="flex items-center gap-2">
+                  <div className="w-2 h-2 rounded-full bg-emerald-500"></div>
+                  <span className="text-xs text-zinc-400">Professor ({dados.porcentagem_professor}%)</span>
+                </div>
+                <span className="text-xs font-mono font-bold text-emerald-400">{fmt(dados.total_previsto_professor)}</span>
+              </div>
+              <div className="flex items-center justify-between px-4 py-2.5 border-t border-zinc-800/50">
+                <div className="flex items-center gap-2">
+                  <div className="w-2 h-2 rounded-full bg-blue-500"></div>
+                  <span className="text-xs text-zinc-400">Escola ({dados.porcentagem_escola}%)</span>
+                </div>
+                <span className="text-xs font-mono font-bold text-blue-400">{fmt(dados.total_previsto_escola)}</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Cards de Recebido */}
+          <div>
+            <p className="text-xs font-bold text-zinc-500 uppercase mb-2">✅ Receita Recebida</p>
+            <div className="bg-zinc-800/40 border border-zinc-700/30 rounded-xl overflow-hidden">
+              <div className="flex items-center justify-between px-4 py-3 border-b border-zinc-700/30">
+                <span className="text-sm text-zinc-300">Total</span>
+                <span className="text-sm font-bold text-zinc-100">{fmt(dados.total_recebido)}</span>
+              </div>
+              <div className="flex items-center justify-between px-4 py-2.5">
+                <div className="flex items-center gap-2">
+                  <div className="w-2 h-2 rounded-full bg-emerald-500"></div>
+                  <span className="text-xs text-zinc-400">Professor</span>
+                </div>
+                <span className="text-xs font-mono font-bold text-emerald-400">{fmt(dados.total_recebido_professor)}</span>
+              </div>
+              <div className="flex items-center justify-between px-4 py-2.5 border-t border-zinc-800/50">
+                <div className="flex items-center gap-2">
+                  <div className="w-2 h-2 rounded-full bg-blue-500"></div>
+                  <span className="text-xs text-zinc-400">Escola</span>
+                </div>
+                <span className="text-xs font-mono font-bold text-blue-400">{fmt(dados.total_recebido_escola)}</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Por hora */}
+          {dados.total_por_hora > 0 && (
+            <div className="bg-zinc-800/20 border border-zinc-700/30 rounded-lg px-3 py-2 text-xs text-zinc-400 flex justify-between">
+              <span>Total por hora ({dados.total_aulas} aulas × {fmt(dados.valor_hora)}):</span>
+              <span className="text-amber-400 font-mono font-bold">{fmt(dados.total_por_hora)}</span>
+            </div>
+          )}
+
+          {/* Detalhe por aluno */}
+          {dados.alunos?.length > 0 && (
+            <div>
+              <button
+                type="button"
+                onClick={() => setExpandirAlunos(v => !v)}
+                className="text-xs text-zinc-500 hover:text-zinc-300 flex items-center gap-1 transition-colors"
+              >
+                <span>{expandirAlunos ? '▾' : '▸'}</span>
+                {expandirAlunos ? 'Ocultar' : 'Ver'} detalhes por aluno
+              </button>
+
+              {expandirAlunos && (
+                <div className="mt-2 space-y-2">
+                  {dados.alunos.map(a => (
+                    <div key={a.id} className="bg-zinc-800/30 border border-zinc-700/30 rounded-lg px-3 py-2.5">
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="text-xs font-medium text-zinc-200">{a.nome}</span>
+                        <div className="flex items-center gap-2">
+                          {a.proporcional && (
+                            <span className="text-[10px] bg-amber-500/20 text-amber-400 border border-amber-500/30 px-1.5 py-0.5 rounded-full">
+                              {a.aulas_esse_mes} aula(s) — proporcional
+                            </span>
+                          )}
+                          <span className={`text-[10px] px-1.5 py-0.5 rounded-full border ${
+                            a.status_mensalidade === 'Pago'
+                              ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
+                              : 'bg-amber-500/10 text-amber-400 border-amber-500/20'
+                          }`}>
+                            {a.status_mensalidade || 'Pendente'}
+                          </span>
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-3 gap-1 text-[10px] text-zinc-500">
+                        <div>
+                          <p>Valor/aula</p>
+                          <p className="text-zinc-300 font-mono">{fmt(a.valor_por_aula)}</p>
+                        </div>
+                        <div>
+                          <p>Prof ({dados.porcentagem_professor}%)</p>
+                          <p className="text-emerald-400 font-mono">{fmt(a.previsto_professor)}</p>
+                        </div>
+                        <div>
+                          <p>Escola ({dados.porcentagem_escola}%)</p>
+                          <p className="text-blue-400 font-mono">{fmt(a.previsto_escola)}</p>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
         </div>
       ) : null}
     </div>
@@ -369,7 +496,7 @@ function ModalProfessor({ professor, onClose, onSalvo, token, todosAlunos }) {
     instrumento_principal: '', outros_instrumentos: '',
     especialidade: '', formacao: '',
     disponibilidade: {},
-    valor_hora: '', valor_mensal: '',
+    valor_hora: '', valor_mensal: '', porcentagem_professor: '',
     data_contratacao: '', observacoes: '',
     status: 'Ativo',
   });
@@ -400,6 +527,7 @@ function ModalProfessor({ professor, onClose, onSalvo, token, todosAlunos }) {
           : {},
         valor_hora: professor.valor_hora !== undefined ? professor.valor_hora : '',
         valor_mensal: professor.valor_mensal !== undefined ? professor.valor_mensal : '',
+        porcentagem_professor: professor.porcentagem_professor !== undefined ? professor.porcentagem_professor : '',
         data_contratacao: professor.data_contratacao ? professor.data_contratacao.toString().substring(0, 10) : '',
         observacoes: professor.observacoes || '',
         status: professor.status || 'Ativo',
@@ -421,7 +549,12 @@ function ModalProfessor({ professor, onClose, onSalvo, token, todosAlunos }) {
       const r = await fetch(url, {
         method: metodo,
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ ...form, valor_hora: Number(form.valor_hora) || 0, valor_mensal: Number(form.valor_mensal) || 0 }),
+        body: JSON.stringify({
+          ...form,
+          valor_hora: Number(form.valor_hora) || 0,
+          valor_mensal: Number(form.valor_mensal) || 0,
+          porcentagem_professor: Number(form.porcentagem_professor) || 0,
+        }),
       });
       if (r.ok) {
         canalComunicacao.postMessage('atualizar_dados');
@@ -533,6 +666,63 @@ function ModalProfessor({ professor, onClose, onSalvo, token, todosAlunos }) {
                   <InputField label="Valor por Hora (R$)" type="number" step="0.01" min="0" placeholder="0.00" value={form.valor_hora} onChange={e => set('valor_hora', e.target.value)} />
                   <InputField label="Valor Mensal (R$)" type="number" step="0.01" min="0" placeholder="0.00" value={form.valor_mensal} onChange={e => set('valor_mensal', e.target.value)} />
                 </div>
+
+                {/* Bloco de repasse financeiro */}
+                <div className="bg-zinc-950 border border-zinc-800 rounded-xl p-4 space-y-3">
+                  <p className="text-xs font-bold text-zinc-400 uppercase tracking-wider">💰 Repasse Financeiro</p>
+                  <div className="grid grid-cols-2 gap-4 items-end">
+                    <div>
+                      <label className="text-xs font-bold text-zinc-500 uppercase tracking-wider">Repasse ao Professor (%)</label>
+                      <input
+                        type="number"
+                        min="0"
+                        max="100"
+                        step="0.5"
+                        placeholder="Ex: 60"
+                        value={form.porcentagem_professor}
+                        onChange={e => set('porcentagem_professor', e.target.value)}
+                        className="w-full bg-zinc-900 border border-zinc-700 rounded-lg px-3 py-2 mt-1 outline-none focus:border-emerald-500 text-white text-sm transition-colors"
+                      />
+                    </div>
+                    <div className="text-xs space-y-1 pb-2">
+                      {Number(form.porcentagem_professor) > 0 ? (
+                        <>
+                          <div className="flex items-center gap-2">
+                            <div className="w-2 h-2 rounded-full bg-emerald-500"></div>
+                            <span className="text-zinc-400">Professor: <span className="text-emerald-400 font-bold">{Number(form.porcentagem_professor)}%</span></span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <div className="w-2 h-2 rounded-full bg-blue-500"></div>
+                            <span className="text-zinc-400">Escola: <span className="text-blue-400 font-bold">{100 - Number(form.porcentagem_professor)}%</span></span>
+                          </div>
+                        </>
+                      ) : (
+                        <span className="text-zinc-600 italic">Defina o percentual ao lado</span>
+                      )}
+                    </div>
+                  </div>
+                  {Number(form.porcentagem_professor) > 0 && form.valor_mensal && (
+                    <div className="grid grid-cols-2 gap-2 pt-1 border-t border-zinc-800">
+                      <div className="text-center">
+                        <p className="text-[10px] text-zinc-500">Exemplo — mensalidade R$ {Number(form.valor_mensal).toFixed(2)}</p>
+                      </div>
+                      <div></div>
+                      <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-lg p-2 text-center">
+                        <p className="text-[10px] text-zinc-500 mb-0.5">Professor recebe</p>
+                        <p className="text-sm font-bold text-emerald-400">
+                          R$ {(Number(form.valor_mensal) * Number(form.porcentagem_professor) / 100).toFixed(2)}
+                        </p>
+                      </div>
+                      <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg p-2 text-center">
+                        <p className="text-[10px] text-zinc-500 mb-0.5">Escola fica</p>
+                        <p className="text-sm font-bold text-blue-400">
+                          R$ {(Number(form.valor_mensal) * (100 - Number(form.porcentagem_professor)) / 100).toFixed(2)}
+                        </p>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
                 <TextareaField label="Observações" value={form.observacoes} onChange={e => set('observacoes', e.target.value)} placeholder="Anotações internas sobre o professor..." />
               </>
             )}
