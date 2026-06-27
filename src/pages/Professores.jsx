@@ -488,6 +488,8 @@ function ModalProfessor({ professor, onClose, onSalvo, token, todosAlunos }) {
   const editando = !!professor?.id;
   const [aba, setAba] = useState('pessoal');
   const [salvando, setSalvando] = useState(false);
+  const [simMensalidade, setSimMensalidade] = useState(220);
+  const [simAulasProporcional, setSimAulasProporcional] = useState(2);
 
   const [form, setForm] = useState({
     nome: '', foto_url: '', cpf: '', rg: '', data_nascimento: '',
@@ -668,8 +670,12 @@ function ModalProfessor({ professor, onClose, onSalvo, token, todosAlunos }) {
                 </div>
 
                 {/* Bloco de repasse financeiro */}
-                <div className="bg-zinc-950 border border-zinc-800 rounded-xl p-4 space-y-3">
-                  <p className="text-xs font-bold text-zinc-400 uppercase tracking-wider">💰 Repasse Financeiro</p>
+                <div className="bg-zinc-950 border border-zinc-800 rounded-xl p-4 space-y-4">
+                  <div className="flex justify-between items-center">
+                    <p className="text-xs font-bold text-zinc-400 uppercase tracking-wider">💰 Repasse Financeiro & Simulador</p>
+                    <span className="text-[10px] bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-1.5 py-0.5 rounded-full">Base: 4 Aulas/Mês</span>
+                  </div>
+
                   <div className="grid grid-cols-2 gap-4 items-end">
                     <div>
                       <label className="text-xs font-bold text-zinc-500 uppercase tracking-wider">Repasse ao Professor (%)</label>
@@ -678,7 +684,7 @@ function ModalProfessor({ professor, onClose, onSalvo, token, todosAlunos }) {
                         min="0"
                         max="100"
                         step="0.5"
-                        placeholder="Ex: 60"
+                        placeholder="Ex: 50"
                         value={form.porcentagem_professor}
                         onChange={e => set('porcentagem_professor', e.target.value)}
                         className="w-full bg-zinc-900 border border-zinc-700 rounded-lg px-3 py-2 mt-1 outline-none focus:border-emerald-500 text-white text-sm transition-colors"
@@ -701,24 +707,78 @@ function ModalProfessor({ professor, onClose, onSalvo, token, todosAlunos }) {
                       )}
                     </div>
                   </div>
-                  {Number(form.porcentagem_professor) > 0 && form.valor_mensal && (
-                    <div className="grid grid-cols-2 gap-2 pt-1 border-t border-zinc-800">
-                      <div className="text-center">
-                        <p className="text-[10px] text-zinc-500">Exemplo — mensalidade R$ {Number(form.valor_mensal).toFixed(2)}</p>
+
+                  {Number(form.porcentagem_professor) > 0 && (
+                    <div className="pt-3 border-t border-zinc-800 space-y-3">
+                      <p className="text-[11px] font-bold text-zinc-500 uppercase tracking-wider">Simular Split por Aluno</p>
+                      
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <label className="text-[10px] font-bold text-zinc-500 uppercase">Mensalidade Cheia (R$)</label>
+                          <input
+                            type="number"
+                            min="0"
+                            value={simMensalidade}
+                            onChange={e => setSimMensalidade(Number(e.target.value))}
+                            className="w-full bg-zinc-900 border border-zinc-800 rounded-lg px-2 py-1 mt-1 outline-none text-white text-xs"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-[10px] font-bold text-zinc-500 uppercase">Aulas no mês de Entrada</label>
+                          <select
+                            value={simAulasProporcional}
+                            onChange={e => setSimAulasProporcional(Number(e.target.value))}
+                            className="w-full bg-zinc-900 border border-zinc-800 rounded-lg px-2 py-1 mt-1 outline-none text-white text-xs cursor-pointer"
+                          >
+                            <option value={1}>1 aula (Proporcional)</option>
+                            <option value={2}>2 aulas (Proporcional)</option>
+                            <option value={3}>3 aulas (Proporcional)</option>
+                            <option value={4}>4 aulas (Mês Cheio)</option>
+                          </select>
+                        </div>
                       </div>
-                      <div></div>
-                      <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-lg p-2 text-center">
-                        <p className="text-[10px] text-zinc-500 mb-0.5">Professor recebe</p>
-                        <p className="text-sm font-bold text-emerald-400">
-                          R$ {(Number(form.valor_mensal) * Number(form.porcentagem_professor) / 100).toFixed(2)}
-                        </p>
-                      </div>
-                      <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg p-2 text-center">
-                        <p className="text-[10px] text-zinc-500 mb-0.5">Escola fica</p>
-                        <p className="text-sm font-bold text-blue-400">
-                          R$ {(Number(form.valor_mensal) * (100 - Number(form.porcentagem_professor)) / 100).toFixed(2)}
-                        </p>
-                      </div>
+
+                      {/* Resultados da simulação */}
+                      {simMensalidade > 0 && (
+                        <div className="bg-zinc-900/60 rounded-xl p-3 border border-zinc-800 space-y-2 text-xs">
+                          <div className="flex justify-between items-center text-zinc-400 text-[10px] pb-1 border-b border-zinc-800/50">
+                            <span>Valor por aula unitária:</span>
+                            <span className="font-mono text-zinc-200">R$ {(simMensalidade / 4).toFixed(2)}</span>
+                          </div>
+
+                          {/* Caso 1: Mês Cheio */}
+                          <div>
+                            <p className="font-semibold text-zinc-300 text-[10px] mb-1">Cenário A: Mês Completo (4 aulas = R$ {Number(simMensalidade).toFixed(2)})</p>
+                            <div className="grid grid-cols-2 gap-2 text-center text-[10px]">
+                              <div className="bg-emerald-500/10 border border-emerald-500/20 rounded p-1.5">
+                                <span className="text-zinc-500 block">Professor recebe</span>
+                                <span className="font-bold text-emerald-400 font-mono">R$ {(simMensalidade * Number(form.porcentagem_professor) / 100).toFixed(2)}</span>
+                              </div>
+                              <div className="bg-blue-500/10 border border-blue-500/20 rounded p-1.5">
+                                <span className="text-zinc-500 block">Escola fica</span>
+                                <span className="font-bold text-blue-400 font-mono">R$ {(simMensalidade * (100 - Number(form.porcentagem_professor)) / 100).toFixed(2)}</span>
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Caso 2: Proporcional Escolhido */}
+                          <div>
+                            <p className="font-semibold text-zinc-300 text-[10px] mb-1">
+                              Cenário B: Mês de Entrada Proporcional ({simAulasProporcional} aula{simAulasProporcional !== 1 ? 's' : ''} = R$ {((simMensalidade / 4) * simAulasProporcional).toFixed(2)})
+                            </p>
+                            <div className="grid grid-cols-2 gap-2 text-center text-[10px]">
+                              <div className="bg-emerald-500/15 border border-emerald-500/30 rounded p-1.5">
+                                <span className="text-zinc-500 block">Professor recebe</span>
+                                <span className="font-bold text-emerald-400 font-mono">R$ {(((simMensalidade / 4) * simAulasProporcional) * Number(form.porcentagem_professor) / 100).toFixed(2)}</span>
+                              </div>
+                              <div className="bg-blue-500/15 border border-blue-500/30 rounded p-1.5">
+                                <span className="text-zinc-500 block">Escola fica</span>
+                                <span className="font-bold text-blue-400 font-mono">R$ {(((simMensalidade / 4) * simAulasProporcional) * (100 - Number(form.porcentagem_professor)) / 100).toFixed(2)}</span>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>

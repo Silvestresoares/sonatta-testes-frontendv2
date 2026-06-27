@@ -43,6 +43,7 @@ export default function Alunos() {
   const [horario, setHorario] = useState(''); 
   const [mensalidade, setMensalidade] = useState('');
   const [quantidadeAulas, setQuantidadeAulas] = useState('');
+  const [aulasMesEntrada, setAulasMesEntrada] = useState('4');
   const [statusMensalidade, setStatusMensalidade] = useState('Pendente');
   const [professorId, setProfessorId] = useState('');
   const [professores, setProfessores] = useState([]);
@@ -171,6 +172,7 @@ export default function Alunos() {
       horario: horario || '', 
       mensalidade: mensalidade ? Number(mensalidade) : 0,
       quantidade_aulas: quantidadeAulas ? parseInt(quantidadeAulas) : 4,
+      aulas_mes_entrada: aulasMesEntrada ? parseInt(aulasMesEntrada) : 4,
       status_mensalidade: statusMensalidade,
       professor_id: professorId ? Number(professorId) : null
     };
@@ -262,6 +264,7 @@ export default function Alunos() {
     
     setMensalidade(aluno.mensalidade || '');
     setQuantidadeAulas(aluno.quantidade_aulas?.toString() || '4');
+    setAulasMesEntrada(aluno.aulas_mes_entrada?.toString() || '4');
     setProfessorId(aluno.professor_id || '');
     setModalAberto(true);
   };
@@ -270,7 +273,7 @@ export default function Alunos() {
     setModalAberto(false);
     setIdSendoEditado(null);
     setNome(''); setCpf(''); setEmail(''); setTelefone(''); setDataMatricula(''); setPrimeiraAula(''); setMensalidade(''); setHorario(''); 
-    setInstrumento(''); setStatus('Ativo'); setDiaAula('Segunda'); setQuantidadeAulas(''); setStatusMensalidade('Pendente');
+    setInstrumento(''); setStatus('Ativo'); setDiaAula('Segunda'); setQuantidadeAulas(''); setAulasMesEntrada('4'); setStatusMensalidade('Pendente');
     setProfessorId('');
   };
 
@@ -559,15 +562,19 @@ export default function Alunos() {
                   </div>
                 </div>
 
-                {/* LINHA 2: Mensalidade, Quantidade de Aulas */}
-                <div className="col-span-2 grid grid-cols-2 gap-4">
+                {/* LINHA 2: Mensalidade, Quantidade de Aulas, Aulas Mês de Entrada */}
+                <div className="col-span-2 grid grid-cols-3 gap-4">
                   <div>
                     <label className="text-xs font-bold text-zinc-500 uppercase">Mensalidade</label>
                     <input type="number" step="0.01" placeholder="Ex: 250.00" value={mensalidade} onChange={e => setMensalidade(e.target.value)} className="w-full bg-zinc-950 border border-zinc-800 rounded-lg p-2 mt-1 outline-none focus:border-emerald-500 text-white text-sm" />
                   </div>
                   <div>
-                    <label className="text-xs font-bold text-zinc-500 uppercase">Quantidade de Aulas</label>
-                    <input type="number" min="1" value={quantidadeAulas} onChange={e => setQuantidadeAulas(e.target.value)} placeholder="Digite a quantidade..." className="w-full bg-zinc-950 border border-zinc-800 rounded-lg p-2 mt-1 outline-none focus:border-emerald-500 text-white text-sm" />
+                    <label className="text-xs font-bold text-zinc-500 uppercase">Aulas/Mês</label>
+                    <input type="number" min="1" value={quantidadeAulas} onChange={e => setQuantidadeAulas(e.target.value)} placeholder="Qtd..." className="w-full bg-zinc-950 border border-zinc-800 rounded-lg p-2 mt-1 outline-none focus:border-emerald-500 text-white text-sm" />
+                  </div>
+                  <div>
+                    <label className="text-xs font-bold text-zinc-500 uppercase">Aulas Entrada</label>
+                    <input type="number" min="1" max="4" value={aulasMesEntrada} onChange={e => setAulasMesEntrada(e.target.value)} placeholder="Qtd..." className="w-full bg-zinc-950 border border-zinc-800 rounded-lg p-2 mt-1 outline-none focus:border-emerald-500 text-white text-sm" />
                   </div>
                 </div>
 
