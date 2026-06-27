@@ -1,0 +1,218 @@
+import React, { useState, useEffect, useMemo } from 'react';
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+  PieChart,
+  Pie,
+  Legend,
+  Cell
+} from 'recharts';
+
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+const canalComunicacao = new BroadcastChannel('sonatta_updates');
+const canalSincronizacao = new BroadcastChannel('sonatta_sync');
+
+const CORES = ['#10b981', '#3b82f6', '#f59e0b', '#f43f5e', '#8b5cf6', '#ec4899', '#06b6d4', '#14b8a6'];
+
+export default function Dashboard() {
+  const [metricas, setMetricas] = useState({
+    alunosAtivos: 0,
+    receitasMes: 0,
+    despesasMes: 0,
+    saldoCaixa: 0,
+    dadosGraficoPizza: []
+  });
+
+  const [metricasProfessores, setMetricasProfessores] = useState({ total_professores: 0, professores_ativos: 0 });
+
+  const [carregando, setCarregando] = useState(true);
+
+  const carregarDadosDashboard = async () => {
+    const token = localStorage.getItem('@sonatta:token');
+    if (!token) return;
+
+    try {
+      setCarregando(true);
+      
+      // Carregar métricas gerais
+      const resposta = await fetch(`${API_URL}/api/dashboard`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      
+      if (!resposta.ok) throw new Error("Falha ao buscar métricas");
+      
+      const dados = await resposta.json();
+      setMetricas(dados);
+
+      // Carrega indicadores de professores em paralelo
+      try {
+        const resProf = await fetch(`${API_URL}/api/dashboard/professores`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (resProf.ok) setMetricasProfessores(await resProf.json());
+      } catch {}
+
+    } catch (erro) {
+      console.error("Erro ao carregar dashboard:", erro);
+    } finally {
+      setCarregando(false);
+    }
+  };
+
+  useEffect(() => {
+    carregarDadosDashboard();
+
+    // Escuta atualizações de outras páginas
+    const escutarCanal = (evento) => {
+      if (evento.data === 'atualizar_dados') {
+        carregarDadosDashboard();
+      }
+    };
+
+    // Escuta quando dashboard fica ativo
+    const escutarSincronizacao = (evento) => {
+      if (evento.data.tipo === 'muda_aba' && evento.data.aba === 'dashboard') {
+        carregarDadosDashboard();
+      }
+    };
+
+    canalComunicacao.addEventListener('message', escutarCanal);
+    canalSincronizacao.addEventListener('message', escutarSincronizacao);
+    
+    return () => {
+      canalComunicacao.removeEventListener('message', escutarCanal);
+      canalSincronizacao.removeEventListener('message', escutarSincronizacao);
+    };
+  }, []);
+
+  const dadosCaixa = useMemo(() => {
+    return [
+      { name: 'Receitas', value: Number(metricas.receitasMes) || 0, fill: '#10b981' },
+      { name: 'Despesas', value: Number(metricas.despesasMes) || 0, fill: '#f43f5e' }
+    ];
+  }, [metricas.receitasMes, metricas.despesasMes]);
+
+  const hasCaixaData = useMemo(() => {
+    return (Number(metricas.receitasMes) || 0) > 0 || (Number(metricas.despesasMes) || 0) > 0;
+  }, [metricas.receitasMes, metricas.despesasMes]);
+
+  const dadosGrafico = useMemo(() => {
+    return metricas.dadosGraficoPizza || [];
+  }, [metricas.dadosGraficoPizza]);
+
+  if (carregando) {
+    return <div className="flex-1 p-8 text-zinc-500">Carregando painel...</div>;
+  }
+
+  return (
+    <div className="flex-1 p-8 bg-zinc-950 text-white overflow-y-auto min-h-screen">
+      <div className="mb-8">
+        <h1 className="text-2xl font-bold tracking-tight">Painel de Controle</h1>
+        <p className="text-sm text-zinc-400 mt-1">Visão geral do desempenho e saúde financeira.</p>
+      </div>
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-6 mb-8">
+        <div className="bg-zinc-900 border border-zinc-800 p-5 rounded-xl">
+          <span className="text-xs font-semibold uppercase text-zinc-500 block mb-1">Alunos Ativos</span>
+          <span className="text-3xl font-bold text-zinc-100">{metricas.alunosAtivos}</span>
+        </div>
+        <div className="bg-zinc-900 border border-zinc-800 p-5 rounded-xl">
+          <span className="text-xs font-semibold uppercase text-zinc-500 block mb-1">Entradas (Mês)</span>
+          <span className="text-3xl font-bold text-emerald-400">R$ {Number(metricas.receitasMes).toFixed(2)}</span>
+        </div>
+        <div className="bg-zinc-900 border border-zinc-800 p-5 rounded-xl">
+          <span className="text-xs font-semibold uppercase text-zinc-500 block mb-1">Saídas (Mês)</span>
+          <span className="text-3xl font-bold text-rose-400">R$ {Number(metricas.despesasMes).toFixed(2)}</span>
+        </div>
+        <div className="bg-zinc-900 border border-zinc-800 p-5 rounded-xl">
+          <span className="text-xs font-semibold uppercase text-zinc-500 block mb-1">Saldo Acumulado</span>
+          <span className={`text-3xl font-bold ${metricas.saldoCaixa >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
+            R$ {Number(metricas.saldoCaixa).toFixed(2)}
+          </span>
+        </div>
+        <div className="bg-zinc-900 border border-zinc-800 p-5 rounded-xl">
+          <span className="text-xs font-semibold uppercase text-zinc-500 block mb-1">Professores</span>
+          <span className="text-3xl font-bold text-blue-400">{metricasProfessores.total_professores}</span>
+          <span className="text-xs text-zinc-600 block mt-1">{metricasProfessores.professores_ativos} ativo(s)</span>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Fluxo de Caixa */}
+        <div className="bg-zinc-900 border border-zinc-800 p-6 rounded-xl lg:col-span-2">
+          <h2 className="text-base font-semibold text-zinc-200 mb-6">Fluxo de Caixa do Mês</h2>
+          {!hasCaixaData ? (
+            <div className="flex items-center justify-center h-72 text-zinc-500 text-sm">
+              Sem movimentações financeiras este mês
+            </div>
+          ) : (
+            <div className="h-72 w-full">
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie
+                    data={dadosCaixa}
+                    cx="50%"
+                    cy="50%"
+                    innerRadius={60}
+                    outerRadius={80}
+                    paddingAngle={4}
+                    dataKey="value"
+                  >
+                    {dadosCaixa.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={entry.fill} />
+                    ))}
+                  </Pie>
+                  <Tooltip
+                    contentStyle={{ backgroundColor: '#18181b', border: '1px solid #27272a', borderRadius: '8px' }}
+                    itemStyle={{ color: '#fff' }}
+                    formatter={(value) => [`R$ ${Number(value).toFixed(2)}`]}
+                  />
+                  <Legend verticalAlign="bottom" height={36} iconType="circle" />
+                </PieChart>
+              </ResponsiveContainer>
+            </div>
+          )}
+        </div>
+
+        {/* Distribuição por Instrumento */}
+        <div className="bg-zinc-900 border border-zinc-800 p-6 rounded-xl">
+          <h2 className="text-base font-semibold text-zinc-200 mb-6">Alunos por Instrumento</h2>
+          {dadosGrafico.length === 0 ? (
+            <div className="flex items-center justify-center h-72 text-zinc-500 text-sm">
+              Sem dados de alunos ativos
+            </div>
+          ) : (
+            <div className="h-72 w-full">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart
+                  layout="vertical"
+                  data={dadosGrafico}
+                  margin={{ top: 5, right: 30, left: 10, bottom: 5 }}
+                >
+                  <CartesianGrid strokeDasharray="3 3" stroke="#27272a" horizontal={false} />
+                  <XAxis type="number" stroke="#71717a" tickLine={false} axisLine={false} allowDecimals={false} />
+                  <YAxis dataKey="name" type="category" stroke="#71717a" tickLine={false} axisLine={false} width={80} />
+                  <Tooltip
+                    contentStyle={{ backgroundColor: '#18181b', border: '1px solid #27272a', borderRadius: '8px' }}
+                    itemStyle={{ color: '#fff' }}
+                    formatter={(value) => [`${value} aluno(s)`, 'Quantidade']}
+                  />
+                  <Bar dataKey="value" radius={[0, 4, 4, 0]} barSize={16}>
+                    {dadosGrafico.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={CORES[index % CORES.length]} />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
