@@ -59,6 +59,7 @@ export default function Agenda() {
   const [isAgendamentoModalAberto, setIsAgendamentoModalAberto] = useState(false); // State for AgendamentoAulaModal
   const [aulaParaEditar, setAulaParaEditar] = useState(null); // State for editing special classes
   const [dataSelecionada, setDataSelecionada] = useState(new Date());
+  const [mesVisivel, setMesVisivel] = useState({ mes: new Date().getMonth() + 1, ano: new Date().getFullYear() });
 
   const token = localStorage.getItem('@sonatta:token');
 
@@ -83,9 +84,11 @@ export default function Agenda() {
   }, [token]);
 
   // Carregar registros de aula (para verificar se já tem presença registrada)
-  const carregarRegistros = useCallback(async () => {
+  const carregarRegistros = useCallback(async (mesParam, anoParam) => {
+    const queryMes = mesParam !== undefined ? mesParam : mesVisivel.mes;
+    const queryAno = anoParam !== undefined ? anoParam : mesVisivel.ano;
     try {
-      const resposta = await fetch(`${API_URL}/api/registros-aula`, {
+      const resposta = await fetch(`${API_URL}/api/registros-aula?mes=${queryMes}&ano=${queryAno}`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       if (resposta.ok) {
@@ -95,7 +98,16 @@ export default function Agenda() {
     } catch (erro) {
       console.error('Erro ao carregar registros:', erro);
     }
-  }, [token]);
+  }, [token, mesVisivel]);
+
+  const handleMesChange = useCallback((mes, ano) => {
+    setMesVisivel(prev => {
+      if (prev.mes === mes && prev.ano === ano) {
+        return prev;
+      }
+      return { mes, ano };
+    });
+  }, []);
 
   // Carregar aulas da tabela 'aulas' (onde ficam as extras/reposições da Sidebar)
   const carregarAulasAgendadas = useCallback(async () => {
@@ -142,15 +154,16 @@ export default function Agenda() {
     }
   }, [token]);
 
-  // Carregar dados ao montar
+  // Carregar dados iniciais ao montar
   useEffect(() => {
     carregarAlunos();
-    carregarRegistros();
     carregarExperimentais();
     carregarAulasAgendadas();
     carregarProfessores();
+  }, [carregarAlunos, carregarExperimentais, carregarAulasAgendadas, carregarProfessores]);
 
-    // Ouvir atualizações da Sidebar
+  // Ouvir atualizações da Sidebar / outros contextos
+  useEffect(() => {
     const handleUpdates = (evento) => {
       if (evento.data === 'atualizar_dados') {
         carregarAulasAgendadas();
@@ -161,7 +174,12 @@ export default function Agenda() {
 
     canalAtualizacao.addEventListener('message', handleUpdates);
     return () => canalAtualizacao.removeEventListener('message', handleUpdates);
-  }, [carregarAlunos, carregarRegistros, carregarExperimentais, carregarAulasAgendadas, carregarProfessores]);
+  }, [carregarAulasAgendadas, carregarRegistros, carregarProfessores]);
+
+  // Efeito específico para recarregar registros de aula quando o mês visível for alterado
+  useEffect(() => {
+    carregarRegistros();
+  }, [mesVisivel, carregarRegistros]);
 
   const nomeFeriado = useMemo(() => {
     return obterNomeFeriado(dataSelecionada);
@@ -383,6 +401,7 @@ export default function Agenda() {
                 <CalendarioVisual 
                   aulasDoMes={[...alunos, ...registros, ...experimentais, ...aulasAgendadas]} 
                   onDiaSelected={setDataSelecionada} 
+                  onMesChange={handleMesChange}
                 />
                 {!nomeFeriado && (
                   <div className="mt-6 text-center">

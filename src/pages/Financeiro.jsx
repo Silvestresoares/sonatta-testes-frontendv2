@@ -13,6 +13,18 @@ export default function Financeiro() {
   const [professoresFinanceiro, setProfessoresFinanceiro] = useState([]);
   const [carregandoProfessores, setCarregandoProfessores] = useState(false);
 
+  // Paginação Frontend
+  const [paginaAlunos, setPaginaAlunos] = useState(1);
+  const [paginaTransacoes, setPaginaTransacoes] = useState(1);
+  const limite = 20;
+
+  // Estados para Registro de Pagamento de Repasse (Professores)
+  const [modalRepasseAberto, setModalRepasseAberto] = useState(false);
+  const [professorSelecionado, setProfessorSelecionado] = useState(null);
+  const [formaPagamentoRepasse, setFormaPagamentoRepasse] = useState('Pix');
+  const [observacaoRepasse, setObservacaoRepasse] = useState('');
+  const [salvandoRepasse, setSalvandoRepasse] = useState(false);
+
   // Filtros de Data
   const agora = new Date();
   const mesAtualReal = agora.getMonth() + 1;
@@ -123,10 +135,56 @@ export default function Financeiro() {
       });
       const resultados = await Promise.all(promessas);
       setProfessoresFinanceiro(resultados.filter(r => r !== null));
-    } catch (erro) {
-      console.error("Erro ao buscar financeiro dos professores:", erro);
     } finally {
       setCarregandoProfessores(false);
+    }
+  };
+
+  const abrirModalRepasse = (profData) => {
+    setProfessorSelecionado(profData);
+    setFormaPagamentoRepasse('Pix');
+    setObservacaoRepasse('');
+    setModalRepasseAberto(true);
+  };
+
+  const registrarPagamentoRepasse = async () => {
+    if (!professorSelecionado) return;
+    setSalvandoRepasse(true);
+    const token = localStorage.getItem('@sonatta:token');
+    try {
+      const prof = professorSelecionado.professor;
+      const valor = professorSelecionado.tipo_remuneracao === 'comissao'
+        ? professorSelecionado.repasse_pendente_valor
+        : professorSelecionado.total_a_pagar;
+
+      const resposta = await fetch(`${API_URL}/api/professores/${prof.id}/repasse/pagar`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          mes: mesFiltro,
+          ano: anoFiltro,
+          forma_pagamento: formaPagamentoRepasse,
+          observacao: observacaoRepasse,
+          valor
+        })
+      });
+
+      if (resposta.ok) {
+        setModalRepasseAberto(false);
+        setProfessorSelecionado(null);
+        carregarFinanceiroProfessores();
+        canalComunicacao.postMessage('atualizar_dados');
+      } else {
+        const err = await resposta.json();
+        alert(err.erro || 'Erro ao registrar pagamento.');
+      }
+    } catch (erro) {
+      alert('Erro de conexão ao registrar pagamento.');
+    } finally {
+      setSalvandoRepasse(false);
     }
   };
 
@@ -142,6 +200,12 @@ export default function Financeiro() {
       setAbaSelecionada('lancamentos');
     }
   }, [isMesAtual, abaSelecionada]);
+
+  // Resetar páginas ao trocar de aba ou mês
+  useEffect(() => {
+    setPaginaAlunos(1);
+    setPaginaTransacoes(1);
+  }, [abaSelecionada, mesFiltro, anoFiltro]);
 
   useEffect(() => {
     // Escuta mensagens de outras páginas
@@ -354,6 +418,13 @@ export default function Financeiro() {
   
   const saldoTotal = receitasOutros + mensalidadesPagas - despesasOutros;
 
+  // Lógica de Paginação Local
+  const alunosPaginados = alunos.slice((paginaAlunos - 1) * limite, paginaAlunos * limite);
+  const totalPaginasAlunos = Math.ceil(alunos.length / limite) || 1;
+
+  const transacoesPaginadas = transacoes.slice((paginaTransacoes - 1) * limite, paginaTransacoes * limite);
+  const totalPaginasTransacoes = Math.ceil(transacoes.length / limite) || 1;
+
   return (
     <div className="flex-1 p-8 bg-zinc-950 text-white min-h-screen">
       {/* Cabeçalho */}
@@ -486,7 +557,7 @@ export default function Financeiro() {
                       </tr>
                     </thead>
                     <tbody>
-                      {alunos.map((aluno) => (
+                      {alunosPaginados.map((aluno) => (
                         <tr key={aluno.id} className="border-b border-zinc-800/50 hover:bg-zinc-800/20">
                           <td className="p-4 text-zinc-200">{aluno.nome}</td>
                           <td className="p-4 text-zinc-400">{aluno.instrumento || '—'}</td>
@@ -531,6 +602,31 @@ export default function Financeiro() {
                   <p className="text-lg">📭 Nenhum aluno ativo com mensalidade registrada.</p>
                 </div>
               )}
+
+              {/* Controles de Paginação - Alunos */}
+              {totalPaginasAlunos > 1 && (
+                <div className="flex justify-between items-center bg-zinc-950 border-t border-zinc-800 p-4">
+                  <div className="text-xs text-zinc-500">
+                    Página <span className="font-bold text-white">{paginaAlunos}</span> de <span className="font-bold text-white">{totalPaginasAlunos}</span>
+                  </div>
+                  <div className="flex gap-2">
+                    <button 
+                      onClick={() => setPaginaAlunos(p => Math.max(p - 1, 1))}
+                      disabled={paginaAlunos === 1}
+                      className="px-3 py-1 bg-zinc-900 border border-zinc-700 rounded text-xs hover:bg-zinc-800 disabled:opacity-50"
+                    >
+                      Anterior
+                    </button>
+                    <button 
+                      onClick={() => setPaginaAlunos(p => Math.min(p + 1, totalPaginasAlunos))}
+                      disabled={paginaAlunos === totalPaginasAlunos}
+                      className="px-3 py-1 bg-zinc-900 border border-zinc-700 rounded text-xs hover:bg-zinc-800 disabled:opacity-50"
+                    >
+                      Próxima
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
@@ -551,7 +647,7 @@ export default function Financeiro() {
                       </tr>
                     </thead>
                     <tbody>
-                      {transacoes.map((t) => (
+                      {transacoesPaginadas.map((t) => (
                         <tr key={t.id} className="border-b border-zinc-800/50 hover:bg-zinc-800/20">
                           <td className="p-4 text-zinc-200">{t.descricao}</td>
                           <td className="p-4 text-center">
@@ -612,6 +708,31 @@ export default function Financeiro() {
                   <p className="text-lg">📭 Nenhum outro lançamento registrado.</p>
                 </div>
               )}
+
+              {/* Controles de Paginação - Transações */}
+              {totalPaginasTransacoes > 1 && (
+                <div className="flex justify-between items-center bg-zinc-950 border-t border-zinc-800 p-4">
+                  <div className="text-xs text-zinc-500">
+                    Página <span className="font-bold text-white">{paginaTransacoes}</span> de <span className="font-bold text-white">{totalPaginasTransacoes}</span>
+                  </div>
+                  <div className="flex gap-2">
+                    <button 
+                      onClick={() => setPaginaTransacoes(p => Math.max(p - 1, 1))}
+                      disabled={paginaTransacoes === 1}
+                      className="px-3 py-1 bg-zinc-900 border border-zinc-700 rounded text-xs hover:bg-zinc-800 disabled:opacity-50"
+                    >
+                      Anterior
+                    </button>
+                    <button 
+                      onClick={() => setPaginaTransacoes(p => Math.min(p + 1, totalPaginasTransacoes))}
+                      disabled={paginaTransacoes === totalPaginasTransacoes}
+                      className="px-3 py-1 bg-zinc-900 border border-zinc-700 rounded text-xs hover:bg-zinc-800 disabled:opacity-50"
+                    >
+                      Próxima
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
@@ -632,28 +753,71 @@ export default function Financeiro() {
                         <th className="text-right p-4 font-semibold">Valor Base</th>
                         <th className="text-center p-4 font-semibold">Alunos</th>
                         <th className="text-center p-4 font-semibold">Aulas Ministradas</th>
-                        <th className="text-right p-4 font-semibold">A pagar estimado</th>
+                        <th className="text-right p-4 font-semibold">Valor a Pagar</th>
+                        <th className="text-center p-4 font-semibold">Status</th>
+                        <th className="text-center p-4 font-semibold">Ação</th>
                       </tr>
                     </thead>
                     <tbody>
                       {professoresFinanceiro.map((profData) => {
                         const prof = profData.professor;
-                        const totalPagar = Number(profData.valor_mensal || 0) + Number(profData.total_por_hora || 0);
+                        const totalPagar = Number(profData.total_a_pagar || 0);
+                        const status = profData.repasse_status || 'pendente';
                         return (
                           <tr key={prof.id} className="border-b border-zinc-800/50 hover:bg-zinc-800/20">
-                            <td className="p-4 text-zinc-200 font-medium">{prof.nome}</td>
+                            <td className="p-4 text-zinc-200 font-medium">
+                              {prof.nome}
+                              {profData.pagamento_detalhes && (
+                                <div className="text-[10px] text-zinc-500 font-normal mt-0.5">
+                                  Obs: {profData.pagamento_detalhes.observacao || 'Sem obs.'}
+                                </div>
+                              )}
+                            </td>
                             <td className="p-4 text-zinc-400">{prof.instrumento_principal || '—'}</td>
-                            <td className="p-4 text-right text-zinc-400">
-                              <div className="text-xs">Hora: R$ {Number(profData.valor_hora || 0).toFixed(2)}</div>
-                              <div className="text-[10px] text-zinc-500">Fixo: R$ {Number(profData.valor_mensal || 0).toFixed(2)}</div>
+                            <td className="p-4 text-right text-zinc-400 text-xs">
+                              {prof.tipo_remuneracao === 'mensalista' && (
+                                <div>Fixo: R$ {Number(profData.valor_mensal || 0).toFixed(2)}</div>
+                              )}
+                              {prof.tipo_remuneracao === 'horista' && (
+                                <div>Hora: R$ {Number(profData.valor_hora || 0).toFixed(2)}</div>
+                              )}
+                              {prof.tipo_remuneracao === 'comissao' && (
+                                <div>Comissão: {Number(profData.porcentagem_professor || 0)}%</div>
+                              )}
                             </td>
                             <td className="p-4 text-center text-zinc-300">{profData.total_alunos}</td>
                             <td className="p-4 text-center text-zinc-300">{profData.total_aulas}</td>
-                            <td className="p-4 text-right text-emerald-400 font-bold">
+                            <td className="p-4 text-right text-emerald-400 font-bold font-mono">
                               R$ {totalPagar.toFixed(2)}
-                              <div className="text-[10px] text-zinc-500 font-normal">
-                                (Hora: R$ {Number(profData.total_por_hora || 0).toFixed(2)})
-                              </div>
+                            </td>
+                            <td className="p-4 text-center">
+                              <span className={`text-xs font-bold px-2.5 py-1 rounded-full border ${
+                                status === 'pago'
+                                  ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
+                                  : status === 'parcial'
+                                  ? 'bg-amber-500/10 text-amber-400 border-amber-500/20'
+                                  : 'bg-zinc-800 text-zinc-400 border-zinc-700/30'
+                              }`}>
+                                {status === 'pago' ? 'Pago' : status === 'parcial' ? 'Parcial' : 'Pendente'}
+                              </span>
+                            </td>
+                            <td className="p-4 text-center">
+                              {status !== 'pago' ? (
+                                <button
+                                  type="button"
+                                  onClick={() => abrirModalRepasse(profData)}
+                                  className="bg-emerald-600/30 text-emerald-300 hover:bg-emerald-600/50 px-3 py-1.5 text-xs font-medium rounded transition-all cursor-pointer"
+                                >
+                                  Pagar Repasse
+                                </button>
+                              ) : (
+                                <span className="text-[10px] text-zinc-500">
+                                  {profData.pagamento_detalhes?.forma || 'Pago'}
+                                  {profData.pagamento_detalhes?.data && (
+                                    <span> · {new Date(profData.pagamento_detalhes.data).toLocaleDateString('pt-BR')}</span>
+                                  )}
+                                </span>
+                              )}
                             </td>
                           </tr>
                         );
@@ -750,6 +914,89 @@ export default function Financeiro() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+      {/* MODAL DE PAGAMENTO DE REPASSE (PROFESSOR) */}
+      {modalRepasseAberto && professorSelecionado && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-zinc-900 border border-zinc-800 rounded-2xl w-full max-w-md overflow-hidden shadow-2xl">
+            <div className="p-6 border-b border-zinc-800 flex justify-between items-center bg-zinc-950/40">
+              <h2 className="text-lg font-bold">💰 Registrar Pagamento de Repasse</h2>
+              <button 
+                onClick={() => { setModalRepasseAberto(false); setProfessorSelecionado(null); }} 
+                className="text-zinc-500 hover:text-white text-xl cursor-pointer"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="p-6 space-y-4">
+              <div>
+                <label className="block text-xs font-semibold text-zinc-400 uppercase mb-2">Professor</label>
+                <input 
+                  type="text" readOnly value={professorSelecionado.professor.nome} 
+                  className="w-full bg-zinc-950/50 border border-zinc-800 rounded-lg px-3 py-2 text-sm text-zinc-400 focus:outline-none"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-semibold text-zinc-400 uppercase mb-2">Valor a Pagar</label>
+                  <div className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-sm text-emerald-400 font-bold font-mono">
+                    R$ {Number(
+                      professorSelecionado.tipo_remuneracao === 'comissao'
+                        ? professorSelecionado.repasse_pendente_valor
+                        : professorSelecionado.total_a_pagar
+                    ).toFixed(2)}
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-zinc-400 uppercase mb-2">Forma de Pagamento</label>
+                  <select 
+                    value={formaPagamentoRepasse} 
+                    onChange={e => setFormaPagamentoRepasse(e.target.value)} 
+                    className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-sky-500 cursor-pointer"
+                  >
+                    <option value="Pix">Pix</option>
+                    <option value="Dinheiro">Dinheiro</option>
+                    <option value="Transferência">Transferência Bancária</option>
+                    <option value="Cartão">Cartão</option>
+                    <option value="Outro">Outro</option>
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-zinc-400 uppercase mb-2">Observações / Referência</label>
+                <textarea
+                  value={observacaoRepasse}
+                  onChange={e => setObservacaoRepasse(e.target.value)}
+                  placeholder="Ex: Transferência Pix banco da escola."
+                  rows="3"
+                  className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-sm text-zinc-200 focus:outline-none focus:border-sky-500 resize-none"
+                />
+              </div>
+
+              <div className="pt-4 border-t border-zinc-800 flex justify-end gap-3">
+                <button 
+                  type="button" 
+                  onClick={() => { setModalRepasseAberto(false); setProfessorSelecionado(null); }}
+                  className="px-4 py-2 text-sm font-medium text-zinc-400 hover:text-white transition-all cursor-pointer"
+                >
+                  Cancelar
+                </button>
+                <button 
+                  type="button" 
+                  onClick={registrarPagamentoRepasse}
+                  disabled={salvandoRepasse}
+                  className="bg-emerald-600 hover:bg-emerald-700 disabled:bg-emerald-800 text-white font-medium px-4 py-2 rounded-lg text-sm transition-all cursor-pointer"
+                >
+                  {salvandoRepasse ? 'Registrando...' : 'Confirmar Pagamento'}
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}

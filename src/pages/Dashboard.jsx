@@ -29,6 +29,7 @@ export default function Dashboard() {
   });
 
   const [metricasProfessores, setMetricasProfessores] = useState({ total_professores: 0, professores_ativos: 0 });
+  const [alertasFrequencia, setAlertasFrequencia] = useState([]);
 
   const [carregando, setCarregando] = useState(true);
 
@@ -55,6 +56,22 @@ export default function Dashboard() {
           headers: { 'Authorization': `Bearer ${token}` }
         });
         if (resProf.ok) setMetricasProfessores(await resProf.json());
+      } catch {}
+
+      // Carrega alertas de frequência em paralelo
+      try {
+        const resFreq = await fetch(`${API_URL}/api/frequencia/frequencia-turma`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (resFreq.ok) {
+          const dadosFreq = await resFreq.json();
+          if (dadosFreq.turma) {
+            const alunosEmAlerta = dadosFreq.turma.filter(a => a.status_alerta === 'BAIXA_FREQUENCIA' || a.status_alerta === 'ATENCAO');
+            // Ordenar por menor frequência primeiro
+            alunosEmAlerta.sort((a, b) => a.percentual_frequencia - b.percentual_frequencia);
+            setAlertasFrequencia(alunosEmAlerta);
+          }
+        }
       } catch {}
 
     } catch (erro) {
@@ -143,40 +160,82 @@ export default function Dashboard() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Fluxo de Caixa */}
+        {/* Evolução Financeira (Últimos 6 meses) */}
         <div className="bg-zinc-900 border border-zinc-800 p-6 rounded-xl lg:col-span-2">
-          <h2 className="text-base font-semibold text-zinc-200 mb-6">Fluxo de Caixa do Mês</h2>
-          {!hasCaixaData ? (
+          <h2 className="text-base font-semibold text-zinc-200 mb-6">Evolução Financeira (Últimos 6 meses)</h2>
+          {!metricas.dadosGraficoBarras || metricas.dadosGraficoBarras.length === 0 ? (
             <div className="flex items-center justify-center h-72 text-zinc-500 text-sm">
               Sem movimentações financeiras este mês
             </div>
           ) : (
             <div className="h-72 w-full">
               <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Pie
-                    data={dadosCaixa}
-                    cx="50%"
-                    cy="50%"
-                    innerRadius={60}
-                    outerRadius={80}
-                    paddingAngle={4}
-                    dataKey="value"
-                  >
-                    {dadosCaixa.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={entry.fill} />
-                    ))}
-                  </Pie>
-                  <Tooltip
+                <BarChart data={metricas.dadosGraficoBarras} margin={{ top: 20, right: 30, left: 0, bottom: 5 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#27272a" vertical={false} />
+                  <XAxis dataKey="name" stroke="#71717a" tickLine={false} axisLine={false} />
+                  <YAxis stroke="#71717a" tickLine={false} axisLine={false} tickFormatter={(value) => `R$${value}`} />
+                  <Tooltip 
                     contentStyle={{ backgroundColor: '#18181b', border: '1px solid #27272a', borderRadius: '8px' }}
                     itemStyle={{ color: '#fff' }}
                     formatter={(value) => [`R$ ${Number(value).toFixed(2)}`]}
                   />
-                  <Legend verticalAlign="bottom" height={36} iconType="circle" />
-                </PieChart>
+                  <Legend verticalAlign="top" height={36} iconType="circle" />
+                  <Bar dataKey="Receitas" fill="#10b981" radius={[4, 4, 0, 0]} barSize={32} />
+                  <Bar dataKey="Despesas" fill="#f43f5e" radius={[4, 4, 0, 0]} barSize={32} />
+                </BarChart>
               </ResponsiveContainer>
             </div>
           )}
+        </div>
+
+        {/* Alertas de Frequência */}
+        <div className="bg-zinc-900 border border-zinc-800 p-6 rounded-xl flex flex-col h-full">
+          <div className="flex items-center justify-between mb-6">
+            <h2 className="text-base font-semibold text-zinc-200 flex items-center gap-2">
+              <span className="text-amber-500">⚠️</span> Alertas de Frequência
+            </h2>
+            <span className="text-xs font-semibold bg-zinc-800 text-zinc-300 px-2 py-1 rounded-full">
+              {alertasFrequencia.length}
+            </span>
+          </div>
+          
+          <div className="flex-1 overflow-y-auto pr-2 -mr-2 space-y-3">
+            {alertasFrequencia.length === 0 ? (
+              <div className="flex items-center justify-center h-48 text-zinc-500 text-sm text-center">
+                Todos os alunos com frequência regular!
+              </div>
+            ) : (
+              alertasFrequencia.map(aluno => (
+                <div key={aluno.id} className="bg-zinc-950 border border-zinc-800 p-3 rounded-lg flex flex-col gap-2">
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <h3 className="text-sm font-bold text-zinc-200">{aluno.nome}</h3>
+                      <p className="text-xs text-zinc-500">{aluno.instrumento || 'Instrumento não definido'}</p>
+                    </div>
+                    <span className={`text-[10px] font-bold px-2 py-1 rounded-full ${
+                      aluno.status_alerta === 'BAIXA_FREQUENCIA' 
+                        ? 'bg-rose-900/30 text-rose-400 border border-rose-800/50' 
+                        : 'bg-amber-900/30 text-amber-400 border border-amber-800/50'
+                    }`}>
+                      {aluno.percentual_frequencia}% freq.
+                    </span>
+                  </div>
+                  
+                  <div className="flex items-center justify-between mt-1 pt-2 border-t border-zinc-800/50">
+                    <div className="text-[10px] text-zinc-400">
+                      {aluno.ausentes} faltas em {aluno.total_aulas} aulas
+                    </div>
+                    <button 
+                      onClick={() => window.location.href = '/alunos'}
+                      className="text-xs text-emerald-400 hover:text-emerald-300 font-medium transition-colors"
+                    >
+                      Ver Perfil &rarr;
+                    </button>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
         </div>
 
         {/* Distribuição por Instrumento */}

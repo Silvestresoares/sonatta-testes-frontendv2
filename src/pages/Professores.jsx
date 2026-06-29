@@ -298,6 +298,9 @@ function AbaFinanceiro({ professorId, token }) {
   const [dados, setDados] = useState(null);
   const [carregando, setCarregando] = useState(false);
   const [expandirAlunos, setExpandirAlunos] = useState(false);
+  const [pagarModal, setPagarModal] = useState(false);
+  const [formPagamento, setFormPagamento] = useState({ forma_pagamento: 'Pix', valor: '', observacao: '' });
+  const [salvandoPagamento, setSalvandoPagamento] = useState(false);
 
   const carregar = async () => {
     setCarregando(true);
@@ -311,7 +314,44 @@ function AbaFinanceiro({ professorId, token }) {
     setCarregando(false);
   };
 
-  useEffect(() => { if (professorId) carregar(); }, [professorId, mesFiltro, anoFiltro]);
+  const registrarPagamento = async () => {
+    if (!formPagamento.forma_pagamento) return alert('Forma de pagamento é obrigatória.');
+    setSalvandoPagamento(true);
+    try {
+      const r = await fetch(
+        `${API_URL}/api/professores/${professorId}/repasse/pagar`,
+        {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+          body: JSON.stringify({
+            mes: mesFiltro,
+            ano: anoFiltro,
+            forma_pagamento: formPagamento.forma_pagamento,
+            observacao: formPagamento.observacao,
+            valor: Number(formPagamento.valor) || dados?.total_a_pagar || 0,
+          }),
+        }
+      );
+      if (r.ok) {
+        setPagarModal(false);
+        setFormPagamento({ forma_pagamento: 'Pix', valor: '', observacao: '' });
+        await carregar();
+      } else {
+        const err = await r.json();
+        alert(`Erro: ${err.erro || 'Erro desconhecido'}`);
+      }
+    } catch {
+      alert('Erro de conexão com o servidor.');
+    }
+    setSalvandoPagamento(false);
+  };
+
+  useEffect(() => {
+    if (professorId) {
+      setPagarModal(false);
+      carregar();
+    }
+  }, [professorId, mesFiltro, anoFiltro]);
 
   const anos = Array.from({ length: 5 }, (_, i) => hoje.getFullYear() - 2 + i);
   const fmt = (v) => `R$ ${Number(v || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -341,90 +381,213 @@ function AbaFinanceiro({ professorId, token }) {
       ) : dados ? (
         <div className="space-y-4">
 
-          {/* Configuração do repasse */}
-          <div className="bg-zinc-800/30 border border-zinc-700/40 rounded-xl p-3 flex items-center justify-between">
-            <div className="text-xs text-zinc-400">
-              <span className="text-zinc-500">Repasse configurado: </span>
-              <span className="font-bold text-emerald-400">{dados.porcentagem_professor}% professor</span>
-              <span className="text-zinc-600"> / </span>
-              <span className="font-bold text-blue-400">{dados.porcentagem_escola}% escola</span>
-            </div>
-            <div className="text-xs text-zinc-500">
-              {dados.total_alunos} aluno(s) · {dados.total_aulas} aulas
-            </div>
-          </div>
-
-          {/* Valor por aula */}
-          {dados.alunos?.length > 0 && (
-            <div className="bg-zinc-800/20 border border-zinc-700/30 rounded-lg px-3 py-2 text-xs text-zinc-400 flex justify-between">
-              <span>Valor por aula (base):</span>
-              <span className="text-zinc-200 font-mono">
-                {fmt(dados.alunos[0]?.valor_por_aula)}
-                {dados.alunos.length > 1 && <span className="text-zinc-600 ml-1">(varia por aluno)</span>}
+          {/* Cabeçalho: Modelo + Total a Pagar */}
+          <div className="bg-emerald-900/20 border border-emerald-500/30 rounded-xl p-4 flex flex-col gap-2">
+            <div className="flex justify-between items-center">
+              <span className="text-xs text-zinc-400">
+                Modelo: <span className="font-bold text-emerald-400 uppercase">{dados.tipo_remuneracao}</span>
               </span>
+              <span className="text-xs text-zinc-500">{MESES[mesFiltro - 1]} / {anoFiltro}</span>
+            </div>
+            <div className="flex justify-between items-end mt-1">
+              <span className="text-xs text-zinc-500">Total a Pagar (Mês)</span>
+              <span className="text-2xl font-bold text-emerald-400 font-mono">{fmt(dados.total_a_pagar)}</span>
+            </div>
+            {dados.tipo_remuneracao === 'comissao' && (
+              <div className="text-[10px] text-zinc-600 text-right">
+                Baseado nos pagamentos de mensalidades já realizados (status Pago).
+              </div>
+            )}
+            {dados.tipo_remuneracao === 'horista' && (
+              <div className="text-[10px] text-zinc-600 text-right">
+                {dados.total_aulas} aulas válidas × {fmt(dados.valor_hora)}/aula
+              </div>
+            )}
+            {dados.tipo_remuneracao === 'mensalista' && (
+              <div className="text-[10px] text-zinc-600 text-right">
+                Valor fixo mensal — independente de aulas realizadas.
+              </div>
+            )}
+
+            {/* Status do repasse consolidado */}
+            <div className="flex justify-between items-center mt-2 pt-2 border-t border-zinc-800/40">
+              <span className="text-xs text-zinc-400 font-medium">Status do Repasse</span>
+              <div className="flex items-center gap-2">
+                <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold border ${
+                  dados.repasse_status === 'pago'
+                    ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
+                    : dados.repasse_status === 'parcial'
+                    ? 'bg-amber-500/10 text-amber-400 border-amber-500/20'
+                    : 'bg-zinc-800 text-zinc-400 border-zinc-700/30'
+                }`}>
+                  {dados.repasse_status === 'pago' ? '✅ Pago' : dados.repasse_status === 'parcial' ? '🟠 Parcial' : '🟡 Pendente'}
+                </span>
+              </div>
+            </div>
+
+            {/* Detalhes do Pagamento se houver */}
+            {dados.pagamento_detalhes && (
+              <div className="mt-2 text-[10px] text-zinc-400 bg-zinc-950/40 p-2 rounded border border-zinc-800/40">
+                <p>📅 Pago em: <span className="font-mono text-zinc-200">{new Date(dados.pagamento_detalhes.data).toLocaleDateString('pt-BR')}</span></p>
+                <p>💳 Forma: <span className="font-medium text-zinc-200">{dados.pagamento_detalhes.forma}</span></p>
+                {dados.pagamento_detalhes.observacao && (
+                  <p>📝 Obs: <span className="text-zinc-300 italic">{dados.pagamento_detalhes.observacao}</span></p>
+                )}
+              </div>
+            )}
+
+            {/* Botão / Formulário de Pagamento de Repasse */}
+            {dados.repasse_status !== 'pago' && (
+              <div className="mt-1">
+                {!pagarModal ? (
+                  <button
+                    type="button"
+                    onClick={() => setPagarModal(true)}
+                    className="w-full bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold py-2 px-4 rounded-lg transition-all"
+                  >
+                    💰 Registrar Pagamento
+                  </button>
+                ) : (
+                  <div className="bg-zinc-950/70 border border-emerald-500/30 rounded-xl p-4 space-y-3">
+                    <p className="text-xs font-bold text-emerald-400 uppercase tracking-wide">Registrar Pagamento</p>
+                    <div>
+                      <label className="text-[10px] font-bold text-zinc-500 uppercase">Forma de Pagamento</label>
+                      <select
+                        value={formPagamento.forma_pagamento}
+                        onChange={e => setFormPagamento(f => ({ ...f, forma_pagamento: e.target.value }))}
+                        className="w-full bg-zinc-900 border border-zinc-700 rounded-lg px-3 py-2 mt-1 text-sm text-white outline-none focus:border-emerald-500"
+                      >
+                        <option>Pix</option>
+                        <option>Dinheiro</option>
+                        <option>Transferência</option>
+                        <option>Boleto</option>
+                        <option>Cartão</option>
+                      </select>
+                    </div>
+                    {(dados.tipo_remuneracao === 'horista' || dados.tipo_remuneracao === 'mensalista') && (
+                      <div>
+                        <label className="text-[10px] font-bold text-zinc-500 uppercase">Valor (R$)</label>
+                        <input
+                          type="number"
+                          step="0.01"
+                          min="0"
+                          placeholder={String(Number(dados.total_a_pagar || 0).toFixed(2))}
+                          value={formPagamento.valor}
+                          onChange={e => setFormPagamento(f => ({ ...f, valor: e.target.value }))}
+                          className="w-full bg-zinc-900 border border-zinc-700 rounded-lg px-3 py-2 mt-1 text-sm text-white outline-none focus:border-emerald-500"
+                        />
+                      </div>
+                    )}
+                    <div>
+                      <label className="text-[10px] font-bold text-zinc-500 uppercase">Observação (opcional)</label>
+                      <input
+                        type="text"
+                        placeholder="Ex: Pago via app..."
+                        value={formPagamento.observacao}
+                        onChange={e => setFormPagamento(f => ({ ...f, observacao: e.target.value }))}
+                        className="w-full bg-zinc-900 border border-zinc-700 rounded-lg px-3 py-2 mt-1 text-sm text-white outline-none focus:border-emerald-500"
+                      />
+                    </div>
+                    <div className="flex gap-2 pt-1">
+                      <button
+                        type="button"
+                        onClick={() => setPagarModal(false)}
+                        className="flex-1 text-zinc-500 hover:text-white text-xs py-2 rounded-lg border border-zinc-700 hover:border-zinc-600 transition-all"
+                      >
+                        Cancelar
+                      </button>
+                      <button
+                        type="button"
+                        onClick={registrarPagamento}
+                        disabled={salvandoPagamento}
+                        className="flex-1 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white text-xs font-bold py-2 rounded-lg transition-all"
+                      >
+                        {salvandoPagamento ? 'Registrando...' : 'Confirmar Pagamento'}
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
+
+          {/* Comissão: Resumo Previsto x Recebido */}
+          {dados.tipo_remuneracao === 'comissao' && (
+            <div className="grid grid-cols-2 gap-3">
+              {/* Previsto */}
+              <div className="bg-zinc-800/40 border border-zinc-700/30 rounded-xl overflow-hidden">
+                <div className="px-3 py-2 border-b border-zinc-700/30">
+                  <p className="text-[10px] font-bold text-zinc-500 uppercase">📋 Previsto</p>
+                  <p className="text-base font-bold text-zinc-100 font-mono mt-0.5">{fmt(dados.total_previsto_professor)}</p>
+                  <p className="text-[10px] text-zinc-600">de {fmt(dados.total_previsto)} total</p>
+                </div>
+                <div className="px-3 py-1.5 flex justify-between text-[10px]">
+                  <span className="text-zinc-500">Escola fica</span>
+                  <span className="text-blue-400 font-mono">{fmt(dados.total_previsto_escola)}</span>
+                </div>
+              </div>
+              {/* Recebido */}
+              <div className="bg-zinc-800/40 border border-zinc-700/30 rounded-xl overflow-hidden">
+                <div className="px-3 py-2 border-b border-zinc-700/30">
+                  <p className="text-[10px] font-bold text-zinc-500 uppercase">✅ Recebido</p>
+                  <p className="text-base font-bold text-emerald-400 font-mono mt-0.5">{fmt(dados.total_recebido_professor)}</p>
+                  <p className="text-[10px] text-zinc-600">de {fmt(dados.total_recebido)} pago</p>
+                </div>
+                <div className="px-3 py-1.5 flex justify-between text-[10px]">
+                  <span className="text-zinc-500">Escola recebeu</span>
+                  <span className="text-blue-400 font-mono">{fmt(dados.total_recebido_escola)}</span>
+                </div>
+              </div>
             </div>
           )}
 
-          {/* Cards de Previsto */}
-          <div>
-            <p className="text-xs font-bold text-zinc-500 uppercase mb-2">📋 Receita Prevista</p>
-            <div className="bg-zinc-800/40 border border-zinc-700/30 rounded-xl overflow-hidden">
-              <div className="flex items-center justify-between px-4 py-3 border-b border-zinc-700/30">
-                <span className="text-sm text-zinc-300">Total</span>
-                <span className="text-sm font-bold text-zinc-100">{fmt(dados.total_previsto)}</span>
+          {/* Horista: resumo de horas */}
+          {dados.tipo_remuneracao === 'horista' && (
+            <div className="bg-zinc-800/40 border border-zinc-700/30 rounded-xl px-4 py-3 flex justify-between items-center">
+              <div>
+                <p className="text-xs text-zinc-500">Aulas válidas no período</p>
+                <p className="text-2xl font-bold text-amber-400 font-mono">{dados.total_aulas}</p>
               </div>
-              <div className="flex items-center justify-between px-4 py-2.5">
-                <div className="flex items-center gap-2">
-                  <div className="w-2 h-2 rounded-full bg-emerald-500"></div>
-                  <span className="text-xs text-zinc-400">Professor ({dados.porcentagem_professor}%)</span>
-                </div>
-                <span className="text-xs font-mono font-bold text-emerald-400">{fmt(dados.total_previsto_professor)}</span>
+              <div className="text-right">
+                <p className="text-xs text-zinc-500">Valor por aula</p>
+                <p className="text-base font-bold text-zinc-200 font-mono">{fmt(dados.valor_hora)}</p>
               </div>
-              <div className="flex items-center justify-between px-4 py-2.5 border-t border-zinc-800/50">
-                <div className="flex items-center gap-2">
-                  <div className="w-2 h-2 rounded-full bg-blue-500"></div>
-                  <span className="text-xs text-zinc-400">Escola ({dados.porcentagem_escola}%)</span>
-                </div>
-                <span className="text-xs font-mono font-bold text-blue-400">{fmt(dados.total_previsto_escola)}</span>
-              </div>
-            </div>
-          </div>
-
-          {/* Cards de Recebido */}
-          <div>
-            <p className="text-xs font-bold text-zinc-500 uppercase mb-2">✅ Receita Recebida</p>
-            <div className="bg-zinc-800/40 border border-zinc-700/30 rounded-xl overflow-hidden">
-              <div className="flex items-center justify-between px-4 py-3 border-b border-zinc-700/30">
-                <span className="text-sm text-zinc-300">Total</span>
-                <span className="text-sm font-bold text-zinc-100">{fmt(dados.total_recebido)}</span>
-              </div>
-              <div className="flex items-center justify-between px-4 py-2.5">
-                <div className="flex items-center gap-2">
-                  <div className="w-2 h-2 rounded-full bg-emerald-500"></div>
-                  <span className="text-xs text-zinc-400">Professor</span>
-                </div>
-                <span className="text-xs font-mono font-bold text-emerald-400">{fmt(dados.total_recebido_professor)}</span>
-              </div>
-              <div className="flex items-center justify-between px-4 py-2.5 border-t border-zinc-800/50">
-                <div className="flex items-center gap-2">
-                  <div className="w-2 h-2 rounded-full bg-blue-500"></div>
-                  <span className="text-xs text-zinc-400">Escola</span>
-                </div>
-                <span className="text-xs font-mono font-bold text-blue-400">{fmt(dados.total_recebido_escola)}</span>
-              </div>
-            </div>
-          </div>
-
-          {/* Por hora */}
-          {dados.total_por_hora > 0 && (
-            <div className="bg-zinc-800/20 border border-zinc-700/30 rounded-lg px-3 py-2 text-xs text-zinc-400 flex justify-between">
-              <span>Total por hora ({dados.total_aulas} aulas × {fmt(dados.valor_hora)}):</span>
-              <span className="text-amber-400 font-mono font-bold">{fmt(dados.total_por_hora)}</span>
             </div>
           )}
 
-          {/* Detalhe por aluno */}
-          {dados.alunos?.length > 0 && (
+          {/* Mensalista: card informativo */}
+          {dados.tipo_remuneracao === 'mensalista' && (
+            <div className="bg-zinc-800/40 border border-zinc-700/30 rounded-xl px-4 py-3">
+              <div className="flex items-center justify-between mb-2">
+                <p className="text-xs font-bold text-zinc-400">👥 Alunos Vinculados</p>
+                <span className="text-xs bg-zinc-700 px-2 py-0.5 rounded-full text-zinc-400">{dados.alunos_mensalista?.length || 0}</span>
+              </div>
+              {dados.alunos_mensalista?.length > 0 ? (
+                <div className="space-y-1">
+                  {dados.alunos_mensalista.map(a => (
+                    <div key={a.id} className="flex items-center justify-between text-xs">
+                      <div className="flex items-center gap-2">
+                        <span className="text-zinc-300">{a.nome}</span>
+                        {a.instrumento && <span className="text-zinc-600 text-[10px]">({a.instrumento})</span>}
+                      </div>
+                      <span className={`text-[10px] px-1.5 py-0.5 rounded-full border ${
+                        a.status_mensalidade === 'Pago'
+                          ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
+                          : 'bg-amber-500/10 text-amber-400 border-amber-500/20'
+                      }`}>{a.status_mensalidade || 'Pendente'}</span>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-xs text-zinc-600">Nenhum aluno vinculado.</p>
+              )}
+            </div>
+          )}
+
+          {/* Detalhe por aluno (Comissão e Horista) */}
+          {((dados.tipo_remuneracao === 'comissao' && dados.alunos?.length > 0) || 
+            (dados.tipo_remuneracao === 'horista' && dados.detalhe_horas_aluno?.length > 0)) && (
             <div>
               <button
                 type="button"
@@ -437,7 +600,8 @@ function AbaFinanceiro({ professorId, token }) {
 
               {expandirAlunos && (
                 <div className="mt-2 space-y-2">
-                  {dados.alunos.map(a => (
+                  {/* Lista de Alunos (Comissão) */}
+                  {dados.tipo_remuneracao === 'comissao' && dados.alunos?.map(a => (
                     <div key={a.id} className="bg-zinc-800/30 border border-zinc-700/30 rounded-lg px-3 py-2.5">
                       <div className="flex items-center justify-between mb-1">
                         <span className="text-xs font-medium text-zinc-200">{a.nome}</span>
@@ -448,11 +612,13 @@ function AbaFinanceiro({ professorId, token }) {
                             </span>
                           )}
                           <span className={`text-[10px] px-1.5 py-0.5 rounded-full border ${
-                            a.status_mensalidade === 'Pago'
+                            a.status_repasse === 'pago'
                               ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
-                              : 'bg-amber-500/10 text-amber-400 border-amber-500/20'
+                              : a.status_mensalidade === 'Pago'
+                              ? 'bg-amber-500/10 text-amber-400 border-amber-500/20'
+                              : 'bg-zinc-800 text-zinc-500 border-zinc-700/30'
                           }`}>
-                            {a.status_mensalidade || 'Pendente'}
+                            {a.status_repasse === 'pago' ? 'Pago' : a.status_mensalidade === 'Pago' ? 'A Repassar' : 'Pendente'}
                           </span>
                         </div>
                       </div>
@@ -468,6 +634,35 @@ function AbaFinanceiro({ professorId, token }) {
                         <div>
                           <p>Escola ({dados.porcentagem_escola}%)</p>
                           <p className="text-blue-400 font-mono">{fmt(a.previsto_escola)}</p>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+
+                  {/* Lista de Alunos (Horista) */}
+                  {dados.tipo_remuneracao === 'horista' && dados.detalhe_horas_aluno?.map(aluno => (
+                    <div key={aluno.aluno_id || aluno.aluno_nome} className="bg-zinc-800/30 border border-zinc-700/30 rounded-lg px-3 py-2.5">
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm font-bold text-zinc-200">{aluno.aluno_nome}</span>
+                          {aluno.instrumento && (
+                            <span className="text-[10px] bg-zinc-800 text-zinc-400 px-1.5 py-0.5 rounded-full border border-zinc-700">
+                              {aluno.instrumento}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                      
+                      <div className="grid grid-cols-2 gap-2 text-xs">
+                        <div className="bg-zinc-800/50 rounded p-2">
+                          <div className="text-zinc-500 mb-1">Aulas Válidas</div>
+                          <div className="font-mono text-zinc-300">{aluno.quantidade_aulas}</div>
+                        </div>
+                        <div className="bg-zinc-800/50 rounded p-2 text-right">
+                          <div className="text-zinc-500 mb-1">Subtotal</div>
+                          <div className="font-mono font-bold text-amber-400">
+                            {fmt(Number(aluno.quantidade_aulas) * Number(dados.valor_hora))}
+                          </div>
                         </div>
                       </div>
                     </div>
@@ -498,6 +693,7 @@ function ModalProfessor({ professor, onClose, onSalvo, token, todosAlunos }) {
     instrumento_principal: '', outros_instrumentos: '',
     especialidade: '', formacao: '',
     disponibilidade: {},
+    tipo_remuneracao: 'comissao',
     valor_hora: '', valor_mensal: '', porcentagem_professor: '',
     data_contratacao: '', observacoes: '',
     status: 'Ativo',
@@ -527,6 +723,7 @@ function ModalProfessor({ professor, onClose, onSalvo, token, todosAlunos }) {
               ? JSON.parse(professor.disponibilidade)
               : professor.disponibilidade)
           : {},
+        tipo_remuneracao: professor.tipo_remuneracao || 'comissao',
         valor_hora: professor.valor_hora !== undefined ? professor.valor_hora : '',
         valor_mensal: professor.valor_mensal !== undefined ? professor.valor_mensal : '',
         porcentagem_professor: professor.porcentagem_professor !== undefined ? professor.porcentagem_professor : '',
@@ -665,12 +862,22 @@ function ModalProfessor({ professor, onClose, onSalvo, token, todosAlunos }) {
                     <option value="Férias">🏖️ Férias</option>
                     <option value="Licença">🔵 Licença</option>
                   </SelectField>
-                  <InputField label="Valor por Hora (R$)" type="number" step="0.01" min="0" placeholder="0.00" value={form.valor_hora} onChange={e => set('valor_hora', e.target.value)} />
-                  <InputField label="Valor Mensal (R$)" type="number" step="0.01" min="0" placeholder="0.00" value={form.valor_mensal} onChange={e => set('valor_mensal', e.target.value)} />
+                  <SelectField label="Modelo de Remuneração" value={form.tipo_remuneracao} onChange={e => set('tipo_remuneracao', e.target.value)}>
+                    <option value="comissao">Comissão (%)</option>
+                    <option value="horista">Horista (Por Aula)</option>
+                    <option value="mensalista">Mensalista (Valor Fixo)</option>
+                  </SelectField>
+                  {form.tipo_remuneracao === 'horista' && (
+                    <InputField label="Valor por Hora (R$)" type="number" step="0.01" min="0" placeholder="0.00" value={form.valor_hora} onChange={e => set('valor_hora', e.target.value)} />
+                  )}
+                  {form.tipo_remuneracao === 'mensalista' && (
+                    <InputField label="Valor Mensal (R$)" type="number" step="0.01" min="0" placeholder="0.00" value={form.valor_mensal} onChange={e => set('valor_mensal', e.target.value)} />
+                  )}
                 </div>
 
                 {/* Bloco de repasse financeiro */}
-                <div className="bg-zinc-950 border border-zinc-800 rounded-xl p-4 space-y-4">
+                {form.tipo_remuneracao === 'comissao' && (
+                  <div className="bg-zinc-950 border border-zinc-800 rounded-xl p-4 space-y-4">
                   <div className="flex justify-between items-center">
                     <p className="text-xs font-bold text-zinc-400 uppercase tracking-wider">💰 Repasse Financeiro & Simulador</p>
                     <span className="text-[10px] bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-1.5 py-0.5 rounded-full">Base: 4 Aulas/Mês</span>
@@ -782,6 +989,7 @@ function ModalProfessor({ professor, onClose, onSalvo, token, todosAlunos }) {
                     </div>
                   )}
                 </div>
+                )}
 
                 <TextareaField label="Observações" value={form.observacoes} onChange={e => set('observacoes', e.target.value)} placeholder="Anotações internas sobre o professor..." />
               </>
@@ -1189,27 +1397,27 @@ export default function Professores() {
                     </span>
                   </td>
                   <td className="p-4">
-                    <div className="flex items-center justify-center gap-1">
+                    <div className="flex items-center justify-center gap-2">
                       <button
                         onClick={() => abrirVisualizacao(prof)}
-                        className="text-zinc-400 hover:text-white p-2 rounded transition-all hover:bg-zinc-700/50"
+                        className="text-emerald-400 hover:text-emerald-300 p-2 rounded transition-all cursor-pointer hover:bg-emerald-500/10"
                         title="Visualizar ficha"
                       >
-                        <Eye size={15} />
+                        👁️
                       </button>
                       <button
                         onClick={() => abrirEdicao(prof)}
-                        className="text-blue-400 hover:text-blue-300 p-2 rounded transition-all hover:bg-blue-500/10"
+                        className="text-blue-400 hover:text-blue-300 p-2 rounded transition-all cursor-pointer hover:bg-blue-500/10"
                         title="Editar"
                       >
-                        <Edit2 size={15} />
+                        ✏️
                       </button>
                       <button
                         onClick={() => excluir(prof)}
-                        className="text-rose-400 hover:text-rose-300 p-2 rounded transition-all hover:bg-rose-500/10"
+                        className="text-rose-400 hover:text-rose-300 p-2 rounded transition-all cursor-pointer hover:bg-rose-500/10"
                         title="Excluir"
                       >
-                        <Trash2 size={15} />
+                        🗑️
                       </button>
                     </div>
                   </td>
@@ -1232,6 +1440,7 @@ export default function Professores() {
       {modalVisualizacao && profSelecionado && (
         <ModalVisualizacao
           professor={profSelecionado}
+          token={token}
           onClose={() => setModalVisualizacao(false)}
           onEditar={() => abrirEdicao(profSelecionado)}
         />

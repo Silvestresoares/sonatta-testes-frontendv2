@@ -36,9 +36,15 @@ const obterNomeFeriado = (data) => {
   return FERIADOS_FIXOS[`${dia}-${mes}`];
 };
 
-export function CalendarioVisual({ aulasDoMes = [], onDiaSelected = () => {} }) {
+export function CalendarioVisual({ aulasDoMes = [], onDiaSelected = () => {}, onMesChange }) {
   const [mesAtual, setMesAtual] = useState(new Date());
   const [diaSelecionado, setDiaSelecionado] = useState(null);
+
+  useEffect(() => {
+    if (onMesChange) {
+      onMesChange(mesAtual.getMonth() + 1, mesAtual.getFullYear());
+    }
+  }, [mesAtual, onMesChange]);
   
   const nomeMeses = [
     'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',

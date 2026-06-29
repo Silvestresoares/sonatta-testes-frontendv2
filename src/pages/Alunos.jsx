@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
+import { Info } from 'lucide-react';
+import HistoricoAlunoModal from '../components/HistoricoAlunoModal';
 
 // Detecta a URL da internet ou usa o localhost se estiver testando no computador
 // Deixe vazio em produção para usar o proxy do vercel.json, ou use a env se preferir
-const API_URL = import.meta.env.VITE_API_URL || '';
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
 
 // Cria o canal de comunicação interna do navegador
 const canalComunicacao = new BroadcastChannel('sonatta_updates');
@@ -25,10 +27,19 @@ export default function Alunos() {
   const [alunos, setAlunos] = useState([]);
   const [busca, setBusca] = useState('');
   const [filtroStatus, setFiltroStatus] = useState('Todos');
+  const [pagina, setPagina] = useState(1);
+  const [totalPaginas, setTotalPaginas] = useState(1);
+  const [totalAlunos, setTotalAlunos] = useState(0);
+  const limite = 20;
 
   // Controle de Edição vs Cadastro
   const [modalAberto, setModalAberto] = useState(false);
   const [idSendoEditado, setIdSendoEditado] = useState(null);
+  const [visualizarAluno, setVisualizarAluno] = useState(null);
+
+  // Controle de Histórico de Aulas
+  const [modalHistoricoAberto, setModalHistoricoAberto] = useState(false);
+  const [alunoHistoricoSelecionado, setAlunoHistoricoSelecionado] = useState(null);
 
   // Estados para o formulário
   const [nome, setNome] = useState('');
@@ -54,7 +65,14 @@ export default function Alunos() {
     if (!token) return;
 
     try {
-      const resposta = await fetch(`${API_URL}/api/alunos`, {
+      const url = new URL(`${API_URL}/api/alunos`);
+      url.searchParams.append('paginated', 'true');
+      url.searchParams.append('page', pagina);
+      url.searchParams.append('limit', limite);
+      url.searchParams.append('busca', busca);
+      url.searchParams.append('status', filtroStatus);
+
+      const resposta = await fetch(url, {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${token}`
@@ -66,7 +84,15 @@ export default function Alunos() {
         window.location.href = '/login';
       } else if (resposta.ok) {
         const dados = await resposta.json();
-        setAlunos(Array.isArray(dados) ? ordenarAlunosPorNome(dados) : []);
+        if (dados.data) {
+          setAlunos(dados.data);
+          setTotalPaginas(dados.totalPages);
+          setTotalAlunos(dados.total);
+        } else {
+          setAlunos(Array.isArray(dados) ? ordenarAlunosPorNome(dados) : []);
+          setTotalPaginas(1);
+          setTotalAlunos(dados.length || 0);
+        }
       }
     } catch (erro) {
       console.error("Erro ao buscar alunos:", erro);
@@ -96,6 +122,9 @@ export default function Alunos() {
 
   useEffect(() => {
     carregarAlunos();
+  }, [pagina, filtroStatus, busca]); // Recarrega ao mudar paginação ou filtros
+
+  useEffect(() => {
     carregarProfessores();
 
     // Escuta mensagens de outras páginas
@@ -269,6 +298,16 @@ export default function Alunos() {
     setModalAberto(true);
   };
 
+  const abrirModalHistorico = (aluno) => {
+    setAlunoHistoricoSelecionado(aluno);
+    setModalHistoricoAberto(true);
+  };
+
+  const fecharModalHistorico = () => {
+    setModalHistoricoAberto(false);
+    setAlunoHistoricoSelecionado(null);
+  };
+
   const fecharModal = () => {
     setModalAberto(false);
     setIdSendoEditado(null);
@@ -277,13 +316,8 @@ export default function Alunos() {
     setProfessorId('');
   };
 
-  // Filtros combinados dinâmicos
-  const alunosFiltrados = alunos.filter(aluno => {
-    const correspondeNome = aluno.nome && aluno.nome.toLowerCase().includes(busca.toLowerCase());
-    const correspondeStatus = filtroStatus === 'Todos' || aluno.status === filtroStatus;
-    return correspondeNome && correspondeStatus;
-  });
-  const alunosOrdenados = ordenarAlunosPorNome(alunosFiltrados);
+  // O filtro agora é feito via API, então usamos diretamente os alunos carregados
+  const alunosOrdenados = alunos;
 
   // Calcular valor por aula (dividido em 4 aulas base, SEMPRE)
   const calcularValorPorAula = () => {
@@ -320,30 +354,6 @@ export default function Alunos() {
     return valorTotal.toFixed(2);
   };
 
-  // Criar breakdown explicativo do cálculo
-  const gerarBreakdownCalculo = () => {
-    if (!mensalidade || !quantidadeAulas || quantidadeAulas === '0') {
-      return null;
-    }
-
-    const mensalidadeBase = parseFloat(mensalidade);
-    const valorPorAula = mensalidadeBase / 4;
-    const totalAulas = parseInt(quantidadeAulas);
-    
-    if (totalAulas <= 4) {
-      return {
-        tipo: 'proporcional',
-        mensagem: `${totalAulas} aula${totalAulas !== 1 ? 's' : ''} × R$ ${valorPorAula.toFixed(2)} = R$ ${calcularValorTotal()}`
-      };
-    } else {
-      const aulasExtras = totalAulas - 4;
-      return {
-        tipo: 'com_extras',
-        mensagem: `Mensalidade (4 aulas) + ${aulasExtras} aula${aulasExtras !== 1 ? 's' : ''} extra${aulasExtras !== 1 ? 's' : ''} = R$ ${mensalidadeBase.toFixed(2)} + R$ ${(aulasExtras * valorPorAula).toFixed(2)} = R$ ${calcularValorTotal()}`
-      };
-    }
-  };
-
   return (
     <div className="flex-1 p-8 bg-slate-50 dark:bg-zinc-950 text-zinc-900 dark:text-white overflow-y-auto min-h-screen">
       
@@ -366,7 +376,7 @@ export default function Alunos() {
         <div className="w-full sm:flex-1">
           <input 
             type="text" placeholder="🔍 Buscar por nome..." value={busca}
-            onChange={(e) => setBusca(e.target.value)}
+            onChange={(e) => { setBusca(e.target.value); setPagina(1); }}
             className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-lg px-3 py-2 text-sm text-zinc-900 dark:text-white outline-none focus:border-emerald-500"
           />
         </div>
@@ -375,7 +385,7 @@ export default function Alunos() {
           <label className="text-xs font-semibold text-zinc-400 uppercase tracking-wider whitespace-nowrap">Exibir:</label>
           <select
             value={filtroStatus}
-            onChange={(e) => setFiltroStatus(e.target.value)}
+            onChange={(e) => { setFiltroStatus(e.target.value); setPagina(1); }}
             className="w-full sm:w-auto bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-sm text-zinc-200 focus:outline-none focus:border-emerald-500 transition-all cursor-pointer"
           >
             <option value="Todos">👥 Todos os Alunos</option>
@@ -443,19 +453,33 @@ export default function Alunos() {
                     <td className="p-4">
                       <div className="flex items-center justify-center gap-2">
                         <button
+                          onClick={(e) => { e.stopPropagation(); setVisualizarAluno(aluno); }}
+                          className="text-emerald-400 hover:text-emerald-300 p-2 rounded transition-all cursor-pointer hover:bg-emerald-500/10"
+                          title="Visualizar ficha completa"
+                        >
+                          👁️
+                        </button>
+                        <button 
+                          onClick={() => abrirModalHistorico(aluno)}
+                          className="text-zinc-400 hover:text-emerald-400 p-2 rounded transition-all cursor-pointer hover:bg-emerald-500/10"
+                          title="Ver Histórico de Aulas"
+                        >
+                          📜
+                        </button>
+                        <button
                           onClick={(e) => { e.stopPropagation(); abrirParaEdicao(aluno); }}
                           className="text-blue-400 hover:text-blue-300 p-2 rounded transition-all cursor-pointer hover:bg-blue-500/10"
                           title="Editar ficha completa"
                         >
                           ✏️
                         </button>
-                      <button 
-                        onClick={(e) => { e.stopPropagation(); handleDeletarAluno(aluno.id, aluno.nome); }} 
-                        className="text-rose-400 hover:text-rose-300 p-2 rounded transition-all cursor-pointer hover:bg-rose-500/10"
-                        title="Excluir Aluno"
-                      >
-                        🗑️
-                      </button>
+                        <button 
+                          onClick={(e) => { e.stopPropagation(); handleDeletarAluno(aluno.id, aluno.nome); }} 
+                          className="text-rose-400 hover:text-rose-300 p-2 rounded transition-all cursor-pointer hover:bg-rose-500/10"
+                          title="Excluir Aluno"
+                        >
+                          🗑️
+                        </button>
                       </div>
                     </td>
                   </tr>
@@ -471,6 +495,31 @@ export default function Alunos() {
           </table>
         </div>
       </div>
+
+      {/* Controles de Paginação */}
+      {totalPaginas > 1 && (
+        <div className="flex justify-between items-center mt-6 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 p-4 rounded-xl shadow-sm">
+          <div className="text-sm text-zinc-500 dark:text-zinc-400">
+            Mostrando página <span className="font-bold text-zinc-900 dark:text-white">{pagina}</span> de <span className="font-bold text-zinc-900 dark:text-white">{totalPaginas}</span> ({totalAlunos} alunos no total)
+          </div>
+          <div className="flex gap-2">
+            <button 
+              onClick={() => setPagina(prev => Math.max(prev - 1, 1))}
+              disabled={pagina === 1}
+              className="px-4 py-2 border border-zinc-200 dark:border-zinc-800 rounded-lg text-sm font-medium hover:bg-zinc-100 dark:hover:bg-zinc-800 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+            >
+              Anterior
+            </button>
+            <button 
+              onClick={() => setPagina(prev => Math.min(prev + 1, totalPaginas))}
+              disabled={pagina === totalPaginas}
+              className="px-4 py-2 border border-zinc-200 dark:border-zinc-800 rounded-lg text-sm font-medium hover:bg-zinc-100 dark:hover:bg-zinc-800 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+            >
+              Próxima
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Modal Cadastro / Edição */}
       {modalAberto && (
@@ -644,6 +693,170 @@ export default function Alunos() {
           </div>
         </div>
       )}
+      
+      {/* Modal de Histórico */}
+      <HistoricoAlunoModal 
+        isOpen={modalHistoricoAberto} 
+        onClose={fecharModalHistorico} 
+        aluno={alunoHistoricoSelecionado} 
+      />
+
+      {/* Modal de Visualização da Ficha */}
+      {visualizarAluno && (
+        <ModalVisualizacaoAluno
+          aluno={visualizarAluno}
+          onClose={() => setVisualizarAluno(null)}
+          onEditar={() => {
+            const aluno = visualizarAluno;
+            setVisualizarAluno(null);
+            abrirParaEdicao(aluno);
+          }}
+        />
+      )}
+    </div>
+  );
+}
+
+// ─── MODAL DE VISUALIZAÇÃO / FICHA DO ALUNO ─────────────────────────────────
+function ModalVisualizacaoAluno({ aluno, onClose, onEditar }) {
+  const formatarData = (data) => {
+    if (!data) return '—';
+    const clean = typeof data === 'string' ? data.split('T')[0] : data;
+    const partes = clean.split('-');
+    if (partes.length !== 3) return clean;
+    const [ano, mes, dia] = partes;
+    return `${dia}/${mes}/${ano}`;
+  };
+
+  const initials = (aluno.nome || 'A')
+    .split(' ')
+    .map(n => n[0])
+    .slice(0, 2)
+    .join('')
+    .toUpperCase();
+
+  const imprimir = () => window.print();
+
+  return (
+    <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+      <div id="ficha-aluno" className="bg-zinc-900 border border-zinc-800 rounded-2xl w-full max-w-md shadow-2xl flex flex-col max-h-[90vh]">
+        {/* Header */}
+        <div className="p-5 border-b border-zinc-800 flex justify-between items-center flex-shrink-0">
+          <div className="flex items-center gap-3">
+            <div className="w-12 h-12 rounded-full bg-gradient-to-br from-emerald-600 to-teal-700 flex items-center justify-center text-white font-bold text-sm flex-shrink-0">
+              {initials}
+            </div>
+            <div>
+              <h2 className="text-lg font-bold text-white">{aluno.nome}</h2>
+              <p className="text-sm text-emerald-400">{aluno.instrumento || 'Sem instrumento informado'}</p>
+            </div>
+          </div>
+          <div className="flex gap-2">
+            <button 
+              onClick={imprimir} 
+              className="text-xs text-zinc-400 hover:text-white px-2.5 py-1.5 rounded-lg border border-zinc-700 hover:bg-zinc-800 transition-all cursor-pointer" 
+              title="Imprimir ficha"
+            >
+              Imprimir
+            </button>
+            <button 
+              onClick={onEditar} 
+              className="text-xs text-blue-400 hover:text-blue-300 px-2.5 py-1.5 rounded-lg border border-blue-500/20 hover:bg-blue-500/10 transition-all cursor-pointer" 
+              title="Editar"
+            >
+              Editar
+            </button>
+            <button 
+              onClick={onClose} 
+              className="text-zinc-500 hover:text-white p-1 rounded cursor-pointer"
+            >
+              ✕
+            </button>
+          </div>
+        </div>
+
+        {/* Content */}
+        <div className="flex-1 overflow-y-auto p-6 space-y-6">
+          {/* Status e Matrícula */}
+          <div className="flex items-center gap-3">
+            <span className={`px-2.5 py-1 rounded-full text-xs font-semibold border ${
+              aluno.status === 'Ativo'
+                ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
+                : 'bg-rose-500/10 text-rose-400 border-rose-500/20'
+            }`}>
+              {aluno.status === 'Ativo' ? '🟢 Ativo' : '🔴 Inativo'}
+            </span>
+            <span className="text-xs text-zinc-500">· Matrícula: {formatarData(aluno.data_matricula)}</span>
+          </div>
+
+          {/* Informações Gerais */}
+          <section className="space-y-3">
+            <h3 className="text-xs font-bold text-zinc-500 uppercase tracking-wider">Cadastro & Contato</h3>
+            <div className="grid grid-cols-2 gap-4 text-sm bg-zinc-950/40 p-4 border border-zinc-850 rounded-xl">
+              <div>
+                <p className="text-zinc-500 text-xs">E-mail</p>
+                <p className="text-zinc-200 break-all">{aluno.email || '—'}</p>
+              </div>
+              <div>
+                <p className="text-zinc-500 text-xs">Telefone / WhatsApp</p>
+                <p className="text-zinc-200">{aluno.telefone || '—'}</p>
+              </div>
+              <div>
+                <p className="text-zinc-500 text-xs">CPF</p>
+                <p className="text-zinc-200 font-mono">{aluno.cpf || '—'}</p>
+              </div>
+              <div>
+                <p className="text-zinc-500 text-xs">Professor Responsável</p>
+                <p className="text-zinc-200">{aluno.professor_nome || 'Nenhum'}</p>
+              </div>
+            </div>
+          </section>
+
+          {/* Horários & Aula */}
+          <section className="space-y-3">
+            <h3 className="text-xs font-bold text-zinc-500 uppercase tracking-wider">Aulas & Planejamento</h3>
+            <div className="grid grid-cols-2 gap-4 text-sm bg-zinc-950/40 p-4 border border-zinc-850 rounded-xl">
+              <div>
+                <p className="text-zinc-500 text-xs">Dia da Aula</p>
+                <p className="text-zinc-200">{aluno.dia_aula || '—'}</p>
+              </div>
+              <div>
+                <p className="text-zinc-500 text-xs">Horário da Aula</p>
+                <p className="text-zinc-200">{aluno.horario || '—'}</p>
+              </div>
+              <div>
+                <p className="text-zinc-500 text-xs">Primeira Aula</p>
+                <p className="text-zinc-200">{formatarData(aluno.primeira_aula)}</p>
+              </div>
+              <div>
+                <p className="text-zinc-500 text-xs">Aulas p/ Mês</p>
+                <p className="text-zinc-200">{aluno.quantidade_aulas || 4} aula(s)</p>
+              </div>
+            </div>
+          </section>
+
+          {/* Financeiro */}
+          <section className="space-y-3">
+            <h3 className="text-xs font-bold text-zinc-500 uppercase tracking-wider">Situação Financeira</h3>
+            <div className="grid grid-cols-2 gap-4 text-sm bg-zinc-950/40 p-4 border border-zinc-850 rounded-xl">
+              <div>
+                <p className="text-zinc-500 text-xs">Mensalidade Base</p>
+                <p className="text-zinc-200 font-bold font-mono">R$ {Number(aluno.mensalidade || 0).toFixed(2)}</p>
+              </div>
+              <div>
+                <p className="text-zinc-500 text-xs">Status da Mensalidade</p>
+                <span className={`inline-block text-[10px] font-bold px-2 py-0.5 rounded-full border mt-1 ${
+                  aluno.status_mensalidade === 'Pago'
+                    ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
+                    : 'bg-amber-500/10 text-amber-400 border-amber-500/20'
+                }`}>
+                  {aluno.status_mensalidade || 'Pendente'}
+                </span>
+              </div>
+            </div>
+          </section>
+        </div>
+      </div>
     </div>
   );
 }

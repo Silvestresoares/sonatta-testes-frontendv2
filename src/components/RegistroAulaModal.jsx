@@ -5,9 +5,12 @@ const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
 
 const STATUS_OPCOES = [
   { id: 'presente', label: 'Presente', icon: <CheckCircle size={16} />, color: 'emerald' },
-  { id: 'ausente', label: 'Ausente', icon: <X size={16} />, color: 'red', activeClass: 'bg-red-600/50' },
+  { id: 'falta_aluno_aviso', label: 'Falta Aluno (C/ Aviso)', icon: <span className="text-lg">📅</span>, color: 'amber', activeClass: 'bg-amber-600/50' },
+  { id: 'falta_aluno_sem_aviso', label: 'Falta Aluno (S/ Aviso)', icon: <span className="text-lg">⏳</span>, color: 'orange', activeClass: 'bg-orange-600/50' },
+  { id: 'falta_professor', label: 'Falta Professor', icon: <X size={16} />, color: 'red', activeClass: 'bg-red-600/50' },
   { id: 'aula_reposta', label: 'Aula Reposta', icon: <span className="text-lg">↩️</span>, color: 'blue' },
-  { id: 'cancelada', label: 'Cancelada', icon: <span className="text-lg">⊘</span>, color: 'red', activeClass: 'bg-red-600/80' },
+  { id: 'feriado', label: 'Feriado / Recesso', icon: <span className="text-lg">🌴</span>, color: 'zinc', activeClass: 'bg-zinc-600/80' },
+  { id: 'cancelada', label: 'Aula Cancelada', icon: <X size={16} />, color: 'red', activeClass: 'bg-red-600/50' },
 ];
 
 export default function RegistroAulaModal({ isOpen, onClose, aluno, aula, onSave }) {
@@ -337,12 +340,12 @@ export default function RegistroAulaModal({ isOpen, onClose, aluno, aula, onSave
                     onClick={() => setFormData(prev => ({ 
                       ...prev, 
                       status_presenca: opcao.id,
-                      // Limpa campos de conteúdo se o status for de ausência
-                      ...( (opcao.id === 'ausente' || opcao.id === 'cancelada') && {
+                      // Limpa campos de conteúdo se o status for de ausência ou cancelamento
+                      ...( (['falta_aluno_aviso', 'falta_aluno_sem_aviso', 'falta_professor', 'feriado', 'cancelada'].includes(opcao.id)) && {
                         conteudo_trabalhado: '', tarefas_casa: ''
                       })
                     }))}
-                    className={`py-2.5 px-3 rounded-lg font-medium transition flex items-center justify-center gap-2 ${
+                    className={`py-2 px-2 rounded-lg font-medium text-[11px] transition flex items-center justify-center gap-1.5 ${
                       formData.status_presenca === opcao.id
                           ? `${opcao.activeClass || `bg-${opcao.color}-600`} text-white shadow-lg shadow-${opcao.color}-900/20`
                         : `bg-zinc-800/50 text-zinc-400 border border-zinc-700 hover:border-${opcao.color}-600 hover:text-zinc-200`
@@ -371,9 +374,9 @@ export default function RegistroAulaModal({ isOpen, onClose, aluno, aula, onSave
                 name="conteudo_trabalhado"
                 value={formData.conteudo_trabalhado}
                 onChange={handleChange}
-                disabled={['ausente', 'cancelada'].includes(formData.status_presenca)}
-                placeholder={['ausente', 'cancelada'].includes(formData.status_presenca) 
-                  ? "Campo desativado para alunos ausentes" 
+                disabled={['falta_aluno_aviso', 'falta_aluno_sem_aviso', 'falta_professor', 'feriado', 'cancelada'].includes(formData.status_presenca)}
+                placeholder={['falta_aluno_aviso', 'falta_aluno_sem_aviso', 'falta_professor', 'feriado', 'cancelada'].includes(formData.status_presenca) 
+                  ? "Campo desativado para alunos ausentes/aulas canceladas" 
                   : "Ex: Escalas menores, Leitura de partitura, Prática de dedilhado..."}
                 rows="3"
                 className="w-full px-3 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-white placeholder-zinc-500 focus:border-orange-500 focus:outline-none transition resize-none disabled:opacity-100 disabled:cursor-not-allowed"
@@ -389,9 +392,9 @@ export default function RegistroAulaModal({ isOpen, onClose, aluno, aula, onSave
                 name="tarefas_casa"
                 value={formData.tarefas_casa}
                 onChange={handleChange}
-                disabled={['ausente', 'cancelada'].includes(formData.status_presenca)}
-                placeholder={['ausente', 'cancelada'].includes(formData.status_presenca) 
-                  ? "Campo desativado para alunos ausentes" 
+                disabled={['falta_aluno_aviso', 'falta_aluno_sem_aviso', 'falta_professor', 'feriado', 'cancelada'].includes(formData.status_presenca)}
+                placeholder={['falta_aluno_aviso', 'falta_aluno_sem_aviso', 'falta_professor', 'feriado', 'cancelada'].includes(formData.status_presenca) 
+                  ? "Campo desativado para alunos ausentes/aulas canceladas" 
                   : "Ex: Praticar escalas 30 minutos, Estudar páginas 10-12 do método..."}
                 rows="3"
                 className="w-full px-3 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-white placeholder-zinc-500 focus:border-orange-500 focus:outline-none transition resize-none disabled:opacity-100 disabled:cursor-not-allowed"

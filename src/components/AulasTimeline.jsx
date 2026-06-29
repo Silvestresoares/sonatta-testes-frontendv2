@@ -40,7 +40,7 @@ export default function AulasTimeline({ aulas = [], onAbrirRegistro = null, onEd
       color: 'text-blue-400'
     },
     erro: {
-      matches: ['faltou', 'ausente', 'cancelada'],
+      matches: ['faltou', 'ausente', 'cancelada', 'falta_aluno_sem_aviso', 'falta_professor'],
       icon: <XCircle size={14} className="text-rose-400" />,
       card: 'border-l-rose-500 bg-transparent hover:bg-zinc-100 dark:hover:bg-zinc-800/20',
       badge: 'text-rose-400',
@@ -63,7 +63,9 @@ export default function AulasTimeline({ aulas = [], onAbrirRegistro = null, onEd
 
   const LABELS_STATUS = {
     'realizada': 'Aula realizada', 'presente': 'Presente', 'faltou': 'Faltou',
-    'ausente': 'Ausente', 'pendente': 'Pendente', 'aula_reposta': 'Reposta', 'cancelada': 'Cancelada'
+    'ausente': 'Ausente', 'pendente': 'Pendente', 'aula_reposta': 'Reposta', 'cancelada': 'Cancelada',
+    'falta_aluno_aviso': 'Falta (C/ Aviso)', 'falta_aluno_sem_aviso': 'Falta (S/ Aviso)',
+    'falta_professor': 'Falta Prof.', 'feriado': 'Feriado/Recesso'
   };
 
   const obterCorTipoAula = (tipo) => {
