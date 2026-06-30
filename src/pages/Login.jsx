@@ -49,6 +49,8 @@ export default function Login({ aoLogar }) {
       if (resposta.ok) {
         localStorage.setItem('@sonatta:token', dados.token);
         localStorage.setItem('@sonatta:usuario_nome', dados.usuario?.nome || 'Administrador');
+        localStorage.setItem('@sonatta:tipo_usuario', dados.usuario?.tipo_usuario || 'admin');
+        localStorage.setItem('@sonatta:professor_id', dados.usuario?.professor_id || '');
         alert(`Bem-vindo de volta, ${dados.usuario?.nome || 'Administrador'}!`);
         if (aoLogar) aoLogar();
       } else {

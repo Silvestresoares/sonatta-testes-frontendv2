@@ -3,13 +3,14 @@ import { NavLink, useNavigate } from 'react-router-dom';
 import { LogOut, PlusCircle, Repeat, RotateCcw, Lightbulb } from 'lucide-react';
 import AgendamentoAulaModal from './AgendamentoAulaModal'; 
 
-export default function Sidebar({ onLogout }) { // <-- Recebe o onLogout do App aqui
+export default function Sidebar({ onLogout, tipoUsuario, professorId }) { // <-- Recebe o onLogout e tipoUsuario do App aqui
   const navigate = useNavigate();
 
   const API_URL = import.meta.env.VITE_API_URL || '';
   const canalComunicacao = new BroadcastChannel('sonatta_updates');
 
   const nomeUsuario = localStorage.getItem('@sonatta:usuario_nome') || 'Usuário';
+  const ehProfessor = tipoUsuario === 'professor';
 
   // Função auxiliar para deixar o botão azul quando estiver na página ativa
   const linkStyle = ({ isActive }) => 
@@ -49,46 +50,67 @@ export default function Sidebar({ onLogout }) { // <-- Recebe o onLogout do App 
           <p className="text-white text-2xl" style={{ fontFamily: "'Caveat', cursive" }}>
             {nomeUsuario}
           </p>
+          {ehProfessor && (
+            <span className="text-xs text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full mt-1 border border-emerald-500/20">
+              Professor
+            </span>
+          )}
         </div>
 
-        {/* Links de Navegação usando NavLink */}
+        {/* Links de Navegação */}
         <nav className="space-y-2">
-          <NavLink to="/" className={linkStyle}>
-            📊 Resumo
-          </NavLink>
-          
-          <NavLink to="/alunos" className={linkStyle}>
-            👥 Alunos
-          </NavLink>
+          {ehProfessor ? (
+            <>
+              {/* Menu do Professor */}
+              <NavLink to="/minha-agenda" className={linkStyle}>
+                📅 Minha Agenda
+              </NavLink>
 
-          <NavLink to="/professores" className={linkStyle}>
-            👨🏫 Professores
-          </NavLink>
+              <NavLink to="/meus-recebimentos" className={linkStyle}>
+                💰 Meus Recebimentos
+              </NavLink>
+            </>
+          ) : (
+            <>
+              {/* Menu do Admin */}
+              <NavLink to="/" className={linkStyle}>
+                📊 Resumo
+              </NavLink>
+              
+              <NavLink to="/alunos" className={linkStyle}>
+                👥 Alunos
+              </NavLink>
 
-          <NavLink to="/agenda" className={linkStyle}>
-            📅 Agenda de Aulas
-          </NavLink>
-          
-          <NavLink to="/financeiro" className={linkStyle}>
-            💰 Financeiro
-          </NavLink>
+              <NavLink to="/professores" className={linkStyle}>
+                👨‍🏫 Professores
+              </NavLink>
 
-          {/* New section for special classes */}
-          <div className="mt-8 pt-4 border-t border-zinc-200 dark:border-zinc-700">
-            <h3 className="text-xs uppercase font-bold text-zinc-500 mb-3">Agendar Aulas Especiais</h3>
-            <button onClick={() => handleAbrirModal('aula_extra')} className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium w-full text-left transition-colors hover:bg-emerald-600/20 text-emerald-400">
-              <PlusCircle size={18} className="text-emerald-500" /> Aula Extra
-            </button>
-            <button onClick={() => handleAbrirModal('reagendada')} className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium w-full text-left transition-colors hover:bg-blue-600/20 text-blue-400">
-              <Repeat size={18} className="text-blue-500" /> Reagendada
-            </button>
-            <button onClick={() => handleAbrirModal('reposicao')} className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium w-full text-left transition-colors hover:bg-red-600/20 text-red-400">
-              <RotateCcw size={18} className="text-red-500" /> Reposição
-            </button>
-            <button onClick={handleAgendarAulaExperimental} className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium w-full text-left transition-colors hover:bg-orange-600/20 text-orange-400">
-              <Lightbulb size={18} className="text-orange-500" /> Experimental
-            </button>
-          </div>
+              <NavLink to="/agenda" className={linkStyle}>
+                📅 Agenda de Aulas
+              </NavLink>
+              
+              <NavLink to="/financeiro" className={linkStyle}>
+                💰 Financeiro
+              </NavLink>
+
+              {/* New section for special classes */}
+              <div className="mt-8 pt-4 border-t border-zinc-200 dark:border-zinc-700">
+                <h3 className="text-xs uppercase font-bold text-zinc-500 mb-3">Agendar Aulas Especiais</h3>
+                <button onClick={() => handleAbrirModal('aula_extra')} className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium w-full text-left transition-colors hover:bg-emerald-600/20 text-emerald-400">
+                  <PlusCircle size={18} className="text-emerald-500" /> Aula Extra
+                </button>
+                <button onClick={() => handleAbrirModal('reagendada')} className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium w-full text-left transition-colors hover:bg-blue-600/20 text-blue-400">
+                  <Repeat size={18} className="text-blue-500" /> Reagendada
+                </button>
+                <button onClick={() => handleAbrirModal('reposicao')} className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium w-full text-left transition-colors hover:bg-red-600/20 text-red-400">
+                  <RotateCcw size={18} className="text-red-500" /> Reposição
+                </button>
+                <button onClick={handleAgendarAulaExperimental} className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium w-full text-left transition-colors hover:bg-orange-600/20 text-orange-400">
+                  <Lightbulb size={18} className="text-orange-500" /> Experimental
+                </button>
+              </div>
+            </>
+          )}
         </nav>
       </div>
 
@@ -104,12 +126,14 @@ export default function Sidebar({ onLogout }) { // <-- Recebe o onLogout do App 
       </div>
     </aside>
 
-    <AgendamentoAulaModal
-      isOpen={isAgendamentoModalAberto}
-      onClose={() => setIsAgendamentoModalAberto(false)}
-      tipoPadrao={tipoSelecionado}
-      onSaveSuccess={() => canalComunicacao.postMessage('atualizar_dados')}
-    />
+    {!ehProfessor && (
+      <AgendamentoAulaModal
+        isOpen={isAgendamentoModalAberto}
+        onClose={() => setIsAgendamentoModalAberto(false)}
+        tipoPadrao={tipoSelecionado}
+        onSaveSuccess={() => canalComunicacao.postMessage('atualizar_dados')}
+      />
+    )}
     </>
   );
 }

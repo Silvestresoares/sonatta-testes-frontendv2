@@ -11,6 +11,10 @@ import Financeiro from './pages/Financeiro';
 import AulasExperimentais from './pages/AulasExperimentais';
 import Professores from './pages/Professores';
 
+// Páginas do Professor
+import MinhaAgenda from './pages/MinhaAgenda';
+import MeusRecebimentos from './pages/MeusRecebimentos';
+
 // Importação dos contextos
 import { AulasFrequenciaProvider } from './contexts/AulasFrequenciaContext';
 
@@ -18,10 +22,10 @@ import { AulasFrequenciaProvider } from './contexts/AulasFrequenciaContext';
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
 
 // Componente de Layout (com Sidebar) - Recebe o onLogout agora
-function LayoutComSidebar({ children, onLogout }) {
+function LayoutComSidebar({ children, onLogout, tipoUsuario, professorId }) {
   return (
     <div className="flex bg-zinc-950 text-white min-h-screen selection:bg-emerald-500 selection:text-black">
-      <Sidebar onLogout={onLogout} /> {/* <-- Passando a função para dentro da Sidebar */}
+      <Sidebar onLogout={onLogout} tipoUsuario={tipoUsuario} professorId={professorId} /> {/* <-- Passando a função para dentro da Sidebar */}
       <main className="flex-1 flex flex-col overflow-hidden">
         {children}
       </main>
@@ -56,6 +60,8 @@ export default function App() {
         if (resposta.ok) {
           const dados = await resposta.json();
           setUsuarioInfo(dados.usuario);
+          localStorage.setItem('@sonatta:tipo_usuario', dados.usuario?.tipo_usuario || 'admin');
+          localStorage.setItem('@sonatta:professor_id', dados.usuario?.professor_id || '');
           setEstaLogado(true);
         } else {
           localStorage.removeItem('@sonatta:token');
@@ -63,7 +69,7 @@ export default function App() {
         }
       } catch (erro) {
         console.error("Erro ao validar sessão:", erro);
-        setEstaLogado(true);
+        setEstaLogado(false);
       } finally {
         setCarregando(false);
       }
@@ -74,6 +80,9 @@ export default function App() {
 
   const handleLogout = () => {
     localStorage.removeItem('@sonatta:token');
+    localStorage.removeItem('@sonatta:tipo_usuario');
+    localStorage.removeItem('@sonatta:professor_id');
+    localStorage.removeItem('@sonatta:usuario_nome');
     setUsuarioInfo(null);
     setEstaLogado(false);
     navigate('/', { replace: true }); // <-- Força a rota a voltar para o início de forma limpa
@@ -95,16 +104,34 @@ export default function App() {
     return <Login aoLogar={() => setEstaLogado(true)} />;
   }
 
-  // Se logado, mostra painel com rotas
+  const tipoUsuario = localStorage.getItem('@sonatta:tipo_usuario') || usuarioInfo?.tipo_usuario || 'admin';
+  const professorId = localStorage.getItem('@sonatta:professor_id') || usuarioInfo?.professor_id || null;
+  const ehProfessor = tipoUsuario === 'professor';
+
+  // Se logado como professor, mostra painel restrito
+  if (ehProfessor) {
+    return (
+      <AulasFrequenciaProvider>
+        <Routes>
+          <Route path="/" element={<LayoutComSidebar onLogout={handleLogout} tipoUsuario={tipoUsuario} professorId={professorId}><MinhaAgenda professorId={professorId} /></LayoutComSidebar>} />
+          <Route path="/minha-agenda" element={<LayoutComSidebar onLogout={handleLogout} tipoUsuario={tipoUsuario} professorId={professorId}><MinhaAgenda professorId={professorId} /></LayoutComSidebar>} />
+          <Route path="/meus-recebimentos" element={<LayoutComSidebar onLogout={handleLogout} tipoUsuario={tipoUsuario} professorId={professorId}><MeusRecebimentos professorId={professorId} /></LayoutComSidebar>} />
+          <Route path="*" element={<Navigate to="/minha-agenda" replace />} />
+        </Routes>
+      </AulasFrequenciaProvider>
+    );
+  }
+
+  // Se logado como admin, mostra painel completo com rotas
   return (
     <AulasFrequenciaProvider>
       <Routes>
-        <Route path="/" element={<LayoutComSidebar onLogout={handleLogout}><Dashboard /></LayoutComSidebar>} />
-        <Route path="/alunos" element={<LayoutComSidebar onLogout={handleLogout}><Alunos /></LayoutComSidebar>} />
-        <Route path="/agenda" element={<LayoutComSidebar onLogout={handleLogout}><Agenda /></LayoutComSidebar>} />
-        <Route path="/aulas-experimentais" element={<LayoutComSidebar onLogout={handleLogout}><AulasExperimentais /></LayoutComSidebar>} />
-        <Route path="/professores" element={<LayoutComSidebar onLogout={handleLogout}><Professores /></LayoutComSidebar>} />
-        <Route path="/financeiro" element={<LayoutComSidebar onLogout={handleLogout}><Financeiro /></LayoutComSidebar>} />
+        <Route path="/" element={<LayoutComSidebar onLogout={handleLogout} tipoUsuario={tipoUsuario} professorId={professorId}><Dashboard /></LayoutComSidebar>} />
+        <Route path="/alunos" element={<LayoutComSidebar onLogout={handleLogout} tipoUsuario={tipoUsuario} professorId={professorId}><Alunos /></LayoutComSidebar>} />
+        <Route path="/agenda" element={<LayoutComSidebar onLogout={handleLogout} tipoUsuario={tipoUsuario} professorId={professorId}><Agenda /></LayoutComSidebar>} />
+        <Route path="/aulas-experimentais" element={<LayoutComSidebar onLogout={handleLogout} tipoUsuario={tipoUsuario} professorId={professorId}><AulasExperimentais /></LayoutComSidebar>} />
+        <Route path="/professores" element={<LayoutComSidebar onLogout={handleLogout} tipoUsuario={tipoUsuario} professorId={professorId}><Professores /></LayoutComSidebar>} />
+        <Route path="/financeiro" element={<LayoutComSidebar onLogout={handleLogout} tipoUsuario={tipoUsuario} professorId={professorId}><Financeiro /></LayoutComSidebar>} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </AulasFrequenciaProvider>
