@@ -4,7 +4,9 @@ import { UserPlus, Search, Filter, Download, Printer, X, ChevronDown,
          CheckCircle, Edit2, Trash2, Eye, Plus, Minus, BookOpen,
          ChevronLeft, ChevronRight } from 'lucide-react';
 
-const API_URL = import.meta.env.VITE_API_URL || '';
+const _envApi = import.meta.env.VITE_API_URL;
+const _defaultLocal = 'http://localhost:3001';
+const API_URL = (typeof window !== 'undefined' && window.location && window.location.hostname.includes('localhost')) ? _defaultLocal : (_envApi || _defaultLocal);
 const canalComunicacao = new BroadcastChannel('sonatta_updates');
 
 const DIAS_SEMANA = ['Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado', 'Domingo'];

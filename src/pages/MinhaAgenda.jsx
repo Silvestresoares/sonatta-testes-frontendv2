@@ -4,7 +4,9 @@ import RegistroAulaModal from '../components/RegistroAulaModal';
 import CalendarioVisual from '../components/CalendarioVisual';
 import AulasTimeline from '../components/AulasTimeline';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+const _envApi = import.meta.env.VITE_API_URL;
+const _defaultLocal = 'http://localhost:3001';
+const API_URL = (typeof window !== 'undefined' && window.location && window.location.hostname.includes('localhost')) ? _defaultLocal : (_envApi || _defaultLocal);
 
 const MESES = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
 
@@ -94,6 +96,38 @@ export default function MinhaAgenda({ professorId }) {
     const dataISO = formatarDataISO(dataSelecionada);
     return dados.aulas_mes.filter((aula) => aula.data_aula?.toString().substring(0, 10) === dataISO);
   }, [dados, dataSelecionada]);
+
+  const [restantesHoje, setRestantesHoje] = useState(0);
+
+  useEffect(() => {
+    let timer = null;
+    const atualizarRestantes = () => {
+      const hoje = new Date();
+      if (dataSelecionada.toDateString() !== hoje.toDateString()) {
+        setRestantesHoje(0);
+        return;
+      }
+
+      const nowMinutes = hoje.getHours() * 60 + hoje.getMinutes();
+
+      const restantes = aulasDoDia.filter((aula) => {
+        const horario = aula.horario || '';
+        const parts = horario.split(':');
+        const hour = parseInt(parts[0] || '0', 10);
+        const minute = parseInt(parts[1] || '0', 10);
+        const timeMinutes = hour * 60 + minute;
+        const status = aula.status || aula.status_presenca || aula.dadosRegistro?.status_presenca || 'pendente';
+        const concluido = ['realizada', 'presente', 'aula_reposta'].includes(status);
+        return !concluido && timeMinutes > nowMinutes;
+      }).length;
+
+      setRestantesHoje(restantes);
+    };
+
+    atualizarRestantes();
+    timer = setInterval(atualizarRestantes, 60 * 1000);
+    return () => clearInterval(timer);
+  }, [aulasDoDia, dataSelecionada]);
 
   const atualizarMes = (mes, ano) => {
     if (mes === mesAtual && ano === anoAtual) return;
@@ -197,6 +231,12 @@ export default function MinhaAgenda({ professorId }) {
                 onMesChange={(mes, ano) => atualizarMes(mes, ano)}
                 initialDate={new Date(anoAtual, mesAtual - 1, 1)}
               />
+              {/* Contador de aulas para a data selecionada */}
+              <div className="mt-4 p-3 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg">
+                <p className="text-xs text-zinc-500 mb-1">Aulas em {dataSelecionada.toLocaleDateString('pt-BR')}</p>
+                <div className="text-2xl font-bold text-blue-400">{aulasDoDia.length}</div>
+                <div className="mt-2 text-sm text-zinc-400">Restantes hoje: <span className="font-semibold text-blue-400">{restantesHoje}</span></div>
+              </div>
             </div>
           </div>
 

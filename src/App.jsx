@@ -19,7 +19,9 @@ import MeusRecebimentos from './pages/MeusRecebimentos';
 import { AulasFrequenciaProvider } from './contexts/AulasFrequenciaContext';
 
 // URL dinâmica
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+const _envApi = import.meta.env.VITE_API_URL;
+const _defaultLocal = 'http://localhost:3001';
+const API_URL = (typeof window !== 'undefined' && window.location && window.location.hostname.includes('localhost')) ? _defaultLocal : (_envApi || _defaultLocal);
 
 // Componente de Layout (com Sidebar) - Recebe o onLogout agora
 function LayoutComSidebar({ children, onLogout, tipoUsuario, professorId }) {
@@ -101,7 +103,10 @@ export default function App() {
 
   // Se não logado, mostra login
   if (!estaLogado) {
-    return <Login aoLogar={() => setEstaLogado(true)} />;
+    return <Login aoLogar={(usuario) => {
+      setUsuarioInfo(usuario || null);
+      setEstaLogado(true);
+    }} />;
   }
 
   const tipoUsuario = localStorage.getItem('@sonatta:tipo_usuario') || usuarioInfo?.tipo_usuario || 'admin';

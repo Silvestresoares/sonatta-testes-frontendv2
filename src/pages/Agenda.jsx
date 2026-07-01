@@ -5,7 +5,9 @@ import CalendarioVisual from '../components/CalendarioVisual';
 import AgendamentoAulaModal from '../components/AgendamentoAulaModal'; // Import the new modal
 import AulasTimeline from '../components/AulasTimeline';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+const _envApi = import.meta.env.VITE_API_URL;
+const _defaultLocal = 'http://localhost:3001';
+const API_URL = (typeof window !== 'undefined' && window.location && window.location.hostname.includes('localhost')) ? _defaultLocal : (_envApi || _defaultLocal);
 
 // Mapeamento de dias da semana
 const DIAS_SEMANA = {

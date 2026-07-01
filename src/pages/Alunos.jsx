@@ -4,7 +4,9 @@ import HistoricoAlunoModal from '../components/HistoricoAlunoModal';
 
 // Detecta a URL da internet ou usa o localhost se estiver testando no computador
 // Deixe vazio em produção para usar o proxy do vercel.json, ou use a env se preferir
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+const _envApi = import.meta.env.VITE_API_URL;
+const _defaultLocal = 'http://localhost:3001';
+const API_URL = (typeof window !== 'undefined' && window.location && window.location.hostname.includes('localhost')) ? _defaultLocal : (_envApi || _defaultLocal);
 
 // Cria o canal de comunicação interna do navegador
 const canalComunicacao = new BroadcastChannel('sonatta_updates');
