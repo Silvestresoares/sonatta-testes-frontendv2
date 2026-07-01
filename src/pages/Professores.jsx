@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { UserPlus, Search, Filter, Download, Printer, X, ChevronDown,
          Phone, Mail, Music, Calendar, DollarSign, Users, Clock,
-         CheckCircle, Edit2, Trash2, Eye, Plus, Minus, BookOpen } from 'lucide-react';
+         CheckCircle, Edit2, Trash2, Eye, Plus, Minus, BookOpen,
+         ChevronLeft, ChevronRight } from 'lucide-react';
 
 const API_URL = import.meta.env.VITE_API_URL || '';
 const canalComunicacao = new BroadcastChannel('sonatta_updates');
@@ -236,17 +237,48 @@ function AbaAlunos({ professorId, token }) {
 
 // ─── ABA AGENDA ─────────────────────────────────────────────────────────────
 function AbaAgenda({ professorId, token }) {
-  const [agenda, setAgenda] = useState({ aulas_hoje: [], aulas_semana: [], total_mes: 0 });
+  const hoje = new Date();
+  const [agenda, setAgenda] = useState({ aulas_hoje: [], aulas_semana: [], aulas_mes: [], total_mes: 0, mes: hoje.getMonth() + 1, ano: hoje.getFullYear() });
   const [carregando, setCarregando] = useState(true);
+  const [mesFiltro, setMesFiltro] = useState(hoje.getMonth() + 1);
+  const [anoFiltro, setAnoFiltro] = useState(hoje.getFullYear());
+
+  const carregarAgenda = async () => {
+    if (!professorId) return;
+    setCarregando(true);
+    try {
+      const r = await fetch(`${API_URL}/api/professores/${professorId}/agenda?mes=${mesFiltro}&ano=${anoFiltro}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (r.ok) {
+        const d = await r.json();
+        if (d) setAgenda(d);
+      }
+    } catch {}
+    setCarregando(false);
+  };
 
   useEffect(() => {
-    if (!professorId) return;
-    fetch(`${API_URL}/api/professores/${professorId}/agenda`, { headers: { Authorization: `Bearer ${token}` } })
-      .then(r => r.ok ? r.json() : null)
-      .then(d => { if (d) setAgenda(d); })
-      .catch(() => {})
-      .finally(() => setCarregando(false));
-  }, [professorId]);
+    carregarAgenda();
+  }, [professorId, mesFiltro, anoFiltro]);
+
+  const mesAnterior = () => {
+    if (mesFiltro === 1) {
+      setMesFiltro(12);
+      setAnoFiltro(v => v - 1);
+    } else {
+      setMesFiltro(v => v - 1);
+    }
+  };
+
+  const mesSeguinte = () => {
+    if (mesFiltro === 12) {
+      setMesFiltro(1);
+      setAnoFiltro(v => v + 1);
+    } else {
+      setMesFiltro(v => v + 1);
+    }
+  };
 
   const fmt = (d) => {
     if (!d) return '—';
@@ -280,12 +312,25 @@ function AbaAgenda({ professorId, token }) {
 
   return (
     <div className="space-y-6">
+      <div className="flex items-center justify-between gap-3 bg-zinc-800/30 rounded-lg p-3 border border-zinc-700/30">
+        <button type="button" onClick={mesAnterior} className="p-2 rounded-lg hover:bg-zinc-700/40 text-zinc-300 transition-colors">
+          <ChevronLeft size={16} />
+        </button>
+        <div className="text-center">
+          <div className="text-[11px] uppercase tracking-[0.2em] text-zinc-500">Período</div>
+          <div className="text-sm font-semibold text-white">{MESES[mesFiltro - 1]} {anoFiltro}</div>
+        </div>
+        <button type="button" onClick={mesSeguinte} className="p-2 rounded-lg hover:bg-zinc-700/40 text-zinc-300 transition-colors">
+          <ChevronRight size={16} />
+        </button>
+      </div>
+
       <div className="bg-zinc-800/30 rounded-lg p-3 border border-zinc-700/30 text-center">
         <span className="text-xs text-zinc-500">Total de aulas no mês: </span>
         <span className="font-bold text-emerald-400">{agenda.total_mes}</span>
       </div>
       {renderAulas(agenda.aulas_hoje, '📍 Aulas de Hoje')}
-      {renderAulas(agenda.aulas_semana, '📆 Aulas desta Semana')}
+      {renderAulas(agenda.aulas_mes || agenda.aulas_semana, '📆 Todas as Aulas do Mês')}
     </div>
   );
 }
@@ -1205,9 +1250,23 @@ export default function Professores() {
 
   const excluir = async (prof) => {
     if (!window.confirm(`Tem certeza que deseja excluir o professor "${prof.nome}"?`)) return;
-    await fetch(`${API_URL}/api/professores/${prof.id}`, { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } });
-    carregar();
-    canalComunicacao.postMessage('atualizar_dados');
+
+    try {
+      const r = await fetch(`${API_URL}/api/professores/${prof.id}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      const data = await r.json().catch(() => ({}));
+      if (!r.ok) {
+        alert(data.erro || 'Não foi possível excluir o professor.');
+        return;
+      }
+      carregar();
+      canalComunicacao.postMessage('atualizar_dados');
+      alert('Professor excluído com sucesso.');
+    } catch {
+      alert('Erro de conexão ao excluir o professor.');
+    }
   };
 
   const abrirNovo = () => { setProfSelecionado(null); setModalAberto(true); };

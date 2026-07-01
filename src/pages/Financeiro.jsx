@@ -10,8 +10,12 @@ export default function Financeiro() {
   const [busca, setBusca] = useState('');
   const [abaSelecionada, setAbaSelecionada] = useState('mensalidades'); // 'mensalidades', 'lancamentos' ou 'professores'
   const [filtroTipo, setFiltroTipo] = useState('Todos');
+  const [filtroStatus, setFiltroStatus] = useState('Todos');
+  const [dataInicio, setDataInicio] = useState('');
+  const [dataFim, setDataFim] = useState('');
   const [professoresFinanceiro, setProfessoresFinanceiro] = useState([]);
   const [carregandoProfessores, setCarregandoProfessores] = useState(false);
+  const [resumoFinanceiro, setResumoFinanceiro] = useState({ receitas: 0, despesas: 0, saldo: 0, total_lancamentos: 0 });
 
   // Paginação Frontend
   const [paginaAlunos, setPaginaAlunos] = useState(1);
@@ -84,32 +88,53 @@ export default function Financeiro() {
   };
 
   const carregarFinanceiro = async () => {
-  const token = localStorage.getItem('@sonatta:token');
-  if (!token) return;
+    const token = localStorage.getItem('@sonatta:token');
+    if (!token) return;
 
-  try {
-    const resposta = await fetch(`${API_URL}/api/financeiro?mes=${mesFiltro}&ano=${anoFiltro}`, {
-      method: 'GET',
-      headers: { 'Authorization': `Bearer ${token}` }
-    });
+    try {
+      const params = new URLSearchParams({
+        mes: String(mesFiltro),
+        ano: String(anoFiltro),
+        busca,
+        tipo: filtroTipo === 'Todos' ? '' : filtroTipo,
+        status: filtroStatus === 'Todos' ? '' : filtroStatus,
+        dataInicio,
+        dataFim
+      });
 
-    if (resposta.status === 403) {
-      console.error("Acesso negado: Token inválido ou expirado.");
+      const [resposta, resumoResp] = await Promise.all([
+        fetch(`${API_URL}/api/financeiro?${params.toString()}`, {
+          method: 'GET',
+          headers: { 'Authorization': `Bearer ${token}` }
+        }),
+        fetch(`${API_URL}/api/financeiro/resumo?${params.toString()}`, {
+          method: 'GET',
+          headers: { 'Authorization': `Bearer ${token}` }
+        })
+      ]);
+
+      if (resposta.status === 403) {
+        console.error('Acesso negado: Token inválido ou expirado.');
+        setTransacoes([]);
+        setResumoFinanceiro({ receitas: 0, despesas: 0, saldo: 0, total_lancamentos: 0 });
+        return;
+      }
+
+      const dados = await resposta.json();
+      const resumo = resumoResp.ok ? await resumoResp.json() : { receitas: 0, despesas: 0, saldo: 0, total_lancamentos: 0 };
+
+      setTransacoes(
+        Array.isArray(dados)
+          ? dados.filter(t => !String(t.id).startsWith('aluno-'))
+          : []
+      );
+      setResumoFinanceiro(resumo);
+    } catch (erro) {
+      console.error('Erro ao buscar dados financeiros:', erro);
       setTransacoes([]);
-      return;
+      setResumoFinanceiro({ receitas: 0, despesas: 0, saldo: 0, total_lancamentos: 0 });
     }
-
-    const dados = await resposta.json();
-    setTransacoes(
-      Array.isArray(dados)
-        ? dados.filter(t => !String(t.id).startsWith('aluno-'))
-        : []
-    );
-  } catch (erro) {
-    console.error("Erro ao buscar dados financeiros:", erro);
-    setTransacoes([]); 
-  }
-};
+  };
 
   const carregarFinanceiroProfessores = async () => {
     const token = localStorage.getItem('@sonatta:token');
@@ -192,7 +217,7 @@ export default function Financeiro() {
     carregarFinanceiro();
     carregarAlunos();
     carregarFinanceiroProfessores();
-  }, [mesFiltro, anoFiltro]);
+  }, [mesFiltro, anoFiltro, busca, filtroTipo, filtroStatus, dataInicio, dataFim]);
 
   // Alterna automaticamente para a aba de lançamentos ao consultar histórico
   useEffect(() => {
@@ -467,10 +492,77 @@ export default function Financeiro() {
         </div>
       </div>
 
+      <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-4 mb-6">
+        <div className="flex flex-col lg:flex-row lg:items-end gap-3">
+          <div className="flex-1">
+            <label className="text-xs uppercase text-zinc-500 mb-1 block">Buscar por descrição</label>
+            <input
+              value={busca}
+              onChange={(e) => setBusca(e.target.value)}
+              placeholder="Ex.: mensalidade, aula, salário"
+              className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-emerald-500"
+            />
+          </div>
+          <div className="w-full lg:w-36">
+            <label className="text-xs uppercase text-zinc-500 mb-1 block">Tipo</label>
+            <select
+              value={filtroTipo}
+              onChange={(e) => setFiltroTipo(e.target.value)}
+              className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-emerald-500"
+            >
+              <option value="Todos">Todos</option>
+              <option value="Receita">Receita</option>
+              <option value="Despesa">Despesa</option>
+            </select>
+          </div>
+          <div className="w-full lg:w-36">
+            <label className="text-xs uppercase text-zinc-500 mb-1 block">Status</label>
+            <select
+              value={filtroStatus}
+              onChange={(e) => setFiltroStatus(e.target.value)}
+              className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-emerald-500"
+            >
+              <option value="Todos">Todos</option>
+              <option value="Pago">Pago</option>
+              <option value="Pendente">Pendente</option>
+              <option value="concluido">Concluído</option>
+            </select>
+          </div>
+          <div className="w-full lg:w-40">
+            <label className="text-xs uppercase text-zinc-500 mb-1 block">De</label>
+            <input
+              type="date"
+              value={dataInicio}
+              onChange={(e) => setDataInicio(e.target.value)}
+              className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-emerald-500"
+            />
+          </div>
+          <div className="w-full lg:w-40">
+            <label className="text-xs uppercase text-zinc-500 mb-1 block">Até</label>
+            <input
+              type="date"
+              value={dataFim}
+              onChange={(e) => setDataFim(e.target.value)}
+              className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-emerald-500"
+            />
+          </div>
+          <button
+            onClick={() => {
+              setPaginaAlunos(1);
+              setPaginaTransacoes(1);
+              carregarFinanceiro();
+            }}
+            className="bg-sky-600 hover:bg-sky-700 px-4 py-2.5 rounded-lg text-sm font-medium"
+          >
+            Consultar
+          </button>
+        </div>
+      </div>
+
       {isMesAtual || (isMesPassado && transacoes.length > 0) ? (
         <>
           {/* Cards de Balanço */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+          <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-8">
             <div className="bg-zinc-900 border border-zinc-800 p-4 rounded-lg">
               <span className="text-xs text-zinc-500 uppercase">Mensalidades Pagas</span>
               <p className="text-2xl font-bold text-emerald-400">R$ {mensalidadesPagas.toFixed(2)}</p>
@@ -503,6 +595,27 @@ export default function Financeiro() {
               <p className={`text-2xl font-bold ${saldoTotal >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
                 R$ {saldoTotal.toFixed(2)}
               </p>
+            </div>
+            <div className="bg-zinc-900 border border-zinc-800 p-4 rounded-lg md:col-span-1">
+              <span className="text-xs text-zinc-400 uppercase">Resumo do Período</span>
+              <div className="space-y-2 mt-3 text-sm">
+                <div className="flex justify-between items-center">
+                  <span className="text-zinc-400">Receitas</span>
+                  <span className="font-semibold text-emerald-400">R$ {Number(resumoFinanceiro.receitas || 0).toFixed(2)}</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-zinc-400">Despesas</span>
+                  <span className="font-semibold text-rose-400">R$ {Number(resumoFinanceiro.despesas || 0).toFixed(2)}</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-zinc-400">Saldo</span>
+                  <span className={`font-semibold ${Number(resumoFinanceiro.saldo || 0) >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>R$ {Number(resumoFinanceiro.saldo || 0).toFixed(2)}</span>
+                </div>
+                <div className="border-t border-zinc-700 pt-2 mt-2 flex justify-between items-center text-xs uppercase text-zinc-500">
+                  <span>Lançamentos</span>
+                  <span className="text-zinc-200">{resumoFinanceiro.total_lancamentos || 0}</span>
+                </div>
+              </div>
             </div>
           </div>
 

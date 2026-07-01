@@ -65,6 +65,8 @@ export default function MinhaAgenda({ professorId }) {
     return `${dia}/${mes}`;
   };
 
+  const periodosAulas = dados?.aulas_mes ? dados.aulas_mes : [];
+
   const formatarDiaSemana = (dataStr) => {
     if (!dataStr) return '';
     const data = new Date(dataStr + 'T12:00:00');
@@ -101,9 +103,6 @@ export default function MinhaAgenda({ professorId }) {
       </div>
     );
   }
-
-  // Todas as aulas do mês separadas em passadas, hoje e futuras
-  const todasAulas = dados?.aulas_semana ? [] : [];
 
   return (
     <div className="flex-1 overflow-y-auto p-6 space-y-6">
@@ -199,13 +198,12 @@ export default function MinhaAgenda({ professorId }) {
       <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-5">
         <h2 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
           <Clock size={20} className="text-blue-400" />
-          {ehMesAtual ? 'Próximas Aulas (7 dias)' : `Aulas de ${MESES[mesAtual - 1]}`}
+          {ehMesAtual ? 'Todas as aulas do mês' : `Aulas de ${MESES[mesAtual - 1]}`}
         </h2>
 
-        {/* No mês atual mostramos só os próximos 7 dias */}
-        {ehMesAtual && dados?.aulas_semana?.length > 0 && (
+        {dados?.aulas_mes?.length > 0 && (
           <div className="space-y-2">
-            {dados.aulas_semana.map((aula, i) => {
+            {dados.aulas_mes.map((aula, i) => {
               const dataAula = aula.data_aula ? aula.data_aula.toString().substring(0, 10) : '';
               const ehHoje = dataAula === hoje;
               const { label, css } = tipoLabel(aula.tipo_aula);
@@ -230,25 +228,10 @@ export default function MinhaAgenda({ professorId }) {
           </div>
         )}
 
-        {/* Em meses passados/futuros mostramos todas as aulas */}
-        {!ehMesAtual && dados?.total_mes > 0 && (
-          <div className="space-y-2">
-            {/* Para meses diferentes do atual, a API não retorna lista completa — só retorna aulas_hoje/semana do mês atual */}
-            {/* Aqui mostramos o total */}
-            <div className="text-center py-8 text-zinc-500">
-              <Calendar size={32} className="mx-auto mb-2 opacity-40" />
-              <p className="text-3xl font-bold text-zinc-300 mt-2">{dados?.total_mes}</p>
-              <p className="text-sm mt-1">aulas agendadas em {MESES[mesAtual - 1]}</p>
-            </div>
-          </div>
-        )}
-
-        {/* Sem aulas no período */}
-        {((ehMesAtual && (!dados?.aulas_semana || dados.aulas_semana.length === 0)) ||
-          (!ehMesAtual && (!dados?.total_mes || dados.total_mes === 0))) && (
+        {(!dados?.aulas_mes || dados.aulas_mes.length === 0) && (
           <div className="text-center py-8 text-zinc-500">
             <Clock size={32} className="mx-auto mb-2 opacity-40" />
-            <p className="text-sm">Nenhuma aula agendada {ehMesAtual ? 'nos próximos 7 dias' : `em ${MESES[mesAtual - 1]}`}.</p>
+            <p className="text-sm">Nenhuma aula agendada {ehMesAtual ? 'neste mês' : `em ${MESES[mesAtual - 1]}`}.</p>
           </div>
         )}
       </div>
