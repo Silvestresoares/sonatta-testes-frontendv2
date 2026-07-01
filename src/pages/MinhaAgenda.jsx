@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Calendar, Clock, Music, User, RefreshCw, ChevronLeft, ChevronRight } from 'lucide-react';
+import RegistroAulaModal from '../components/RegistroAulaModal';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
 
@@ -71,6 +72,20 @@ export default function MinhaAgenda({ professorId }) {
     if (!dataStr) return '';
     const data = new Date(dataStr + 'T12:00:00');
     return data.toLocaleDateString('pt-BR', { weekday: 'long' });
+  };
+
+  const [registroAberto, setRegistroAberto] = useState(false);
+  const [aulaSelecionada, setAulaSelecionada] = useState(null);
+
+  const abrirRegistro = (aula) => {
+    setAulaSelecionada(aula);
+    setRegistroAberto(true);
+  };
+
+  const fecharRegistro = () => {
+    setRegistroAberto(false);
+    setAulaSelecionada(null);
+    carregarAgenda();
   };
 
   const tipoLabel = (tipo) => {
@@ -159,7 +174,7 @@ export default function MinhaAgenda({ professorId }) {
               {dados.aulas_hoje.map((aula, i) => {
                 const { label, css } = tipoLabel(aula.tipo_aula);
                 return (
-                  <div key={aula.id || i} className="flex items-center gap-4 bg-zinc-950 border border-zinc-800 rounded-lg p-4 hover:border-emerald-500/30 transition-colors">
+                  <button key={aula.id || i} type="button" onClick={() => abrirRegistro(aula)} className="w-full text-left flex items-center gap-4 bg-zinc-950 border border-zinc-800 rounded-lg p-4 hover:border-emerald-500/30 transition-colors focus:outline-none focus:ring-2 focus:ring-emerald-500">
                     <div className="flex-shrink-0 w-16 text-center">
                       <div className="text-emerald-400 font-bold text-lg flex items-center justify-center gap-1">
                         <Clock size={14} />
@@ -181,7 +196,7 @@ export default function MinhaAgenda({ professorId }) {
                         {label}
                       </span>
                     </div>
-                  </div>
+                  </button>
                 );
               })}
             </div>
@@ -208,7 +223,7 @@ export default function MinhaAgenda({ professorId }) {
               const ehHoje = dataAula === hoje;
               const { label, css } = tipoLabel(aula.tipo_aula);
               return (
-                <div key={aula.id || i} className={`flex items-center gap-4 rounded-lg p-3 border transition-colors ${ehHoje ? 'bg-emerald-500/5 border-emerald-500/20' : 'bg-zinc-950 border-zinc-800'}`}>
+                <button key={aula.id || i} type="button" onClick={() => abrirRegistro(aula)} className={`w-full text-left flex items-center gap-4 rounded-lg p-3 border transition-colors ${ehHoje ? 'bg-emerald-500/5 border-emerald-500/20' : 'bg-zinc-950 border-zinc-800'} hover:border-emerald-500/30 focus:outline-none focus:ring-2 focus:ring-emerald-500`}> 
                   <div className="flex-shrink-0 w-24 text-center">
                     <div className="text-xs text-zinc-500 capitalize">{formatarDiaSemana(dataAula)}</div>
                     <div className={`font-bold text-sm ${ehHoje ? 'text-emerald-400' : 'text-zinc-300'}`}>{formatarData(dataAula)}</div>
@@ -222,7 +237,7 @@ export default function MinhaAgenda({ professorId }) {
                     {ehHoje && <span className="text-xs text-emerald-400 font-bold">HOJE</span>}
                     <span className={`text-xs px-2 py-0.5 rounded-full border hidden sm:inline ${css}`}>{label}</span>
                   </div>
-                </div>
+                </button>
               );
             })}
           </div>
@@ -235,6 +250,13 @@ export default function MinhaAgenda({ professorId }) {
           </div>
         )}
       </div>
+
+      <RegistroAulaModal
+        isOpen={registroAberto}
+        onClose={fecharRegistro}
+        aula={aulaSelecionada}
+        onSave={fecharRegistro}
+      />
     </div>
   );
 }
