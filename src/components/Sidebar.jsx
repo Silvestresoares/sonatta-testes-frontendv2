@@ -6,7 +6,9 @@ import AgendamentoAulaModal from './AgendamentoAulaModal';
 export default function Sidebar({ onLogout, tipoUsuario, professorId }) { // <-- Recebe o onLogout e tipoUsuario do App aqui
   const navigate = useNavigate();
 
-  const API_URL = import.meta.env.VITE_API_URL || '';
+  const _envApi = import.meta.env.VITE_API_URL;
+  const _defaultLocal = 'http://localhost:3001';
+  const API_URL = (typeof window !== 'undefined' && window.location && window.location.hostname.includes('localhost')) ? _defaultLocal : (_envApi || _defaultLocal);
   const canalComunicacao = new BroadcastChannel('sonatta_updates');
 
   const nomeUsuario = localStorage.getItem('@sonatta:usuario_nome') || 'Usuário';
@@ -23,6 +25,7 @@ export default function Sidebar({ onLogout, tipoUsuario, professorId }) { // <--
   // Estados para o Modal de Agendamento de Aula Extra
   const [isAgendamentoModalAberto, setIsAgendamentoModalAberto] = useState(false);
   const [tipoSelecionado, setTipoSelecionado] = useState('aula_extra');
+  
 
   const handleAbrirModal = (tipo) => {
     setTipoSelecionado(tipo);
@@ -31,6 +34,43 @@ export default function Sidebar({ onLogout, tipoUsuario, professorId }) { // <--
 
   const handleAgendarAulaExperimental = () => {
     navigate('/aulas-experimentais');
+  };
+
+  const handleTrocarSenha = async (e) => {
+    e.preventDefault();
+    setSenhaMensagem('');
+
+    const token = localStorage.getItem('@sonatta:token');
+    try {
+      const resposta = await fetch(`${API_URL}/api/auth/trocar-senha`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({ senhaAtual, novaSenha, confirmarNovaSenha })
+      });
+
+      let dados;
+      const texto = await resposta.text();
+      try {
+        dados = texto ? JSON.parse(texto) : {};
+      } catch (_parseErr) {
+        throw new Error('Resposta inválida do servidor. Tente novamente.');
+      }
+
+      if (!resposta.ok) {
+        throw new Error(dados.erro || 'Erro ao alterar senha');
+      }
+
+      setSenhaMensagem('Senha alterada com sucesso!');
+      setSenhaAtual('');
+      setNovaSenha('');
+      setConfirmarNovaSenha('');
+      setTimeout(() => setIsSenhaModalAberto(false), 900);
+    } catch (erro) {
+      setSenhaMensagem(erro.message);
+    }
   };
 
   return (
@@ -115,9 +155,9 @@ export default function Sidebar({ onLogout, tipoUsuario, professorId }) { // <--
       </div>
 
       {/* Botão Sair */}
-      <div className="border-t border-zinc-200 dark:border-zinc-800 pt-4">
+      <div className="border-t border-zinc-200 dark:border-zinc-800 pt-4 space-y-2">
         <button 
-          onClick={onLogout} // <-- Executa diretamente a função que veio lá do App.jsx
+          onClick={onLogout}
           className="w-full px-4 py-2.5 bg-red-500/10 hover:bg-red-500/20 border border-red-500/30 text-red-400 hover:text-red-300 rounded-lg font-medium transition-all text-sm flex items-center justify-center gap-2"
         >
           <LogOut size={16} />
@@ -125,6 +165,8 @@ export default function Sidebar({ onLogout, tipoUsuario, professorId }) { // <--
         </button>
       </div>
     </aside>
+
+    
 
     {!ehProfessor && (
       <AgendamentoAulaModal
