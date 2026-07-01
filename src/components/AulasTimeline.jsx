@@ -1,7 +1,7 @@
 import React from 'react';
 import { Clock, User, Music, AlertCircle, CheckCircle2, XCircle, Tag, Clipboard } from 'lucide-react';
 
-export default function AulasTimeline({ aulas = [], onAbrirRegistro = null, onEditAula = null, onDeleteAula = null }) {
+export default function AulasTimeline({ aulas = [], onAbrirRegistro = null, onEditAula = null, onDeleteAula = null, showActions = true }) {
   if (!aulas || aulas.length === 0) {
     return (
       <div className="bg-transparent border border-zinc-200 dark:border-zinc-800/50 rounded-2xl p-12 text-center">
@@ -125,7 +125,7 @@ export default function AulasTimeline({ aulas = [], onAbrirRegistro = null, onEd
 
               {/* Ações para Aulas Especiais */}
               <div className="flex items-center gap-1 ml-auto">
-                {aula.tipo_aula && aula.tipo_aula !== 'aula_regular' && (
+                {showActions && aula.tipo_aula && aula.tipo_aula !== 'aula_regular' && (
                   <>
                     <button
                       onClick={(e) => { e.stopPropagation(); onEditAula && onEditAula(aula); }}

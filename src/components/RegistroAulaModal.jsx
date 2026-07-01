@@ -37,7 +37,7 @@ export default function RegistroAulaModal({ isOpen, onClose, aluno, aula, onSave
   const carregarRegistroData = async (dataBusca) => {
     const token = localStorage.getItem('@sonatta:token');
     const idAluno = aula?.aluno_id || aluno?.id || formData.aluno_id;
-    const idAula = aula?.aula_id || aula?.aula_id_referencia; // Ignora o ID visual do tipo 'regular-X'
+    const idAula = aula?.aula_id || aula?.aula_id_referencia || (aula?.id && !String(aula.id).startsWith('regular') ? aula.id : null);
     const idExp = aula?.aula_experimental_id;
 
     if (!idAluno && !idExp && !idAula) return;
@@ -85,10 +85,11 @@ export default function RegistroAulaModal({ isOpen, onClose, aluno, aula, onSave
     // Se vem de aula agendada (Agenda), usar dados da aula
     if (aula && isOpen) {
       const reg = aula.registroExistente || {};
-      
+      const aulaId = aula.aula_id || aula.aula_id_referencia || (aula.id && !String(aula.id).startsWith('regular') ? aula.id : null);
+
       setFormData({
         aluno_id: aula.aluno_id || null,
-        aula_id: aula.aula_id || null,
+        aula_id: aulaId,
         aula_experimental_id: aula.aula_experimental_id || null,
         aluno_nome: aula.aluno_nome || '',
         professor: aula.professor || '',
@@ -158,8 +159,8 @@ export default function RegistroAulaModal({ isOpen, onClose, aluno, aula, onSave
       return;
     }
 
-    // Validação: deve ter aluno_id ou aula_experimental_id
-    if (!formData.aluno_id && !formData.aula_experimental_id) {
+    // Validação: deve ter aluno_id, aula_id ou aula_experimental_id
+    if (!formData.aluno_id && !formData.aula_id && !formData.aula_experimental_id) {
       setErro('Erro ao carregar dados da aula. Tente novamente.');
       return;
     }
