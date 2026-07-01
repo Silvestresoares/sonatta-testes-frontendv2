@@ -728,6 +728,7 @@ function ModalProfessor({ professor, onClose, onSalvo, token, todosAlunos }) {
   const editando = !!professor?.id;
   const [aba, setAba] = useState('pessoal');
   const [salvando, setSalvando] = useState(false);
+  const [erroFormulario, setErroFormulario] = useState('');
   const [simMensalidade, setSimMensalidade] = useState(220);
   const [simAulasProporcional, setSimAulasProporcional] = useState(2);
 
@@ -783,7 +784,11 @@ function ModalProfessor({ professor, onClose, onSalvo, token, todosAlunos }) {
 
   const salvar = async (e) => {
     e.preventDefault();
-    if (!form.nome.trim()) return alert('Nome é obrigatório.');
+    setErroFormulario('');
+    if (!form.nome.trim()) {
+      setErroFormulario('Nome é obrigatório.');
+      return;
+    }
     setSalvando(true);
     try {
       const url = editando
@@ -804,11 +809,11 @@ function ModalProfessor({ professor, onClose, onSalvo, token, todosAlunos }) {
         canalComunicacao.postMessage('atualizar_dados');
         onSalvo();
       } else {
-        const err = await r.json();
-        alert(`Erro: ${err.erro || 'Erro desconhecido'}`);
+        const err = await r.json().catch(() => ({}));
+        setErroFormulario(err.erro || 'Erro desconhecido.');
       }
     } catch (err) {
-      alert('Erro de conexão com o servidor.');
+      setErroFormulario('Erro de conexão com o servidor.');
     }
     setSalvando(false);
   };
@@ -863,6 +868,11 @@ function ModalProfessor({ professor, onClose, onSalvo, token, todosAlunos }) {
 
         {/* Content */}
         <form onSubmit={salvar} className="flex-1 overflow-y-auto">
+        {erroFormulario && (
+          <div className="mx-5 mt-4 rounded-lg border border-rose-500/30 bg-rose-500/10 px-3 py-2 text-sm text-rose-300">
+            {erroFormulario}
+          </div>
+        )}
           <div className="p-5 space-y-4">
 
             {/* ABA: DADOS PESSOAIS */}
