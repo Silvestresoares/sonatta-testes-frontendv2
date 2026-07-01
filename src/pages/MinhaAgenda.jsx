@@ -95,26 +95,48 @@ export default function MinhaAgenda({ professorId }) {
     return dados.aulas_mes.filter((aula) => aula.data_aula?.toString().substring(0, 10) === dataISO);
   }, [dados, dataSelecionada]);
 
+  const atualizarMes = (mes, ano) => {
+    if (mes === mesAtual && ano === anoAtual) return;
+
+    setMesAtual(mes);
+    setAnoAtual(ano);
+
+    const ultimoDiaDoMes = new Date(ano, mes, 0).getDate();
+    const dia = Math.min(dataSelecionada.getDate(), ultimoDiaDoMes);
+    setDataSelecionada(new Date(ano, mes - 1, dia));
+  };
+
   const mesAnterior = () => {
     if (mesAtual === 1) {
-      setMesAtual(12);
-      setAnoAtual((prev) => prev - 1);
+      atualizarMes(12, anoAtual - 1);
       return;
     }
-    setMesAtual((prev) => prev - 1);
+    atualizarMes(mesAtual - 1, anoAtual);
   };
 
   const mesSeguinte = () => {
     if (mesAtual === 12) {
-      setMesAtual(1);
-      setAnoAtual((prev) => prev + 1);
+      atualizarMes(1, anoAtual + 1);
       return;
     }
-    setMesAtual((prev) => prev + 1);
+    atualizarMes(mesAtual + 1, anoAtual);
   };
 
   const abrirRegistro = (aula) => {
-    setAulaSelecionada(aula);
+    setAulaSelecionada({
+      id: aula.dadosRegistro?.id || aula.id,
+      aluno_id: aula.aluno_id,
+      aluno_nome: aula.nome_aluno || aula.aluno_nome || aula.aluno || aula.nome || '',
+      instrumento: aula.instrumento,
+      horario: aula.horario,
+      data_aula: aula.data_aula,
+      aula_id: aula.aula_id || aula.aula_id_referencia || null,
+      aula_experimental_id: aula.aula_experimental_id || null,
+      registroExistente: aula.dadosRegistro || null,
+      status_presenca: aula.dadosRegistro?.status_presenca || (aula.status !== 'pendente' ? aula.status : ''),
+      is_novo_registro: !aula.dadosRegistro,
+      modo_edicao: true
+    });
     setRegistroAberto(true);
   };
 
@@ -172,32 +194,13 @@ export default function MinhaAgenda({ professorId }) {
               <CalendarioVisual
                 aulasDoMes={dados?.aulas_mes || []}
                 onDiaSelected={(data) => setDataSelecionada(data)}
-                onMesChange={(mes, ano) => {
-                  if (mes !== mesAtual || ano !== anoAtual) {
-                    setMesAtual(mes);
-                    setAnoAtual(ano);
-                  }
-                }}
+                onMesChange={(mes, ano) => atualizarMes(mes, ano)}
+                initialDate={new Date(anoAtual, mesAtual - 1, 1)}
               />
             </div>
           </div>
 
           <div className="lg:col-span-2">
-            <div className="mb-6 grid grid-cols-1 sm:grid-cols-3 gap-4">
-              <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-4">
-                <p className="text-xs text-zinc-500 uppercase font-bold mb-1">Aulas hoje</p>
-                <p className="text-3xl font-bold text-emerald-400">{ehMesAtual ? (dados?.aulas_hoje?.length || 0) : '-'}</p>
-              </div>
-              <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-4">
-                <p className="text-xs text-zinc-500 uppercase font-bold mb-1">Próximos 7 dias</p>
-                <p className="text-3xl font-bold text-blue-400">{ehMesAtual ? (dados?.aulas_semana?.length || 0) : '-'}</p>
-              </div>
-              <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-4">
-                <p className="text-xs text-zinc-500 uppercase font-bold mb-1">Total no mês</p>
-                <p className="text-3xl font-bold text-zinc-300">{dados?.total_mes || 0}</p>
-              </div>
-            </div>
-
             <div>
               <h2 className="text-sm font-bold text-zinc-500 uppercase tracking-widest mb-4 flex items-center gap-2">
                 <Clock size={16} />

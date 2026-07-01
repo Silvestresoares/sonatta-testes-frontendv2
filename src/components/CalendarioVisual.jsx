@@ -36,15 +36,20 @@ const obterNomeFeriado = (data) => {
   return FERIADOS_FIXOS[`${dia}-${mes}`];
 };
 
-export function CalendarioVisual({ aulasDoMes = [], onDiaSelected = () => {}, onMesChange }) {
-  const [mesAtual, setMesAtual] = useState(new Date());
-  const [diaSelecionado, setDiaSelecionado] = useState(null);
+export function CalendarioVisual({ aulasDoMes = [], onDiaSelected = () => {}, onMesChange, initialDate = new Date() }) {
+  const [mesAtual, setMesAtual] = useState(initialDate);
+  const [diaSelecionado, setDiaSelecionado] = useState(initialDate);
 
   useEffect(() => {
     if (onMesChange) {
       onMesChange(mesAtual.getMonth() + 1, mesAtual.getFullYear());
     }
   }, [mesAtual, onMesChange]);
+
+  useEffect(() => {
+    setMesAtual(initialDate);
+    setDiaSelecionado(initialDate);
+  }, [initialDate.getFullYear(), initialDate.getMonth(), initialDate.getDate()]);
   
   const nomeMeses = [
     'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
@@ -139,11 +144,13 @@ export function CalendarioVisual({ aulasDoMes = [], onDiaSelected = () => {}, on
   const diasDoMes = gerarDiasDoMes();
   
   const handleMesAnterior = () => {
-    setMesAtual(new Date(mesAtual.getFullYear(), mesAtual.getMonth() - 1));
+    const novoMes = new Date(mesAtual.getFullYear(), mesAtual.getMonth() - 1, 1);
+    setMesAtual(novoMes);
   };
   
   const handleProximoMes = () => {
-    setMesAtual(new Date(mesAtual.getFullYear(), mesAtual.getMonth() + 1));
+    const novoMes = new Date(mesAtual.getFullYear(), mesAtual.getMonth() + 1, 1);
+    setMesAtual(novoMes);
   };
   
   const handleCliqueDia = (dia) => {

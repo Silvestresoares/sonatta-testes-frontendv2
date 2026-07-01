@@ -40,7 +40,7 @@ export default function AulasTimeline({ aulas = [], onAbrirRegistro = null, onEd
       color: 'text-blue-400'
     },
     erro: {
-      matches: ['faltou', 'ausente', 'cancelada', 'falta_aluno_sem_aviso', 'falta_professor'],
+      matches: ['faltou', 'ausente', 'cancelada', 'falta_aluno_aviso', 'falta_aluno_sem_aviso', 'falta_professor', 'feriado'],
       icon: <XCircle size={14} className="text-rose-400" />,
       card: 'border-l-rose-500 bg-transparent hover:bg-zinc-100 dark:hover:bg-zinc-800/20',
       badge: 'text-rose-400',
@@ -79,7 +79,8 @@ export default function AulasTimeline({ aulas = [], onAbrirRegistro = null, onEd
   return (
     <div className="space-y-3">
       {aulasOrdenadas.map((aula, index) => {
-        const statusConfig = getStatusConfig(aula.status || 'pendente');
+        const statusValue = aula.status || aula.status_presenca || aula.dadosRegistro?.status_presenca || 'pendente';
+        const statusConfig = getStatusConfig(statusValue);
         return (
           <div
             key={aula.id || index}
@@ -92,10 +93,10 @@ export default function AulasTimeline({ aulas = [], onAbrirRegistro = null, onEd
                 <Clock size={12} className="text-emerald-400" />
                 <span className="text-xs font-black text-zinc-900 dark:text-white">{aula.horario}</span>
               </div>
-              {aula.status && aula.status !== 'pendente' && (
+              {statusValue && statusValue !== 'pendente' && (
                 <div className={`flex items-center gap-2 text-xs font-semibold ${statusConfig.badge}`}>
                   {statusConfig.icon}
-                  <span>{LABELS_STATUS[aula.status] || aula.status}</span>
+                  <span>{LABELS_STATUS[statusValue] || statusValue}</span>
                 </div>
               )}
             </div>

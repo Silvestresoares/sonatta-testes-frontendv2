@@ -13,6 +13,11 @@ const STATUS_OPCOES = [
   { id: 'cancelada', label: 'Aula Cancelada', icon: <X size={16} />, color: 'red', activeClass: 'bg-red-600/50' },
 ];
 
+const getNomeAluno = (dados) => {
+  if (!dados) return '';
+  return dados.aluno_nome || dados.nome_aluno || dados.aluno || dados.nome || '';
+};
+
 export default function RegistroAulaModal({ isOpen, onClose, aluno, aula, onSave }) {
   const [formData, setFormData] = useState({
     aluno_id: null,
@@ -91,7 +96,7 @@ export default function RegistroAulaModal({ isOpen, onClose, aluno, aula, onSave
         aluno_id: aula.aluno_id || null,
         aula_id: aulaId,
         aula_experimental_id: aula.aula_experimental_id || null,
-        aluno_nome: aula.aluno_nome || '',
+        aluno_nome: getNomeAluno(aula),
         professor: aula.professor || '',
         data_aula: aula.data_aula || '',
         horario: aula.horario || '',
@@ -108,7 +113,7 @@ export default function RegistroAulaModal({ isOpen, onClose, aluno, aula, onSave
       setFormData({
         aluno_id: aluno.id,
         aula_experimental_id: null,
-        aluno_nome: aluno.nome || '',
+        aluno_nome: getNomeAluno(aluno),
         professor: aluno.professor || '',
         data_aula: new Date().toISOString().split('T')[0],
         horario: aluno.horario || '',
@@ -338,14 +343,18 @@ export default function RegistroAulaModal({ isOpen, onClose, aluno, aula, onSave
                   <button
                     key={opcao.id}
                     type="button"
-                    onClick={() => setFormData(prev => ({ 
-                      ...prev, 
-                      status_presenca: opcao.id,
-                      // Limpa campos de conteúdo se o status for de ausência ou cancelamento
-                      ...( (['falta_aluno_aviso', 'falta_aluno_sem_aviso', 'falta_professor', 'feriado', 'cancelada'].includes(opcao.id)) && {
-                        conteudo_trabalhado: '', tarefas_casa: ''
-                      })
-                    }))}
+                    onClick={() => setFormData(prev => {
+                      const estaSelecionado = prev.status_presenca === opcao.id;
+                      return {
+                        ...prev,
+                        status_presenca: estaSelecionado ? '' : opcao.id,
+                        // Limpa campos de conteúdo quando houver uma ausência, cancelamento ou remoção da seleção
+                        ...((['falta_aluno_aviso', 'falta_aluno_sem_aviso', 'falta_professor', 'feriado', 'cancelada'].includes(opcao.id) || estaSelecionado) && {
+                          conteudo_trabalhado: '',
+                          tarefas_casa: ''
+                        })
+                      };
+                    })}
                     className={`py-2 px-2 rounded-lg font-medium text-[11px] transition flex items-center justify-center gap-1.5 ${
                       formData.status_presenca === opcao.id
                           ? `${opcao.activeClass || `bg-${opcao.color}-600`} text-white shadow-lg shadow-${opcao.color}-900/20`
@@ -356,6 +365,7 @@ export default function RegistroAulaModal({ isOpen, onClose, aluno, aula, onSave
                   </button>
                 ))}
               </div>
+              <p className="text-xs text-zinc-500 mt-2">Clique novamente no status selecionado para remover a marcação.</p>
             </div>
           </div>
 
