@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Routes, Route, useLocation, Navigate, useNavigate } from 'react-router-dom'; // <-- Adicionado useNavigate aqui
 import Login from './pages/Login';
 import Sidebar from './components/Sidebar';
+import { Menu } from 'lucide-react';
 
 // Importações das páginas
 import Dashboard from './pages/Dashboard'; 
@@ -25,10 +26,30 @@ const API_URL = (typeof window !== 'undefined' && window.location && window.loca
 
 // Componente de Layout (com Sidebar) - Recebe o onLogout agora
 function LayoutComSidebar({ children, onLogout, tipoUsuario, professorId }) {
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+
   return (
-    <div className="flex bg-zinc-950 text-white min-h-screen selection:bg-emerald-500 selection:text-black">
-      <Sidebar onLogout={onLogout} tipoUsuario={tipoUsuario} professorId={professorId} /> {/* <-- Passando a função para dentro da Sidebar */}
-      <main className="flex-1 flex flex-col overflow-hidden">
+    <div className="flex flex-col md:flex-row bg-zinc-950 text-white min-h-screen selection:bg-emerald-500 selection:text-black">
+      {/* Mobile Header */}
+      <div className="md:hidden flex items-center justify-between p-4 border-b border-zinc-800 bg-zinc-900 z-30">
+        <div className="text-emerald-400 text-3xl font-bold" style={{ fontFamily: "'Dancing Script', cursive" }}>
+          Sonatta
+        </div>
+        <button onClick={() => setIsSidebarOpen(true)} className="p-2 text-zinc-400 hover:text-white rounded-md bg-zinc-800">
+          <Menu size={24} />
+        </button>
+      </div>
+
+      <Sidebar onLogout={onLogout} tipoUsuario={tipoUsuario} professorId={professorId} isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} />
+      
+      <main className="flex-1 flex flex-col overflow-hidden relative">
+        {/* Overlay para mobile quando a Sidebar está aberta */}
+        {isSidebarOpen && (
+          <div 
+            className="md:hidden fixed inset-0 bg-black/60 z-40 backdrop-blur-sm"
+            onClick={() => setIsSidebarOpen(false)}
+          />
+        )}
         {children}
       </main>
     </div>

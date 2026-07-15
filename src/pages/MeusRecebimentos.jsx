@@ -62,7 +62,7 @@ export default function MeusRecebimentos({ professorId }) {
 
   if (carregando) {
     return (
-      <div className="flex-1 flex items-center justify-center p-8">
+      <div className="flex-1 flex items-center justify-center p-4 md:p-8">
         <div className="flex flex-col items-center gap-3">
           <div className="w-8 h-8 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin"></div>
           <span className="text-zinc-400 text-sm">Carregando recebimentos...</span>
@@ -73,7 +73,7 @@ export default function MeusRecebimentos({ professorId }) {
 
   if (erro) {
     return (
-      <div className="flex-1 flex items-center justify-center p-8">
+      <div className="flex-1 flex items-center justify-center p-4 md:p-8">
         <div className="text-center">
           <p className="text-red-400 mb-4">❌ {erro}</p>
           <button onClick={carregarFinanceiro} className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 rounded-lg text-sm text-white transition-colors">

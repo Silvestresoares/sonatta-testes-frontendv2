@@ -125,11 +125,11 @@ export default function Dashboard() {
   }, [metricas.dadosGraficoPizza]);
 
   if (carregando) {
-    return <div className="flex-1 p-8 text-zinc-500">Carregando painel...</div>;
+    return <div className="flex-1 p-4 md:p-8 text-zinc-500">Carregando painel...</div>;
   }
 
   return (
-    <div className="flex-1 p-8 bg-zinc-950 text-white overflow-y-auto min-h-screen">
+    <div className="flex-1 p-4 md:p-8 bg-zinc-950 text-white overflow-y-auto min-h-screen">
       <div className="mb-8">
         <h1 className="text-2xl font-bold tracking-tight">Painel de Controle</h1>
         <p className="text-sm text-zinc-400 mt-1">Visão geral do desempenho e saúde financeira.</p>

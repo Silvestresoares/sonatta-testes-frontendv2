@@ -453,7 +453,7 @@ export default function Financeiro() {
   const totalPaginasTransacoes = Math.ceil(transacoes.length / limite) || 1;
 
   return (
-    <div className="flex-1 p-8 bg-zinc-950 text-white min-h-screen">
+    <div className="flex-1 p-4 md:p-8 bg-zinc-950 text-white min-h-screen">
       {/* Cabeçalho */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
         <div>

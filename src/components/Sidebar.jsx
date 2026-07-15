@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
-import { LogOut, PlusCircle, Repeat, RotateCcw, Lightbulb } from 'lucide-react';
+import { LogOut, PlusCircle, Repeat, RotateCcw, Lightbulb, X } from 'lucide-react';
 import AgendamentoAulaModal from './AgendamentoAulaModal'; 
 
-export default function Sidebar({ onLogout, tipoUsuario, professorId }) { // <-- Recebe o onLogout e tipoUsuario do App aqui
+export default function Sidebar({ onLogout, tipoUsuario, professorId, isOpen, onClose }) {
   const navigate = useNavigate();
 
   const _envApi = import.meta.env.VITE_API_URL;
@@ -79,8 +79,14 @@ export default function Sidebar({ onLogout, tipoUsuario, professorId }) { // <--
       @import url('https://fonts.googleapis.com/css2?family=Dancing+Script:wght@700&family=Caveat:wght@500&display=swap');
     </style>
 
-    <aside className="w-64 h-screen bg-white dark:bg-zinc-900 flex flex-col justify-between p-4 border-r border-zinc-200 dark:border-zinc-800 overflow-y-auto">
+    <aside className={`fixed inset-y-0 left-0 z-50 md:static w-64 h-screen bg-white dark:bg-zinc-900 flex flex-col justify-between p-4 border-r border-zinc-200 dark:border-zinc-800 overflow-y-auto transform transition-transform duration-300 ease-in-out ${isOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}`}>
       <div className="flex-1 flex flex-col gap-6">
+        {/* Mobile close button */}
+        <div className="md:hidden flex justify-end">
+          <button onClick={onClose} className="p-2 text-zinc-400 hover:text-white bg-zinc-800 rounded-md">
+            <X size={24} />
+          </button>
+        </div>
         {/* Logo */}
         <div className="flex flex-col items-center px-2 text-center">
           <div className="text-emerald-400 text-4xl font-bold" style={{ fontFamily: "'Dancing Script', cursive" }}>
