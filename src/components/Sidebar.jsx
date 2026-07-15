@@ -30,10 +30,12 @@ export default function Sidebar({ onLogout, tipoUsuario, professorId, isOpen, on
   const handleAbrirModal = (tipo) => {
     setTipoSelecionado(tipo);
     setIsAgendamentoModalAberto(true);
+    if (onClose) onClose();
   };
 
   const handleAgendarAulaExperimental = () => {
     navigate('/aulas-experimentais');
+    if (onClose) onClose();
   };
 
   const handleTrocarSenha = async (e) => {
@@ -108,34 +110,34 @@ export default function Sidebar({ onLogout, tipoUsuario, professorId, isOpen, on
           {ehProfessor ? (
             <>
               {/* Menu do Professor */}
-              <NavLink to="/minha-agenda" className={linkStyle}>
+              <NavLink to="/minha-agenda" className={linkStyle} onClick={onClose}>
                 📅 Minha Agenda
               </NavLink>
 
-              <NavLink to="/meus-recebimentos" className={linkStyle}>
+              <NavLink to="/meus-recebimentos" className={linkStyle} onClick={onClose}>
                 💰 Meus Recebimentos
               </NavLink>
             </>
           ) : (
             <>
               {/* Menu do Admin */}
-              <NavLink to="/" className={linkStyle}>
+              <NavLink to="/" className={linkStyle} onClick={onClose}>
                 📊 Resumo
               </NavLink>
               
-              <NavLink to="/alunos" className={linkStyle}>
+              <NavLink to="/alunos" className={linkStyle} onClick={onClose}>
                 👥 Alunos
               </NavLink>
 
-              <NavLink to="/professores" className={linkStyle}>
+              <NavLink to="/professores" className={linkStyle} onClick={onClose}>
                 👨‍🏫 Professores
               </NavLink>
 
-              <NavLink to="/agenda" className={linkStyle}>
+              <NavLink to="/agenda" className={linkStyle} onClick={onClose}>
                 📅 Agenda de Aulas
               </NavLink>
               
-              <NavLink to="/financeiro" className={linkStyle}>
+              <NavLink to="/financeiro" className={linkStyle} onClick={onClose}>
                 💰 Financeiro
               </NavLink>
 
