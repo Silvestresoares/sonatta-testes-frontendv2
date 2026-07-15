@@ -526,15 +526,15 @@ export default function Alunos() {
       {/* Modal Cadastro / Edição */}
       {modalAberto && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-zinc-900 border border-zinc-800 rounded-2xl w-full max-w-lg shadow-2xl">
-            <div className="p-6 border-b border-zinc-800 flex justify-between items-center">
+          <div className="bg-zinc-900 border border-zinc-800 rounded-2xl w-full max-w-lg shadow-2xl flex flex-col max-h-[90vh]">
+            <div className="p-6 border-b border-zinc-800 flex justify-between items-center shrink-0">
               <h2 className="text-lg font-bold">
                 {idSendoEditado ? '📋 Editar Ficha do Aluno' : '✨ Nova Matrícula'}
               </h2>
               <button onClick={fecharModal} className="text-zinc-500 hover:text-white cursor-pointer">✕</button>
             </div>
 
-            <form onSubmit={handleSalvarAluno} className="p-6 space-y-4">
+            <form onSubmit={handleSalvarAluno} className="p-6 space-y-4 overflow-y-auto min-h-0">
               <div className="grid grid-cols-2 gap-4">
                 <div className="col-span-2">
                   <label className="text-xs font-bold text-zinc-500 uppercase">Nome Completo</label>
