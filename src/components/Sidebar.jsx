@@ -7,7 +7,7 @@ export default function Sidebar({ onLogout, tipoUsuario, professorId }) { // <--
   const navigate = useNavigate();
 
   const _envApi = import.meta.env.VITE_API_URL;
-  const _defaultLocal = 'http://localhost:3001';
+  const _defaultLocal = 'http://localhost:3005';
   const API_URL = (typeof window !== 'undefined' && window.location && window.location.hostname.includes('localhost')) ? _defaultLocal : (_envApi || _defaultLocal);
   const canalComunicacao = new BroadcastChannel('sonatta_updates');
 

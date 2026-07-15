@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { TrendingUp, BarChart3, Users, Calendar } from 'lucide-react';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+const _envApi = import.meta.env.VITE_API_URL;
+const _defaultLocal = 'http://localhost:3005';
+const API_URL = (typeof window !== 'undefined' && window.location && window.location.hostname.includes('localhost')) ? _defaultLocal : (_envApi || _defaultLocal);
 
 export default function EstatisticasAulas({ aluno_id }) {
   const [stats, setStats] = useState(null);

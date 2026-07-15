@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { X, PlusCircle, Repeat, RotateCcw, User, Calendar, Clock, CheckCircle, AlertCircle, RefreshCw, GraduationCap } from 'lucide-react';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+const _envApi = import.meta.env.VITE_API_URL;
+const _defaultLocal = 'http://localhost:3005';
+const API_URL = (typeof window !== 'undefined' && window.location && window.location.hostname.includes('localhost')) ? _defaultLocal : (_envApi || _defaultLocal);
 const canalComunicacao = new BroadcastChannel('sonatta_updates');
 
 const TIPO_CONFIG = {

@@ -4,7 +4,9 @@ import EsqueciSenha from './EsqueciSenha';
 import RedefinirSenha from './RedefinirSenha';
 
 // Detecta a URL da internet ou usa o localhost se estiver testando no computador
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+const _envApi = import.meta.env.VITE_API_URL;
+const _defaultLocal = 'http://localhost:3005';
+const API_URL = (typeof window !== 'undefined' && window.location && window.location.hostname.includes('localhost')) ? _defaultLocal : (_envApi || _defaultLocal);
 
 export default function Login({ aoLogar }) {
   // 🔌 Controla se exibe o login/cadastro padrão ou as telas novas de recuperação
@@ -47,12 +49,13 @@ export default function Login({ aoLogar }) {
       const dados = await resposta.json();
 
       if (resposta.ok) {
+        const usuarioLogado = dados.usuario || {};
         localStorage.setItem('@sonatta:token', dados.token);
-        localStorage.setItem('@sonatta:usuario_nome', dados.usuario?.nome || 'Administrador');
-        localStorage.setItem('@sonatta:tipo_usuario', dados.usuario?.tipo_usuario || 'admin');
-        localStorage.setItem('@sonatta:professor_id', dados.usuario?.professor_id || '');
-        alert(`Bem-vindo de volta, ${dados.usuario?.nome || 'Administrador'}!`);
-        if (aoLogar) aoLogar();
+        localStorage.setItem('@sonatta:usuario_nome', usuarioLogado.nome || 'Usuário');
+        localStorage.setItem('@sonatta:tipo_usuario', usuarioLogado.tipo_usuario || 'admin');
+        localStorage.setItem('@sonatta:professor_id', usuarioLogado.professor_id || '');
+        alert(`Bem-vindo de volta, ${usuarioLogado.nome || 'Usuário'}!`);
+        if (aoLogar) aoLogar(usuarioLogado);
       } else {
         alert(dados.erro || "Erro ao fazer login. Verifique suas credenciais.");
       }
@@ -150,7 +153,7 @@ export default function Login({ aoLogar }) {
         {aba === 'login' && (
           <form onSubmit={handleLogin} className="p-6 space-y-4">
             <div>
-              <label className="block text-xs font-bold text-zinc-400 uppercase mb-1.5">E-mail do Administrador</label>
+              <label className="block text-xs font-bold text-zinc-400 uppercase mb-1.5">E-mail de acesso</label>
               <input 
                 type="email" 
                 required 
@@ -181,6 +184,8 @@ export default function Login({ aoLogar }) {
                 className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-sm text-white outline-none focus:border-emerald-500 transition-all placeholder-zinc-600"
               />
             </div>
+
+            <p className="text-[11px] text-zinc-500 text-center">Use o e-mail cadastrado para professor ou administrador.</p>
 
             <button 
               type="submit"

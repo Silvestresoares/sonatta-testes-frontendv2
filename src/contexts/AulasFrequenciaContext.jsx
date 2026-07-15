@@ -7,7 +7,9 @@ import React, { createContext, useContext, useState, useCallback, useRef, useEff
  */
 const AulasFrequenciaContext = createContext();
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+const _envApi = import.meta.env.VITE_API_URL;
+const _defaultLocal = 'http://localhost:3005';
+const API_URL = (typeof window !== 'undefined' && window.location && window.location.hostname.includes('localhost')) ? _defaultLocal : (_envApi || _defaultLocal);
 
 export function AulasFrequenciaProvider({ children }) {
   // Estado de aulas

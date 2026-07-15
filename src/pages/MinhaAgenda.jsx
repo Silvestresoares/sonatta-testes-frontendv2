@@ -4,7 +4,9 @@ import RegistroAulaModal from '../components/RegistroAulaModal';
 import CalendarioVisual from '../components/CalendarioVisual';
 import AulasTimeline from '../components/AulasTimeline';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+const _envApi = import.meta.env.VITE_API_URL;
+const _defaultLocal = 'http://localhost:3005';
+const API_URL = (typeof window !== 'undefined' && window.location && window.location.hostname.includes('localhost')) ? _defaultLocal : (_envApi || _defaultLocal);
 
 const MESES = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
 
@@ -197,6 +199,11 @@ export default function MinhaAgenda({ professorId }) {
                 onMesChange={(mes, ano) => atualizarMes(mes, ano)}
                 initialDate={new Date(anoAtual, mesAtual - 1, 1)}
               />
+              {/* Contador de aulas para a data selecionada */}
+              <div className="mt-4 p-3 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg">
+                <p className="text-xs text-zinc-500 mb-1">Aulas em {dataSelecionada.toLocaleDateString('pt-BR')}</p>
+                <div className="text-2xl font-bold text-blue-400">{aulasDoDia.length}</div>
+              </div>
             </div>
           </div>
 

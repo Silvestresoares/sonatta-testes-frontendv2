@@ -42,7 +42,7 @@ test('Simulação do Usuário - Teste Geral do Sonatta', async ({ page }) => {
   // ----------------------------------------------------------------------
   // 1. Abre a página inicial (Ajustado para IP Exato)
   // ----------------------------------------------------------------------
-  await page.goto('http://127.0.0.1:5173');
+  await page.goto('http://localhost:5175');
   await page.waitForLoadState('networkidle');
 
   // Configura interceptação de alertas (como "Usuário criado com sucesso!")
@@ -111,7 +111,7 @@ test('Simulação do Usuário - Teste Geral do Sonatta', async ({ page }) => {
   // ----------------------------------------------------------------------
   // 5. TESTE DE CADASTRO DE ALUNOS
   // ----------------------------------------------------------------------
-  const abAlunos = page.getByRole('button', { name: /Alunos/i });
+  const abAlunos = page.getByRole('link', { name: /Alunos/i });
   if (await abAlunos.isVisible()) {
     await abAlunos.click();
     await page.waitForLoadState('networkidle');
