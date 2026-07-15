@@ -61,11 +61,12 @@ export default function OverviewDisponibilidadeModal({ isOpen, onClose, professo
         const hora = aluno.horario;
         if (diaBase && hora) {
           if (!mapa[diaBase]) mapa[diaBase] = {};
-          mapa[diaBase][hora] = { 
+          if (!mapa[diaBase][hora]) mapa[diaBase][hora] = [];
+          mapa[diaBase][hora].push({ 
             tipo: 'regular', 
             alunoNome: aluno.nome,
             instrumento: aluno.instrumento
-          };
+          });
         }
       }
     });
@@ -83,18 +84,19 @@ export default function OverviewDisponibilidadeModal({ isOpen, onClose, professo
         
         if (diaCorrespondente && aula.horario) {
           if (!mapa[diaCorrespondente]) mapa[diaCorrespondente] = {};
+          if (!mapa[diaCorrespondente][aula.horario]) mapa[diaCorrespondente][aula.horario] = [];
           
           let cor = 'bg-blue-500/20 text-blue-400 border-blue-500/30';
           if (aula.tipo_aula === 'aula_extra') cor = 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30';
           if (aula.tipo_aula === 'reposicao') cor = 'bg-red-500/20 text-red-400 border-red-500/30';
           if (aula.tipo_aula === 'experimental') cor = 'bg-orange-500/20 text-orange-400 border-orange-500/30';
           
-          mapa[diaCorrespondente][aula.horario] = {
+          mapa[diaCorrespondente][aula.horario].push({
             tipo: 'especial',
             alunoNome: aula.nome_aluno || aula.aluno_nome,
             tipo_aula: aula.tipo_aula,
             cor: cor
-          };
+          });
         }
       }
     });
@@ -189,60 +191,73 @@ export default function OverviewDisponibilidadeModal({ isOpen, onClose, professo
                       </td>
                       {DIAS_SEMANA.map(dia => {
                         const estaDisponivel = (disponibilidade[dia] || []).includes(hora);
-                        const ocupacaoRegular = mapaOcupacaoRegular[dia]?.[hora];
-                        const ocupacaoEspecial = mapaOcupacaoEspecial[dia]?.[hora];
+                        const ocupacoesRegulares = mapaOcupacaoRegular[dia]?.[hora] || [];
+                        const ocupacoesEspeciais = mapaOcupacaoEspecial[dia]?.[hora] || [];
+                        const todasOcupacoes = [...ocupacoesRegulares, ...ocupacoesEspeciais];
+                        const temOcupacao = todasOcupacoes.length > 0;
                         
-                        let celula = (
-                          <div className="w-full h-full flex items-center justify-center text-zinc-800 py-2">
-                            -
-                          </div>
-                        );
+                        let celula = null;
 
-                        if (estaDisponivel) {
-                          if (ocupacaoEspecial) {
-                            celula = (
-                              <div 
-                                className={`w-full py-1.5 px-2 rounded-md text-center border ${ocupacaoEspecial.cor} flex flex-col items-center justify-center`}
-                                title={`Aula Especial: ${ocupacaoEspecial.tipo_aula.replace('_', ' ')} - ${ocupacaoEspecial.alunoNome}`}
-                              >
-                                <span className="font-semibold truncate w-full max-w-[110px]">{ocupacaoEspecial.alunoNome}</span>
-                                <span className="text-[10px] opacity-80 uppercase tracking-wider">{ocupacaoEspecial.tipo_aula.replace('_', ' ')}</span>
-                              </div>
-                            );
-                          } else if (ocupacaoRegular) {
-                            celula = (
-                              <div 
-                                className="w-full py-1.5 px-2 rounded-md text-center bg-rose-500/10 text-rose-400 border border-rose-500/20 flex flex-col items-center justify-center"
-                                title={`Aluno Fixo: ${ocupacaoRegular.alunoNome} (${ocupacaoRegular.instrumento})`}
-                              >
-                                <span className="font-semibold truncate w-full max-w-[110px]">{ocupacaoRegular.alunoNome}</span>
-                                <span className="text-[10px] opacity-70 truncate w-full max-w-[110px]">{ocupacaoRegular.instrumento}</span>
-                              </div>
-                            );
-                          } else {
-                            celula = (
-                              <div className="w-full py-1.5 px-2 rounded-md text-center bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-medium">
-                                Livre
-                              </div>
-                            );
-                          }
+                        if (temOcupacao) {
+                          celula = (
+                            <div className="flex flex-col gap-1 w-full">
+                              {todasOcupacoes.map((ocupacao, idx) => {
+                                const isForaDaGrade = !estaDisponivel;
+                                if (isForaDaGrade) {
+                                  return (
+                                    <div 
+                                      key={idx}
+                                      className="w-full py-1 px-1.5 rounded-md text-center bg-yellow-500/10 text-yellow-500 border border-yellow-500/30 flex flex-col items-center justify-center"
+                                      title={`Agendado fora da grade de disponibilidade! Aluno: ${ocupacao.alunoNome}`}
+                                    >
+                                      <span className="font-semibold text-[10px] truncate w-full max-w-[110px]">{ocupacao.alunoNome}</span>
+                                      <span className="text-[8px] opacity-80 uppercase leading-tight mt-0.5">Fora da Grade</span>
+                                    </div>
+                                  );
+                                }
+
+                                if (ocupacao.tipo === 'especial') {
+                                  return (
+                                    <div 
+                                      key={idx}
+                                      className={`w-full py-1 px-1.5 rounded-md text-center border ${ocupacao.cor} flex flex-col items-center justify-center`}
+                                      title={`Aula Especial: ${ocupacao.tipo_aula.replace('_', ' ')} - ${ocupacao.alunoNome}`}
+                                    >
+                                      <span className="font-semibold text-[10px] truncate w-full max-w-[110px]">{ocupacao.alunoNome}</span>
+                                      <span className="text-[8px] opacity-80 uppercase tracking-wider">{ocupacao.tipo_aula.replace('_', ' ')}</span>
+                                    </div>
+                                  );
+                                }
+
+                                return (
+                                  <div 
+                                    key={idx}
+                                    className="w-full py-1 px-1.5 rounded-md text-center bg-rose-500/10 text-rose-400 border border-rose-500/20 flex flex-col items-center justify-center"
+                                    title={`Aluno Fixo: ${ocupacao.alunoNome} (${ocupacao.instrumento})`}
+                                  >
+                                    <span className="font-semibold text-[10px] truncate w-full max-w-[110px]">{ocupacao.alunoNome}</span>
+                                    <span className="text-[8px] opacity-70 truncate w-full max-w-[110px]">{ocupacao.instrumento}</span>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          );
+                        } else if (estaDisponivel) {
+                          celula = (
+                            <div className="w-full py-1.5 px-2 rounded-md text-center bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-medium">
+                              Livre
+                            </div>
+                          );
                         } else {
-                           if (ocupacaoEspecial || ocupacaoRegular) {
-                              const o = ocupacaoEspecial || ocupacaoRegular;
-                              celula = (
-                                <div 
-                                  className="w-full py-1.5 px-2 rounded-md text-center bg-yellow-500/10 text-yellow-500 border border-yellow-500/30 flex flex-col items-center justify-center"
-                                  title={`Agendado fora da grade de disponibilidade! Aluno: ${o.alunoNome}`}
-                                >
-                                  <span className="font-semibold truncate w-full max-w-[110px]">{o.alunoNome}</span>
-                                  <span className="text-[9px] opacity-80 uppercase leading-tight mt-0.5">Fora da Grade</span>
-                                </div>
-                              );
-                           }
+                          celula = (
+                            <div className="w-full h-full flex items-center justify-center text-zinc-800 py-2">
+                              -
+                            </div>
+                          );
                         }
 
                         return (
-                          <td key={`${dia}-${hora}`} className="p-1.5 min-w-[120px] max-w-[140px] align-middle border-r border-zinc-800/50 last:border-0">
+                          <td key={`${dia}-${hora}`} className="p-1.5 min-w-[120px] max-w-[140px] align-top border-r border-zinc-800/50 last:border-0">
                             {celula}
                           </td>
                         );
