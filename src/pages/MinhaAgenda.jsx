@@ -97,6 +97,24 @@ export default function MinhaAgenda({ professorId }) {
     return dados.aulas_mes.filter((aula) => aula.data_aula?.toString().substring(0, 10) === dataISO);
   }, [dados, dataSelecionada]);
 
+  const aulasRestantes = useMemo(() => {
+    const hoje = new Date();
+    const dataHoje = new Date(hoje.getFullYear(), hoje.getMonth(), hoje.getDate());
+    const dataSelec = new Date(dataSelecionada.getFullYear(), dataSelecionada.getMonth(), dataSelecionada.getDate());
+
+    if (dataSelec < dataHoje) return 0;
+    if (dataSelec > dataHoje) return aulasDoDia.length;
+
+    const horaAtualMinutos = hoje.getHours() * 60 + hoje.getMinutes();
+
+    return aulasDoDia.filter(aula => {
+      if (!aula.horario) return true;
+      const [h, m] = aula.horario.split(':').map(Number);
+      const minutosTerminoAula = h * 60 + (m || 0) + 60; // Assumindo 1 hora de aula
+      return minutosTerminoAula > horaAtualMinutos;
+    }).length;
+  }, [aulasDoDia, dataSelecionada]);
+
   const atualizarMes = (mes, ano) => {
     if (mes === mesAtual && ano === anoAtual) return;
 
@@ -202,7 +220,7 @@ export default function MinhaAgenda({ professorId }) {
               {/* Contador de aulas para a data selecionada */}
               <div className="mt-4 p-3 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg">
                 <p className="text-xs text-zinc-500 mb-1">Aulas em {dataSelecionada.toLocaleDateString('pt-BR')}</p>
-                <div className="text-2xl font-bold text-blue-400">{aulasDoDia.length}</div>
+                <div className="text-2xl font-bold text-blue-400">{aulasRestantes}</div>
               </div>
             </div>
           </div>

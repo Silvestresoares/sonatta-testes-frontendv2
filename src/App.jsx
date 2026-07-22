@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Routes, Route, useLocation, Navigate, useNavigate } from 'react-router-dom'; // <-- Adicionado useNavigate aqui
 import Login from './pages/Login';
 import Sidebar from './components/Sidebar';
+import NotificationBanner from './components/NotificationBanner';
 import { Menu } from 'lucide-react';
 
 // Importações das páginas
@@ -43,6 +44,8 @@ function LayoutComSidebar({ children, onLogout, tipoUsuario, professorId }) {
       <Sidebar onLogout={onLogout} tipoUsuario={tipoUsuario} professorId={professorId} isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} />
       
       <main className="flex-1 flex flex-col overflow-hidden relative">
+        <NotificationBanner />
+        
         {/* Overlay para mobile quando a Sidebar está aberta */}
         {isSidebarOpen && (
           <div 

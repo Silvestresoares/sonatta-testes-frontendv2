@@ -285,6 +285,24 @@ export default function Agenda() {
     return todasAulas;
   }, [alunos, registros, experimentais, aulasAgendadas, dataSelecionada, professorSelecionado]);
 
+  const aulasRestantes = useMemo(() => {
+    const hoje = new Date();
+    const dataHoje = new Date(hoje.getFullYear(), hoje.getMonth(), hoje.getDate());
+    const dataSelec = new Date(dataSelecionada.getFullYear(), dataSelecionada.getMonth(), dataSelecionada.getDate());
+
+    if (dataSelec < dataHoje) return 0;
+    if (dataSelec > dataHoje) return aulasDoDia.length;
+
+    const horaAtualMinutos = hoje.getHours() * 60 + hoje.getMinutes();
+
+    return aulasDoDia.filter(aula => {
+      if (!aula.horario) return true;
+      const [h, m] = aula.horario.split(':').map(Number);
+      const minutosTerminoAula = h * 60 + (m || 0) + 60; // Assumindo 1 hora de aula
+      return minutosTerminoAula > horaAtualMinutos;
+    }).length;
+  }, [aulasDoDia, dataSelecionada]);
+
   // Abrir modal de registro
   const abrirRegistro = (aula) => {
     setAulaSelecionada({
@@ -418,7 +436,7 @@ export default function Agenda() {
                 {!nomeFeriado && (
                   <div className="mt-6 text-center">
                     <p className="text-xl font-black text-blue-400 tracking-tight italic">
-                      {aulasDoDia.length} {aulasDoDia.length === 1 ? 'aula hoje' : 'aulas hoje'}
+                      {aulasRestantes} {aulasRestantes === 1 ? 'aula hoje' : 'aulas hoje'}
                     </p>
                   </div>
                 )}
