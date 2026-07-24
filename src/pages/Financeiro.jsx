@@ -125,9 +125,12 @@ export default function Financeiro() {
       const dados = await resposta.json();
       const resumo = resumoResp.ok ? await resumoResp.json() : { receitas: 0, despesas: 0, saldo: 0, total_lancamentos: 0 };
 
+      // Se for o mês atual, não mostramos as mensalidades em 'Outros Lançamentos' (pois já estão na aba Mensalidades)
+      // Se for mês passado, mostramos, pois elas formam o histórico
+      const isCurrentMonth = Number(mesFiltro) === (new Date().getMonth() + 1) && Number(anoFiltro) === new Date().getFullYear();
       setTransacoes(
         Array.isArray(dados)
-          ? dados.filter(t => !String(t.id).startsWith('aluno-'))
+          ? dados.filter(t => isCurrentMonth ? !t.aluno_id : true)
           : []
       );
       setResumoFinanceiro(resumo);
@@ -432,10 +435,10 @@ export default function Financeiro() {
 
   if (isMesAtual) {
     // Para o mês atual, consideramos apenas lançamentos com status 'Pago'
-    receitasOutros = transacoes.filter(t => t.tipo === "Receita" && t.status === "Pago").reduce((acc, t) => acc + (Number(t.valor) || 0), 0);
-    despesasOutros = transacoes.filter(t => t.tipo === "Despesa" && t.status === "Pago").reduce((acc, t) => acc + (Number(t.valor) || 0), 0);
+    receitasOutros = transacoes.filter(t => t.tipo === "Receita" && t.status === "Pago" && !t.aluno_id).reduce((acc, t) => acc + (Number(t.valor) || 0), 0);
+    despesasOutros = transacoes.filter(t => t.tipo === "Despesa" && t.status === "Pago" && !t.aluno_id).reduce((acc, t) => acc + (Number(t.valor) || 0), 0);
   } else if (isMesPassado) {
-    // Para meses passados, consideramos lançamentos 'Pago' ou 'concluido'
+    // Para meses passados, incluímos TUDO (incluindo mensalidades salvas no financeiro), pois a aba Mensalidades não mostra passado
     receitasOutros = transacoes.filter(t => t.tipo === "Receita" && (t.status === "Pago" || t.status === "concluido")).reduce((acc, t) => acc + (Number(t.valor) || 0), 0);
     despesasOutros = transacoes.filter(t => t.tipo === "Despesa" && (t.status === "Pago" || t.status === "concluido")).reduce((acc, t) => acc + (Number(t.valor) || 0), 0);
   }
@@ -786,32 +789,34 @@ export default function Financeiro() {
                             </span>
                           </td>
                           <td className="p-4 text-center">
-                            <div className="flex items-center justify-center gap-2">
-                              <button
-                                onClick={() => handleEditarLancamento(t)}
-                                className="text-blue-400 hover:text-blue-300 p-2 rounded transition-all cursor-pointer hover:bg-blue-500/10"
-                                title="Editar Lançamento"
-                              >
-                                ✏️
-                              </button>
-                              <button
-                                onClick={() => alternarStatusLancamento(t.id, t.status)}
-                                className={`px-3 py-1.5 text-xs font-medium rounded transition-all cursor-pointer ${
-                                  t.status === 'Pago'
-                                    ? 'bg-amber-600/30 text-amber-300 hover:bg-amber-600/50'
-                                    : 'bg-emerald-600/30 text-emerald-300 hover:bg-emerald-600/50'
-                                }`}
-                              >
-                                {t.status === 'Pago' ? 'Marcar Pendente' : 'Marcar Pago'}
-                              </button>
-                              <button
-                                onClick={(e) => { e.stopPropagation(); handleDeletarLancamento(t.id, t.descricao); }}
-                                className="text-rose-400 hover:text-rose-300 p-2 rounded transition-all cursor-pointer hover:bg-rose-500/10"
-                                title="Excluir Lançamento"
-                              >
-                                🗑️
-                              </button>
-                            </div>
+                            {!t.aluno_id && (
+                              <div className="flex items-center justify-center gap-2">
+                                <button
+                                  onClick={() => handleEditarLancamento(t)}
+                                  className="text-blue-400 hover:text-blue-300 p-2 rounded transition-all cursor-pointer hover:bg-blue-500/10"
+                                  title="Editar Lançamento"
+                                >
+                                  ✏️
+                                </button>
+                                <button
+                                  onClick={() => alternarStatusLancamento(t.id, t.status)}
+                                  className={`px-3 py-1.5 text-xs font-medium rounded transition-all cursor-pointer ${
+                                    t.status === 'Pago'
+                                      ? 'bg-amber-600/30 text-amber-300 hover:bg-amber-600/50'
+                                      : 'bg-emerald-600/30 text-emerald-300 hover:bg-emerald-600/50'
+                                  }`}
+                                >
+                                  {t.status === 'Pago' ? 'Marcar Pendente' : 'Marcar Pago'}
+                                </button>
+                                <button
+                                  onClick={(e) => { e.stopPropagation(); handleDeletarLancamento(t.id, t.descricao); }}
+                                  className="text-rose-400 hover:text-rose-300 p-2 rounded transition-all cursor-pointer hover:bg-rose-500/10"
+                                  title="Excluir Lançamento"
+                                >
+                                  🗑️
+                                </button>
+                              </div>
+                            )}
                           </td>
                         </tr>
                       ))}

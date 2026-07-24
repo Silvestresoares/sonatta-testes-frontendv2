@@ -34,6 +34,44 @@ export default function Dashboard() {
   const [alertasFrequencia, setAlertasFrequencia] = useState([]);
 
   const [carregando, setCarregando] = useState(true);
+  const [executandoRotina, setExecutandoRotina] = useState(false);
+
+  const forcarViradaMes = async () => {
+    const mesAtualStr = `${new Date().getFullYear()}-${new Date().getMonth()}`;
+    const ultimaVirada = localStorage.getItem('@sonatta:ultima_virada');
+    
+    if (ultimaVirada === mesAtualStr) {
+      alert('ação já realizada');
+      return;
+    }
+
+    if (!window.confirm('Tem certeza que deseja executar a virada do mês?\n\nIsso redefinirá a quantidade de aulas dos alunos, marcará as mensalidades ativas como pendentes e mudará os recebimentos "Pagos" para "Concluídos".\n\nATENÇÃO: Recomendado apenas caso a automação do sistema tenha falhado.')) return;
+    
+    const token = localStorage.getItem('@sonatta:token');
+    if (!token) return;
+
+    setExecutandoRotina(true);
+    try {
+      const resposta = await fetch(`${API_URL}/api/dashboard/forcar-virada-mes`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      
+      const dados = await resposta.json();
+      if (resposta.ok) {
+        localStorage.setItem('@sonatta:ultima_virada', mesAtualStr);
+        alert('Rotina mensal executada com sucesso!');
+        carregarDadosDashboard();
+      } else {
+        alert(`Erro: ${dados.erro}`);
+      }
+    } catch (erro) {
+      console.error("Erro ao forçar virada de mês:", erro);
+      alert('Erro de conexão ao forçar virada de mês.');
+    } finally {
+      setExecutandoRotina(false);
+    }
+  };
 
   const carregarDadosDashboard = async () => {
     const token = localStorage.getItem('@sonatta:token');
@@ -130,9 +168,20 @@ export default function Dashboard() {
 
   return (
     <div className="flex-1 p-4 md:p-8 bg-zinc-950 text-white overflow-y-auto min-h-screen">
-      <div className="mb-8">
-        <h1 className="text-2xl font-bold tracking-tight">Painel de Controle</h1>
-        <p className="text-sm text-zinc-400 mt-1">Visão geral do desempenho e saúde financeira.</p>
+      <div className="mb-8 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">Painel de Controle</h1>
+          <p className="text-sm text-zinc-400 mt-1">Visão geral do desempenho e saúde financeira.</p>
+        </div>
+        {new Date().getDate() <= 5 && (
+          <button
+            onClick={forcarViradaMes}
+            disabled={executandoRotina}
+            className="bg-zinc-800 hover:bg-zinc-700 disabled:opacity-50 text-zinc-300 px-4 py-2 rounded-lg text-sm font-medium transition-colors border border-zinc-700 flex items-center gap-2 shadow-sm"
+          >
+            {executandoRotina ? 'Executando...' : 'Executar Virada do Mês'}
+          </button>
+        )}
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-6 mb-8">
@@ -273,6 +322,33 @@ export default function Dashboard() {
             </div>
           )}
         </div>
+      </div>
+
+      {/* Movimentação de Alunos (Entradas x Saídas) */}
+      <div className="mt-6 bg-zinc-900 border border-zinc-800 p-6 rounded-xl">
+        <h2 className="text-base font-semibold text-zinc-200 mb-6">Movimentação de Alunos (Últimos 12 meses)</h2>
+        {!metricas.dadosGraficoMovimentacao || metricas.dadosGraficoMovimentacao.length === 0 ? (
+          <div className="flex items-center justify-center h-72 text-zinc-500 text-sm">
+            Sem dados de movimentação
+          </div>
+        ) : (
+          <div className="h-72 w-full">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={metricas.dadosGraficoMovimentacao} margin={{ top: 20, right: 30, left: 0, bottom: 5 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#27272a" vertical={false} />
+                <XAxis dataKey="name" stroke="#71717a" tickLine={false} axisLine={false} />
+                <YAxis stroke="#71717a" tickLine={false} axisLine={false} allowDecimals={false} />
+                <Tooltip 
+                  contentStyle={{ backgroundColor: '#18181b', border: '1px solid #27272a', borderRadius: '8px' }}
+                  itemStyle={{ color: '#fff' }}
+                />
+                <Legend verticalAlign="top" height={36} iconType="circle" />
+                <Bar dataKey="Entradas" fill="#10b981" radius={[4, 4, 0, 0]} barSize={24} />
+                <Bar dataKey="Saidas" name="Saídas" fill="#f59e0b" radius={[4, 4, 0, 0]} barSize={24} />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        )}
       </div>
     </div>
   );
