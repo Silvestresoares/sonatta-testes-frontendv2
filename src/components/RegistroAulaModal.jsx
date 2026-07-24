@@ -44,7 +44,7 @@ export default function RegistroAulaModal({ isOpen, onClose, aluno, aula, onSave
   const carregarRegistroData = async (dataBusca) => {
     const token = localStorage.getItem('@sonatta:token');
     const idAluno = aula?.aluno_id || aluno?.id || formData.aluno_id;
-    const idAula = aula?.aula_id || aula?.aula_id_referencia || (aula?.id && !String(aula.id).startsWith('regular') ? aula.id : null);
+    const idAula = aula?.aula_id || aula?.aula_id_referencia;
     const idExp = aula?.aula_experimental_id;
 
     if (!idAluno && !idExp && !idAula) return;
@@ -92,7 +92,7 @@ export default function RegistroAulaModal({ isOpen, onClose, aluno, aula, onSave
     // Se vem de aula agendada (Agenda), usar dados da aula
     if (aula && isOpen) {
       const reg = aula.registroExistente || {};
-      const aulaId = aula.aula_id || aula.aula_id_referencia || (aula.id && !String(aula.id).startsWith('regular') ? aula.id : null);
+      const aulaId = aula.aula_id || aula.aula_id_referencia;
 
       setFormData({
         aluno_id: aula.aluno_id || null,
