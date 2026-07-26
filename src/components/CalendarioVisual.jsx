@@ -120,10 +120,11 @@ export function CalendarioVisual({ aulasDoMes = [], onDiaSelected = () => {}, on
       return false;
     });
 
-    // 2. Conta alunos com aula regular hoje que ainda não possuem registro específico
+    // 2. Conta alunos (dia_aula) e turmas (dia_semana) regulares hoje que ainda não possuem registro específico
     const regularesDoDia = aulasDoMes.filter(aula => {
-      if (aula.dia_aula) {
-        const diaTratado = aula.dia_aula.replace('-feira', '');
+      const diaReferencia = aula.dia_aula || aula.dia_semana;
+      if (diaReferencia) {
+        const diaTratado = diaReferencia.replace('-feira', '');
         return diaTratado === diaDasemana && !idsRegistradosNoDia.has(aula.id);
       }
       return false;

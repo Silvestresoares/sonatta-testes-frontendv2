@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import { Info } from 'lucide-react';
 import HistoricoAlunoModal from '../components/HistoricoAlunoModal';
 
 // Detecta a URL da internet ou usa o localhost se estiver testando no computador
@@ -60,6 +59,8 @@ export default function Alunos() {
   const [statusMensalidade, setStatusMensalidade] = useState('Pendente');
   const [professorId, setProfessorId] = useState('');
   const [professores, setProfessores] = useState([]);
+  const [responsavelId, setResponsavelId] = useState('');
+  const [responsaveis, setResponsaveis] = useState([]);
 
   // 1. BUSCAR ALUNOS E PROFESSORES (GET)
   const carregarAlunos = async () => {
@@ -122,18 +123,34 @@ export default function Alunos() {
     }
   };
 
+  const carregarResponsaveis = async () => {
+    const token = localStorage.getItem('@sonatta:token');
+    if (!token) return;
+    try {
+      const resposta = await fetch(`${API_URL}/api/responsaveis`, { headers: { 'Authorization': `Bearer ${token}` } });
+      if (resposta.ok) {
+        const dados = await resposta.json();
+        setResponsaveis(dados || []);
+      }
+    } catch (erro) {
+      console.error("Erro ao buscar responsáveis:", erro);
+    }
+  };
+
   useEffect(() => {
     carregarAlunos();
   }, [pagina, filtroStatus, busca]); // Recarrega ao mudar paginação ou filtros
 
   useEffect(() => {
     carregarProfessores();
+    carregarResponsaveis();
 
     // Escuta mensagens de outras páginas
     const escutarCanal = (evento) => {
       if (evento.data === 'atualizar_dados') {
         carregarAlunos();
         carregarProfessores();
+        carregarResponsaveis();
       }
     };
 
@@ -142,6 +159,7 @@ export default function Alunos() {
       if (evento.data.tipo === 'muda_aba' && evento.data.aba === 'alunos') {
         carregarAlunos();
         carregarProfessores();
+        carregarResponsaveis();
       }
     };
 
@@ -205,7 +223,8 @@ export default function Alunos() {
       quantidade_aulas: quantidadeAulas ? parseInt(quantidadeAulas) : 4,
       aulas_mes_entrada: aulasMesEntrada ? parseInt(aulasMesEntrada) : 4,
       status_mensalidade: statusMensalidade,
-      professor_id: professorId ? Number(professorId) : null
+      professor_id: professorId ? Number(professorId) : null,
+      responsavel_id: responsavelId ? Number(responsavelId) : null
     };
 
     try {
@@ -297,6 +316,7 @@ export default function Alunos() {
     setQuantidadeAulas(aluno.quantidade_aulas?.toString() || '4');
     setAulasMesEntrada(aluno.aulas_mes_entrada?.toString() || '4');
     setProfessorId(aluno.professor_id || '');
+    setResponsavelId(aluno.responsavel_id || '');
     setModalAberto(true);
   };
 
@@ -316,6 +336,7 @@ export default function Alunos() {
     setNome(''); setCpf(''); setEmail(''); setTelefone(''); setDataMatricula(''); setPrimeiraAula(''); setMensalidade(''); setHorario(''); 
     setInstrumento(''); setStatus('Ativo'); setDiaAula('Segunda'); setQuantidadeAulas(''); setAulasMesEntrada('4'); setStatusMensalidade('Pendente');
     setProfessorId('');
+    setResponsavelId('');
   };
 
   // O filtro agora é feito via API, então usamos diretamente os alunos carregados
@@ -578,6 +599,19 @@ export default function Alunos() {
                     ))}
                   </select>
                 </div>
+                <div className="col-span-2">
+                  <label className="text-xs font-bold text-zinc-500 uppercase">Responsável Financeiro</label>
+                  <select
+                    value={responsavelId}
+                    onChange={e => setResponsavelId(e.target.value)}
+                    className="w-full bg-zinc-950 border border-zinc-800 rounded-lg p-2 mt-1 outline-none text-white text-sm cursor-pointer"
+                  >
+                    <option value="">O próprio aluno</option>
+                    {responsaveis.map(r => (
+                      <option key={r.id} value={r.id}>{r.nome} - {r.cpf || 'Sem CPF'}</option>
+                    ))}
+                  </select>
+                </div>
                 {/* LINHA 1: Dia da aula, Horário da aula, Data de matrícula */}
                 <div className="col-span-2 grid grid-cols-2 gap-4">
                   <div>
@@ -810,6 +844,10 @@ function ModalVisualizacaoAluno({ aluno, onClose, onEditar }) {
               <div>
                 <p className="text-zinc-500 text-xs">Professor Responsável</p>
                 <p className="text-zinc-200">{aluno.professor_nome || 'Nenhum'}</p>
+              </div>
+              <div className="col-span-2 pt-2 border-t border-zinc-800/50 mt-1">
+                <p className="text-zinc-500 text-xs">Responsável Financeiro</p>
+                <p className="text-zinc-200">{aluno.responsavel_nome || 'O próprio aluno'}</p>
               </div>
             </div>
           </section>

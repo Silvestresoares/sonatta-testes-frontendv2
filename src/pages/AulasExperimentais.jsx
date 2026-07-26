@@ -7,6 +7,7 @@ const API_URL = (typeof window !== 'undefined' && window.location && window.loca
 
 export default function AulasExperimentais() {
   const [aulas, setAulas] = useState([]);
+  const [professores, setProfessores] = useState([]);
   const [carregando, setCarregando] = useState(true);
   const [mostrando_formulario, setMostrando_formulario] = useState(false);
   const [idSendoEditado, setIdSendoEditado] = useState(null);
@@ -16,7 +17,8 @@ export default function AulasExperimentais() {
     telefone: '',
     instrumento: '',
     data_aula: '',
-    horario_aula: ''
+    horario_aula: '',
+    professor_id: ''
   });
 
   const [erro, setErro] = useState('');
@@ -49,8 +51,25 @@ export default function AulasExperimentais() {
     }
   };
 
+  const carregarProfessores = async () => {
+    const token = localStorage.getItem('@sonatta:token');
+    if (!token) return;
+    try {
+      const res = await fetch(`${API_URL}/api/professores`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (res.ok) {
+        const dados = await res.json();
+        setProfessores(Array.isArray(dados) ? dados : (dados.dados || []));
+      }
+    } catch (err) {
+      console.error('Erro ao carregar professores:', err);
+    }
+  };
+
   useEffect(() => {
     carregarAulas();
+    carregarProfessores();
   }, []);
 
   // Limpar erros/sucessos após 5 segundos
@@ -171,7 +190,8 @@ export default function AulasExperimentais() {
       telefone: aula.telefone,
       instrumento: aula.instrumento,
       data_aula: aula.data_aula,
-      horario_aula: aula.horario_aula
+      horario_aula: aula.horario_aula,
+      professor_id: aula.professor_id || ''
     });
     setMostrando_formulario(true);
   };
@@ -183,7 +203,8 @@ export default function AulasExperimentais() {
       telefone: '',
       instrumento: '',
       data_aula: '',
-      horario_aula: ''
+      horario_aula: '',
+      professor_id: ''
     });
     setMostrando_formulario(false);
   };
@@ -290,7 +311,7 @@ export default function AulasExperimentais() {
               </div>
 
               {/* Horário da Aula */}
-              <div className="col-span-2">
+              <div>
                 <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1 flex items-center gap-2">
                   <Clock size={16} /> Horário da Aula
                 </label>
@@ -301,6 +322,24 @@ export default function AulasExperimentais() {
                   onChange={handleMudanca}
                   className="w-full px-3 py-2 bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-lg text-zinc-900 dark:text-white focus:outline-none focus:border-emerald-500 transition-all [color-scheme:light] dark:[color-scheme:dark]"
                 />
+              </div>
+
+              {/* Professor */}
+              <div>
+                <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1 flex items-center gap-2">
+                  <User size={16} /> Professor (Opcional)
+                </label>
+                <select
+                  name="professor_id"
+                  value={formData.professor_id}
+                  onChange={handleMudanca}
+                  className="w-full px-3 py-2 bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-lg text-zinc-900 dark:text-white focus:outline-none focus:border-emerald-500 transition-all"
+                >
+                  <option value="">Selecione o professor</option>
+                  {professores.map(p => (
+                    <option key={p.id} value={p.id}>{p.nome}</option>
+                  ))}
+                </select>
               </div>
             </div>
 
@@ -345,7 +384,7 @@ export default function AulasExperimentais() {
           <div className="space-y-3">
             {aulas.map(aula => (
               <div key={aula.id} className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg p-4 hover:border-zinc-300 dark:hover:border-zinc-700 transition-all shadow-sm">
-                <div className="grid grid-cols-6 gap-4 items-center">
+                <div className="grid grid-cols-7 gap-4 items-center">
                   {/* Nome */}
                   <div>
                     <p className="text-xs text-zinc-400 dark:text-zinc-500 mb-1">ALUNO</p>
@@ -374,6 +413,12 @@ export default function AulasExperimentais() {
                   <div>
                     <p className="text-xs text-zinc-500 mb-1">HORÁRIO</p>
                     <p className="text-white font-mono">{aula.horario_aula}</p>
+                  </div>
+
+                  {/* Professor */}
+                  <div>
+                    <p className="text-xs text-zinc-500 mb-1">PROFESSOR</p>
+                    <p className="text-white text-sm">{aula.professor_nome || '-'}</p>
                   </div>
 
                   {/* Ações */}

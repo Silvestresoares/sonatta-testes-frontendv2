@@ -1,5 +1,5 @@
 import React from 'react';
-import { Clock, User, Music, AlertCircle, CheckCircle2, XCircle, Tag, Clipboard } from 'lucide-react';
+import { Clock, User, Music, AlertCircle, CheckCircle2, XCircle, Tag, Clipboard, Users } from 'lucide-react';
 
 export default function AulasTimeline({ aulas = [], onAbrirRegistro = null, onEditAula = null, onDeleteAula = null, showActions = true }) {
   if (!aulas || aulas.length === 0) {
@@ -33,7 +33,7 @@ export default function AulasTimeline({ aulas = [], onAbrirRegistro = null, onEd
       color: 'text-emerald-400'
     },
     reposta: {
-      matches: ['aula_reposta'],
+      matches: ['aula_reposta', 'reagendada'],
       icon: <CheckCircle2 size={14} className="text-blue-400" />,
       card: 'border-l-blue-500 bg-transparent hover:bg-zinc-100 dark:hover:bg-zinc-800/20',
       badge: 'text-blue-400',
@@ -73,8 +73,11 @@ export default function AulasTimeline({ aulas = [], onAbrirRegistro = null, onEd
     if (tipo === 'reposicao') return 'bg-rose-500/15 text-rose-300 border-rose-500/30';
     if (tipo === 'aula_extra' || tipo === 'reagendada') return 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30';
     if (tipo === 'aula_regular') return 'bg-zinc-500/15 text-zinc-400 border-zinc-500/30';
+    if (tipo === 'aula_turma') return 'bg-violet-500/15 text-violet-300 border-violet-500/30';
     return 'bg-blue-500/15 text-blue-300 border-blue-500/30';
   };
+
+  const dataHojeISO = new Date().toLocaleDateString('en-CA');
 
   return (
     <div className="space-y-3">
@@ -106,15 +109,21 @@ export default function AulasTimeline({ aulas = [], onAbrirRegistro = null, onEd
           <div className="space-y-2 ml-1">
             <div className="flex items-center justify-between gap-3 flex-wrap">
               <div className="flex items-center gap-2 flex-wrap flex-1">
-                <User size={18} className="text-emerald-400 flex-shrink-0" />
+                {aula.tipo_aula === 'aula_turma' ? (
+                  <Users size={18} className="text-violet-400 flex-shrink-0" />
+                ) : (
+                  <User size={18} className="text-emerald-400 flex-shrink-0" />
+                )}
                 <p className="text-base font-bold text-zinc-900 dark:text-white">{aula.nome_aluno || aula.aluno}</p>
-                <button
-                  onClick={() => onAbrirRegistro && onAbrirRegistro(aula)}
-                  className={`p-1 rounded-md transition-all cursor-pointer active:scale-95 ${statusConfig.color} hover:bg-white/5`}
-                  title={aula.dadosRegistro ? "Editar Registro Pedagógico" : "Registrar Aula"}
-                >
-                  <Clipboard size={16} />
-                </button>
+                {(!aula.data_aula || aula.data_aula <= dataHojeISO) && (
+                  <button
+                    onClick={() => onAbrirRegistro && onAbrirRegistro(aula)}
+                    className={`p-1 rounded-md transition-all cursor-pointer active:scale-95 ${statusConfig.color} hover:bg-white/5`}
+                    title={aula.dadosRegistro ? "Editar Registro Pedagógico" : "Registrar Aula"}
+                  >
+                    <Clipboard size={16} />
+                  </button>
+                )}
                 {aula.instrumento && (
                   <>
                     <span className="text-zinc-300 dark:text-zinc-700">•</span>
@@ -126,7 +135,7 @@ export default function AulasTimeline({ aulas = [], onAbrirRegistro = null, onEd
 
               {/* Ações para Aulas Especiais */}
               <div className="flex items-center gap-1 ml-auto">
-                {showActions && aula.tipo_aula && aula.tipo_aula !== 'aula_regular' && (
+                {showActions && aula.tipo_aula && aula.tipo_aula !== 'aula_regular' && aula.tipo_aula !== 'aula_turma' && (
                   <>
                     <button
                       onClick={(e) => { e.stopPropagation(); onEditAula && onEditAula(aula); }}

@@ -12,10 +12,18 @@ import Agenda from './pages/Agenda';
 import Financeiro from './pages/Financeiro';
 import AulasExperimentais from './pages/AulasExperimentais';
 import Professores from './pages/Professores';
+import Responsaveis from './pages/Responsaveis';
+import CursosTurmas from './pages/CursosTurmas';
+import Materiais from './pages/Materiais';
 
 // Páginas do Professor
 import MinhaAgenda from './pages/MinhaAgenda';
+import MinhasTurmas from './pages/MinhasTurmas';
 import MeusRecebimentos from './pages/MeusRecebimentos';
+
+// Páginas do Portal
+import LoginPortal from './pages/Portal/LoginPortal';
+import DashboardPortal from './pages/Portal/DashboardPortal';
 
 // Importação dos contextos
 import { AulasFrequenciaProvider } from './contexts/AulasFrequenciaContext';
@@ -125,7 +133,18 @@ export default function App() {
     );
   }
 
-  // Se não logado, mostra login
+  // Verificação de rotas exclusivas do Portal ANTES do bloqueio de login do admin
+  if (location.pathname.startsWith('/portal')) {
+    return (
+      <Routes>
+        <Route path="/portal/login" element={<LoginPortal />} />
+        <Route path="/portal/dashboard" element={<DashboardPortal />} />
+        <Route path="/portal/*" element={<Navigate to="/portal/login" />} />
+      </Routes>
+    );
+  }
+
+  // Se não logado, mostra login admin
   if (!estaLogado) {
     return <Login aoLogar={(usuario) => {
       setUsuarioInfo(usuario || null);
@@ -144,7 +163,9 @@ export default function App() {
         <Routes>
           <Route path="/" element={<LayoutComSidebar onLogout={handleLogout} tipoUsuario={tipoUsuario} professorId={professorId}><MinhaAgenda professorId={professorId} /></LayoutComSidebar>} />
           <Route path="/minha-agenda" element={<LayoutComSidebar onLogout={handleLogout} tipoUsuario={tipoUsuario} professorId={professorId}><MinhaAgenda professorId={professorId} /></LayoutComSidebar>} />
+          <Route path="/minhas-turmas" element={<LayoutComSidebar onLogout={handleLogout} tipoUsuario={tipoUsuario} professorId={professorId}><MinhasTurmas /></LayoutComSidebar>} />
           <Route path="/meus-recebimentos" element={<LayoutComSidebar onLogout={handleLogout} tipoUsuario={tipoUsuario} professorId={professorId}><MeusRecebimentos professorId={professorId} /></LayoutComSidebar>} />
+          <Route path="/materiais" element={<LayoutComSidebar onLogout={handleLogout} tipoUsuario={tipoUsuario} professorId={professorId}><Materiais /></LayoutComSidebar>} />
           <Route path="*" element={<Navigate to="/minha-agenda" replace />} />
         </Routes>
       </AulasFrequenciaProvider>
@@ -160,7 +181,10 @@ export default function App() {
         <Route path="/agenda" element={<LayoutComSidebar onLogout={handleLogout} tipoUsuario={tipoUsuario} professorId={professorId}><Agenda /></LayoutComSidebar>} />
         <Route path="/aulas-experimentais" element={<LayoutComSidebar onLogout={handleLogout} tipoUsuario={tipoUsuario} professorId={professorId}><AulasExperimentais /></LayoutComSidebar>} />
         <Route path="/professores" element={<LayoutComSidebar onLogout={handleLogout} tipoUsuario={tipoUsuario} professorId={professorId}><Professores /></LayoutComSidebar>} />
+        <Route path="/responsaveis" element={<LayoutComSidebar onLogout={handleLogout} tipoUsuario={tipoUsuario} professorId={professorId}><Responsaveis /></LayoutComSidebar>} />
+        <Route path="/cursos-turmas" element={<LayoutComSidebar onLogout={handleLogout} tipoUsuario={tipoUsuario} professorId={professorId}><CursosTurmas /></LayoutComSidebar>} />
         <Route path="/financeiro" element={<LayoutComSidebar onLogout={handleLogout} tipoUsuario={tipoUsuario} professorId={professorId}><Financeiro /></LayoutComSidebar>} />
+        <Route path="/materiais" element={<LayoutComSidebar onLogout={handleLogout} tipoUsuario={tipoUsuario} professorId={professorId}><Materiais /></LayoutComSidebar>} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </AulasFrequenciaProvider>

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, PlusCircle, Repeat, RotateCcw, User, Calendar, Clock, CheckCircle, AlertCircle, RefreshCw, GraduationCap } from 'lucide-react';
+import { X, PlusCircle, Repeat, RotateCcw, User, Users, Calendar, Clock, CheckCircle, AlertCircle, RefreshCw, GraduationCap } from 'lucide-react';
 
 const _envApi = import.meta.env.VITE_API_URL;
 const _defaultLocal = 'http://localhost:3005';
@@ -16,9 +16,13 @@ export default function AgendamentoAulaModal({ isOpen, onClose, initialData = nu
   const [alunos, setAlunos] = useState([]);
   const [professores, setProfessores] = useState([]);
   const [tipoSelecionado, setTipoSelecionado] = useState(tipoPadrao);
+  const [alvo, setAlvo] = useState('aluno'); // 'aluno' | 'turma'
   const [carregandoAlunos, setCarregandoAlunos] = useState(false);
+  const [carregandoTurmas, setCarregandoTurmas] = useState(false);
+  const [turmas, setTurmas] = useState([]);
   const [formData, setFormData] = useState({
     aluno_id: '',
+    turma_id: '',
     professor_id: '',
     data: '',
     horario: ''
@@ -30,17 +34,21 @@ export default function AgendamentoAulaModal({ isOpen, onClose, initialData = nu
     if (isOpen) {
       carregarAlunos();
       carregarProfessores();
+      carregarTurmas();
       if (initialData) {
         setFormData({
           aluno_id: initialData.aluno_id || '',
+          turma_id: initialData.turma_id || '',
           professor_id: initialData.professor_id || '',
           data: initialData.data_aula || initialData.data || '',
           horario: initialData.horario || ''
         });
         setTipoSelecionado(initialData.tipo_aula || tipoPadrao);
+        setAlvo(initialData.turma_id ? 'turma' : 'aluno');
       } else {
-        setFormData({ aluno_id: '', professor_id: '', data: '', horario: '' });
+        setFormData({ aluno_id: '', turma_id: '', professor_id: '', data: '', horario: '' });
         setTipoSelecionado(tipoPadrao);
+        setAlvo('aluno');
       }
       setStatus({ loading: false, error: '', success: false });
     }
@@ -48,13 +56,35 @@ export default function AgendamentoAulaModal({ isOpen, onClose, initialData = nu
 
   // Quando aluno é selecionado, pré-seleciona o professor vinculado a ele
   useEffect(() => {
-    if (formData.aluno_id && alunos.length > 0) {
+    if (alvo === 'aluno' && formData.aluno_id && alunos.length > 0) {
       const aluno = alunos.find(a => String(a.id) === String(formData.aluno_id));
       if (aluno?.professor_id) {
         setFormData(f => ({ ...f, professor_id: String(aluno.professor_id) }));
       }
+    } else if (alvo === 'turma' && formData.turma_id && turmas.length > 0) {
+      const turma = turmas.find(t => String(t.id) === String(formData.turma_id));
+      if (turma?.professor_id) {
+        setFormData(f => ({ ...f, professor_id: String(turma.professor_id) }));
+      }
     }
-  }, [formData.aluno_id, alunos]);
+  }, [formData.aluno_id, formData.turma_id, alvo, alunos, turmas]);
+
+  const carregarTurmas = async () => {
+    setCarregandoTurmas(true);
+    try {
+      const resposta = await fetch(`${API_URL}/api/turmas`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (resposta.ok) {
+        const dados = await resposta.json();
+        setTurmas(dados.filter(t => t.status === 'Ativa'));
+      }
+    } catch (erro) {
+      console.error('Erro ao carregar turmas:', erro);
+    } finally {
+      setCarregandoTurmas(false);
+    }
+  };
 
   const carregarAlunos = async () => {
     setCarregandoAlunos(true);
@@ -89,27 +119,50 @@ export default function AgendamentoAulaModal({ isOpen, onClose, initialData = nu
 
   const handleSalvarAgendamento = async (e) => {
     e.preventDefault();
-    if (!formData.aluno_id || !formData.data || !formData.horario) {
+    if (alvo === 'aluno' && (!formData.aluno_id || !formData.data || !formData.horario)) {
+      return setStatus({ ...status, error: 'Preencha todos os campos obrigatórios!' });
+    }
+    if (alvo === 'turma' && (!formData.turma_id || !formData.data || !formData.horario)) {
       return setStatus({ ...status, error: 'Preencha todos os campos obrigatórios!' });
     }
 
     setStatus({ loading: true, error: '', success: false });
 
     try {
-      const aluno = alunos.find(a => String(a.id) === String(formData.aluno_id));
-      if (!aluno) throw new Error('Aluno não encontrado');
+      let payload = {};
+      
+      if (alvo === 'aluno') {
+        const aluno = alunos.find(a => String(a.id) === String(formData.aluno_id));
+        if (!aluno) throw new Error('Aluno não encontrado');
 
-      const payload = {
-        aluno_id: aluno.id,
-        nome_aluno: aluno.nome,
-        instrumento: aluno.instrumento || '',
-        telefone: aluno.telefone || '',
-        data: formData.data,
-        horario: formData.horario,
-        status: 'agendada',
-        tipo_aula: tipoSelecionado,
-        professor_id: formData.professor_id ? Number(formData.professor_id) : null,
-      };
+        payload = {
+          aluno_id: aluno.id,
+          nome_aluno: aluno.nome,
+          instrumento: aluno.instrumento || '',
+          telefone: aluno.telefone || '',
+          data: formData.data,
+          horario: formData.horario,
+          status: 'agendada',
+          tipo_aula: tipoSelecionado,
+          professor_id: formData.professor_id ? Number(formData.professor_id) : null,
+        };
+      } else {
+        const turma = turmas.find(t => String(t.id) === String(formData.turma_id));
+        if (!turma) throw new Error('Turma não encontrada');
+
+        payload = {
+          aluno_id: null,
+          turma_id: turma.id,
+          nome_aluno: `Turma: ${turma.nome}`,
+          instrumento: turma.curso_nome || '',
+          telefone: '',
+          data: formData.data,
+          horario: formData.horario,
+          status: 'agendada',
+          tipo_aula: tipoSelecionado,
+          professor_id: formData.professor_id ? Number(formData.professor_id) : null,
+        };
+      }
 
       // Se for experimental, o backend espera campos levemente diferentes
       if (tipoSelecionado === 'aula_experimental') {
@@ -186,24 +239,64 @@ export default function AgendamentoAulaModal({ isOpen, onClose, initialData = nu
             </div>
           )}
 
-          {/* Aluno */}
-          <div>
-            <label className="block text-xs font-bold text-zinc-500 uppercase mb-2 flex items-center gap-2">
-              <User size={14} /> Selecionar Aluno *
-            </label>
-            <select
-              required
-              value={formData.aluno_id}
-              onChange={e => setFormData({...formData, aluno_id: e.target.value})}
-              className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-4 py-2.5 text-sm text-white focus:border-emerald-500 outline-none transition-all"
-              disabled={carregandoAlunos}
-            >
-              <option value="">{carregandoAlunos ? 'Carregando alunos...' : '-- Selecione um aluno --'}</option>
-              {alunos.map(aluno => (
-                <option key={aluno.id} value={aluno.id}>{aluno.nome} ({aluno.instrumento})</option>
-              ))}
-            </select>
-          </div>
+          {/* Toggle Alvo */}
+          {tipoSelecionado !== 'aula_experimental' && (
+            <div className="flex bg-zinc-950 border border-zinc-800 rounded-lg overflow-hidden p-1 gap-1">
+              <button
+                type="button"
+                onClick={() => setAlvo('aluno')}
+                className={`flex-1 py-1.5 text-xs font-semibold rounded-md transition-all ${alvo === 'aluno' ? 'bg-zinc-800 text-white' : 'text-zinc-500 hover:text-zinc-300'}`}
+              >
+                Aluno
+              </button>
+              <button
+                type="button"
+                onClick={() => setAlvo('turma')}
+                className={`flex-1 py-1.5 text-xs font-semibold rounded-md transition-all ${alvo === 'turma' ? 'bg-zinc-800 text-white' : 'text-zinc-500 hover:text-zinc-300'}`}
+              >
+                Turma
+              </button>
+            </div>
+          )}
+
+          {/* Selecionar Aluno ou Turma */}
+          {alvo === 'aluno' ? (
+            <div>
+              <label className="block text-xs font-bold text-zinc-500 uppercase mb-2 flex items-center gap-2">
+                <User size={14} /> Selecionar Aluno *
+              </label>
+              <select
+                required
+                value={formData.aluno_id}
+                onChange={e => setFormData({...formData, aluno_id: e.target.value})}
+                className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-4 py-2.5 text-sm text-white focus:border-emerald-500 outline-none transition-all"
+                disabled={carregandoAlunos}
+              >
+                <option value="">{carregandoAlunos ? 'Carregando alunos...' : '-- Selecione um aluno --'}</option>
+                {alunos.map(aluno => (
+                  <option key={aluno.id} value={aluno.id}>{aluno.nome} ({aluno.instrumento})</option>
+                ))}
+              </select>
+            </div>
+          ) : (
+            <div>
+              <label className="block text-xs font-bold text-zinc-500 uppercase mb-2 flex items-center gap-2">
+                <Users size={14} /> Selecionar Turma *
+              </label>
+              <select
+                required
+                value={formData.turma_id}
+                onChange={e => setFormData({...formData, turma_id: e.target.value})}
+                className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-4 py-2.5 text-sm text-white focus:border-emerald-500 outline-none transition-all"
+                disabled={carregandoTurmas}
+              >
+                <option value="">{carregandoTurmas ? 'Carregando turmas...' : '-- Selecione uma turma --'}</option>
+                {turmas.map(turma => (
+                  <option key={turma.id} value={turma.id}>{turma.nome} ({turma.curso_nome})</option>
+                ))}
+              </select>
+            </div>
+          )}
 
           {/* Professor — pré-selecionado automaticamente pelo vínculo do aluno */}
           <div>

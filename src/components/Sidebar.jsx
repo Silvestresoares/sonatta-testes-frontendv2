@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
-import { LogOut, PlusCircle, Repeat, RotateCcw, Lightbulb, X } from 'lucide-react';
+import { LogOut, PlusCircle, Repeat, RotateCcw, Lightbulb, X, Folder } from 'lucide-react';
 import AgendamentoAulaModal from './AgendamentoAulaModal'; 
 
 export default function Sidebar({ onLogout, tipoUsuario, professorId, isOpen, onClose }) {
@@ -109,13 +109,21 @@ export default function Sidebar({ onLogout, tipoUsuario, professorId, isOpen, on
         <nav className="space-y-2">
           {ehProfessor ? (
             <>
-              {/* Menu do Professor */}
+              <NavLink to="/minhas-turmas" className={linkStyle} onClick={onClose}>
+                🎓 Minhas Turmas
+              </NavLink>
+
               <NavLink to="/minha-agenda" className={linkStyle} onClick={onClose}>
                 📅 Minha Agenda
               </NavLink>
 
               <NavLink to="/meus-recebimentos" className={linkStyle} onClick={onClose}>
                 💰 Meus Recebimentos
+              </NavLink>
+
+              <NavLink to="/materiais" className={linkStyle} onClick={onClose}>
+                <Folder size={20} />
+                Materiais
               </NavLink>
             </>
           ) : (
@@ -129,8 +137,16 @@ export default function Sidebar({ onLogout, tipoUsuario, professorId, isOpen, on
                 👥 Alunos
               </NavLink>
 
+              <NavLink to="/responsaveis" className={linkStyle} onClick={onClose}>
+                👪 Responsáveis
+              </NavLink>
+
               <NavLink to="/professores" className={linkStyle} onClick={onClose}>
                 👨‍🏫 Professores
+              </NavLink>
+              
+              <NavLink to="/cursos-turmas" className={linkStyle} onClick={onClose}>
+                🏫 Cursos e Turmas
               </NavLink>
 
               <NavLink to="/agenda" className={linkStyle} onClick={onClose}>
@@ -139,6 +155,11 @@ export default function Sidebar({ onLogout, tipoUsuario, professorId, isOpen, on
               
               <NavLink to="/financeiro" className={linkStyle} onClick={onClose}>
                 💰 Financeiro
+              </NavLink>
+
+              <NavLink to="/materiais" className={linkStyle} onClick={onClose}>
+                <Folder size={20} />
+                Materiais
               </NavLink>
 
               {/* New section for special classes */}

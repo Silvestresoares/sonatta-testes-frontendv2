@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { RefreshCw, Calendar as CalendarIcon, Clock } from 'lucide-react';
 import RegistroAulaModal from '../components/RegistroAulaModal';
+import RegistroTurmaModal from '../components/RegistroTurmaModal';
 import CalendarioVisual from '../components/CalendarioVisual';
 import AgendamentoAulaModal from '../components/AgendamentoAulaModal'; // Import the new modal
 import AulasTimeline from '../components/AulasTimeline';
@@ -55,10 +56,13 @@ export default function Agenda() {
   const [experimentais, setExperimentais] = useState([]);
   const [aulasAgendadas, setAulasAgendadas] = useState([]);
   const [professores, setProfessores] = useState([]);
+  const [turmas, setTurmas] = useState([]);
   const [professorSelecionado, setProfessorSelecionado] = useState('');
   const [carregando, setCarregando] = useState(false);
   const [modalRegistroAberto, setModalRegistroAberto] = useState(false);
   const [aulaSelecionada, setAulaSelecionada] = useState(null);
+  const [registroTurmaAberto, setRegistroTurmaAberto] = useState(false);
+  const [turmaSelecionada, setTurmaSelecionada] = useState(null);
   const [isAgendamentoModalAberto, setIsAgendamentoModalAberto] = useState(false); // State for AgendamentoAulaModal
   const [isOverviewModalAberto, setIsOverviewModalAberto] = useState(false);
   const [aulaParaEditar, setAulaParaEditar] = useState(null); // State for editing special classes
@@ -158,13 +162,29 @@ export default function Agenda() {
     }
   }, [token]);
 
+  // Carregar turmas ativas
+  const carregarTurmas = useCallback(async () => {
+    try {
+      const resposta = await fetch(`${API_URL}/api/turmas`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (resposta.ok) {
+        const dados = await resposta.json();
+        setTurmas(dados.filter(t => t.status === 'Ativa'));
+      }
+    } catch (erro) {
+      console.error('Erro ao carregar turmas:', erro);
+    }
+  }, [token]);
+
   // Carregar dados iniciais ao montar
   useEffect(() => {
     carregarAlunos();
     carregarExperimentais();
     carregarAulasAgendadas();
     carregarProfessores();
-  }, [carregarAlunos, carregarExperimentais, carregarAulasAgendadas, carregarProfessores]);
+    carregarTurmas();
+  }, [carregarAlunos, carregarExperimentais, carregarAulasAgendadas, carregarProfessores, carregarTurmas]);
 
   // Ouvir atualizações da Sidebar / outros contextos
   useEffect(() => {
@@ -199,15 +219,26 @@ export default function Agenda() {
     const regulares = alunos
       .filter(aluno => {
         const diaAluno = aluno.dia_aula?.replace('-feira', '');
-        return diaAluno === nomeDia;
+        if (diaAluno !== nomeDia) return false;
+        
+        if (aluno.data_matricula) {
+          const dataMatriculaStr = typeof aluno.data_matricula === 'string' 
+            ? aluno.data_matricula.substring(0, 10) 
+            : new Date(aluno.data_matricula).toISOString().substring(0, 10);
+            
+          if (dataISO < dataMatriculaStr) return false;
+        }
+        
+        return true;
       })
       .map(aluno => {
-        // Busca registro específico de aula regular (sem aula_id e sem experimental_id)
+        // Busca registro específico de aula regular (sem aula_id, sem experimental_id e sem turma_id)
         const registro = registros.find(r => 
           Number(r.aluno_id) === Number(aluno.id) && 
           r.data_aula === dataISO && 
           (!r.aula_id || r.aula_id === 0) && 
-          (!r.aula_experimental_id || r.aula_experimental_id === 0)
+          (!r.aula_experimental_id || r.aula_experimental_id === 0) &&
+          (!r.turma_id)
         );
 
         return {
@@ -230,18 +261,33 @@ export default function Agenda() {
     const extras = aulasAgendadas
       .filter(a => a.data === dataISO && a.tipo_aula !== 'regular')
       .map(a => {
-        // Busca registro vinculado exatamente a este ID de aula extra/reposição
-        const registroPresenca = registros.find(r => Number(r.aula_id) === Number(a.id) && r.data_aula === dataISO);
+        // Busca registro vinculado exatamente a este ID de aula extra/reposição (ou turma_id se for turma)
+        let registroPresenca = null;
+        let statusCalculado = a.status === 'agendada' ? 'pendente' : a.status;
+
+        if (a.turma_id) {
+          const turmaRegistros = registros.filter(r => 
+            r.data_aula === dataISO && Number(r.turma_id) === Number(a.turma_id)
+          );
+          if (turmaRegistros.length > 0) {
+            if (turmaRegistros.every(r => r.status_presenca === 'cancelada')) statusCalculado = 'cancelada';
+            else if (turmaRegistros.every(r => r.status_presenca === 'reagendada')) statusCalculado = 'reagendada';
+            else statusCalculado = 'presente';
+          }
+        } else {
+          registroPresenca = registros.find(r => Number(r.aula_id) === Number(a.id) && r.data_aula === dataISO);
+          if (registroPresenca) statusCalculado = registroPresenca.status_presenca;
+        }
+
         return {
           id: registroPresenca?.id || `extra-${a.id}`,
           aluno_id: a.aluno_id,
+          turma_id: a.turma_id,
           aluno: a.nome_aluno,
           instrumento: a.instrumento,
           horario: a.horario,
           tipo_aula: a.tipo_aula,
-          // Se houver um registro pedagógico, usa o status dele. 
-          // Senão, mapeamos 'agendada' para 'pendente' para ocultar o selo de status na timeline (igual às aulas regulares).
-          status: registroPresenca ? registroPresenca.status_presenca : (a.status === 'agendada' ? 'pendente' : a.status),
+          status: statusCalculado,
           data_aula: dataISO,
           dadosRegistro: registroPresenca || null,
           aula_id_referencia: a.id, // ID da tabela 'aulas' (extra, reposição, etc)
@@ -271,19 +317,63 @@ export default function Agenda() {
           data_aula: dataISO,
           tipo_origem: 'experimental',
           dadosRegistro: registro || null,
-          professor_id: null,
-          professor_nome: null
+          professor_id: exp.professor_id || null,
+          professor_nome: exp.professor_nome || null
         };
       });
 
-    const todasAulas = [...regulares, ...extras, ...aulasExp].sort((a, b) => (a.horario || '').localeCompare(b.horario || ''));
+    // 4. Mapeia as turmas baseadas no dia da semana
+    const turmasMapeadas = turmas
+      .filter(turma => {
+        if (!turma.dia_semana || !turma.horario_inicio) return false;
+        const diaTurma = turma.dia_semana.replace('-feira', '');
+        return diaTurma.toLowerCase() === nomeDia.toLowerCase();
+      })
+      .map(turma => {
+        // Obter registros dos alunos desta turma para a data atual
+        const turmaRegistros = registros.filter(r => 
+          r.data_aula === dataISO && 
+          Number(r.turma_id) === Number(turma.id) &&
+          turma.alunos_ids && turma.alunos_ids.includes(Number(r.aluno_id))
+        );
+
+        let statusCalculado = 'pendente';
+        if (turmaRegistros.length > 0 && turma.alunos_ids && turmaRegistros.length >= turma.alunos_ids.length) {
+          if (turmaRegistros.every(r => r.status_presenca === 'cancelada')) statusCalculado = 'cancelada';
+          else if (turmaRegistros.every(r => r.status_presenca === 'reagendada')) statusCalculado = 'reagendada';
+          else statusCalculado = 'presente'; // Aula dada
+        } else if (turmaRegistros.length > 0) {
+          statusCalculado = 'presente'; // Parcialmente preenchido (aula dada)
+        }
+
+        return {
+          id: `turma-${turma.id}-${dataISO}`,
+          turma_id: turma.id,
+          aluno: `Turma: ${turma.nome}`,
+          aluno_nome: `Turma: ${turma.nome}`,
+          instrumento: turma.curso_nome,
+          horario: turma.horario_inicio,
+          tipo_aula: 'aula_turma',
+          status: statusCalculado,
+          data_aula: dataISO,
+          dadosRegistro: null,
+          professor_id: turma.professor_id,
+          professor_nome: turma.professor_nome
+        };
+      });
+
+    // Combina todas as aulas e aplica o filtro do professor (se houver)
+    const todasAsAulas = [...regulares, ...extras, ...aulasExp, ...turmasMapeadas]
+      .filter(aula => {
+        if (professorSelecionado) {
+          return String(aula.professor_id) === String(professorSelecionado);
+        }
+        return true;
+      })
+      .sort((a, b) => (a.horario || '').localeCompare(b.horario || ''));
     
-    if (professorSelecionado) {
-      return todasAulas.filter(aula => String(aula.professor_id) === String(professorSelecionado));
-    }
-    
-    return todasAulas;
-  }, [alunos, registros, experimentais, aulasAgendadas, dataSelecionada, professorSelecionado]);
+    return todasAsAulas;
+  }, [alunos, registros, experimentais, aulasAgendadas, turmas, dataSelecionada, professorSelecionado]);
 
   const aulasRestantes = useMemo(() => {
     const hoje = new Date();
@@ -305,6 +395,12 @@ export default function Agenda() {
 
   // Abrir modal de registro
   const abrirRegistro = (aula) => {
+    if (aula.tipo_aula === 'aula_turma' || aula.turma_id) {
+      setTurmaSelecionada(aula.tipo_aula === 'aula_turma' ? aula : { ...aula, id: aula.turma_id });
+      setRegistroTurmaAberto(true);
+      return;
+    }
+
     setAulaSelecionada({
       // Identificadores e metadados da aula para exibição no modal
       id: aula.dadosRegistro?.id || aula.id, 
@@ -389,19 +485,19 @@ export default function Agenda() {
             <h1 className="text-2xl font-bold text-emerald-400">📅 Agenda de Aulas</h1>
             <p className="text-xs text-zinc-500 mt-1">Gerencie suas aulas e frequências</p>
           </div>
-          <div className="flex flex-col sm:flex-row items-end sm:items-center gap-4">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4 w-full sm:w-auto">
             <button
               onClick={() => setIsOverviewModalAberto(true)}
-              className="flex items-center justify-center gap-2 px-4 py-2 bg-zinc-900 border border-zinc-800 rounded-lg text-sm font-medium text-emerald-400 hover:bg-emerald-500/10 hover:border-emerald-500/30 transition-all shadow-sm"
+              className="flex items-center justify-center gap-2 px-4 py-2 bg-zinc-900 border border-zinc-800 rounded-lg text-sm font-medium text-emerald-400 hover:bg-emerald-500/10 hover:border-emerald-500/30 transition-all shadow-sm w-full sm:w-auto"
             >
               <Clock size={16} /> Horários Livres
             </button>
-            <div className="flex items-center gap-2">
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full sm:w-auto">
               <label className="text-xs font-semibold text-zinc-400 uppercase tracking-wider whitespace-nowrap">Exibir Professor:</label>
             <select
               value={professorSelecionado}
               onChange={(e) => setProfessorSelecionado(e.target.value)}
-              className="bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-2 text-sm text-zinc-200 focus:outline-none focus:border-emerald-500 transition-all cursor-pointer min-w-[200px]"
+              className="bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-2 text-sm text-zinc-200 focus:outline-none focus:border-emerald-500 transition-all cursor-pointer w-full sm:w-auto min-w-[200px]"
             >
               <option value="">👥 Todos os Professores</option>
               {professores.map(p => (
@@ -429,7 +525,7 @@ export default function Agenda() {
                   <CalendarIcon size={16} /> Selecione a Data
                 </h2>
                 <CalendarioVisual 
-                  aulasDoMes={[...alunos, ...registros, ...experimentais, ...aulasAgendadas]} 
+                  aulasDoMes={[...alunos, ...registros, ...experimentais, ...aulasAgendadas, ...turmas]} 
                   onDiaSelected={setDataSelecionada} 
                   onMesChange={handleMesChange}
                 />
@@ -495,6 +591,24 @@ export default function Agenda() {
         />
       )}
       
+      {/* Modal de Registro de Turma */}
+      <RegistroTurmaModal
+        isOpen={registroTurmaAberto}
+        turmaAula={turmaSelecionada}
+        onClose={() => {
+          setRegistroTurmaAberto(false);
+          setTurmaSelecionada(null);
+          carregarRegistros();
+          carregarAulasAgendadas();
+        }}
+        onSave={() => {
+          setRegistroTurmaAberto(false);
+          setTurmaSelecionada(null);
+          carregarRegistros();
+          carregarAulasAgendadas();
+        }}
+      />
+      
       {/* Modal para Agendamento/Edição de Aulas Especiais (Extra, Reagendada, Reposição) */}
       <AgendamentoAulaModal
         key={aulaParaEditar?.id || 'novo-agendamento'}
@@ -511,6 +625,7 @@ export default function Agenda() {
         professores={professores}
         alunos={alunos}
         aulasAgendadas={aulasAgendadas}
+        turmas={turmas}
         dataSemanaSelecionada={dataSelecionada}
       />
     </div>

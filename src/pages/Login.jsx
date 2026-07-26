@@ -193,6 +193,15 @@ export default function Login({ aoLogar }) {
             >
               Entrar no Sistema
             </button>
+            <div className="pt-4 mt-2 border-t border-zinc-800">
+              <button
+                type="button"
+                onClick={() => window.location.href = '/portal/login'}
+                className="w-full bg-zinc-800 hover:bg-zinc-700 text-emerald-400 font-bold py-2.5 rounded-lg text-sm transition-all cursor-pointer border border-zinc-700 hover:border-emerald-500/50"
+              >
+                Sou Aluno ou Responsável
+              </button>
+            </div>
           </form>
         )}
 

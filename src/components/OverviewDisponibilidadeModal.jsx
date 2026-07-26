@@ -7,7 +7,7 @@ const HORARIOS = [
   '17:00', '18:00', '19:00', '20:00', '21:00', '22:00'
 ];
 
-export default function OverviewDisponibilidadeModal({ isOpen, onClose, professores, alunos, aulasAgendadas, dataSemanaSelecionada }) {
+export default function OverviewDisponibilidadeModal({ isOpen, onClose, professores, alunos, turmas, aulasAgendadas, dataSemanaSelecionada }) {
   const [professorId, setProfessorId] = useState('');
 
   // Define o professor padrão assim que a lista carrega
@@ -70,8 +70,28 @@ export default function OverviewDisponibilidadeModal({ isOpen, onClose, professo
         }
       }
     });
+
+    if (turmas) {
+      turmas.forEach(turma => {
+        if (Number(turma.professor_id) === Number(professorId) && turma.status === 'Ativa') {
+          const diaBase = turma.dia_semana?.replace('-feira', ''); 
+          const hora = turma.horario_inicio;
+          if (diaBase && hora) {
+            if (!mapa[diaBase]) mapa[diaBase] = {};
+            if (!mapa[diaBase][hora]) mapa[diaBase][hora] = [];
+            mapa[diaBase][hora].push({ 
+              tipo: 'regular', 
+              isTurma: true,
+              alunoNome: `Turma: ${turma.nome}`,
+              instrumento: turma.curso_nome || 'Turma'
+            });
+          }
+        }
+      });
+    }
+    
     return mapa;
-  }, [alunos, professorId]);
+  }, [alunos, turmas, professorId]);
 
   // Mapa de ocupação por aulas especiais agendadas nesta semana exata
   const mapaOcupacaoEspecial = useMemo(() => {
@@ -152,6 +172,9 @@ export default function OverviewDisponibilidadeModal({ isOpen, onClose, professo
               <div className="flex items-center gap-2 text-rose-400">
                 <div className="w-3 h-3 rounded-sm bg-rose-500/20 border border-rose-500/30"></div> Aluno Fixo
               </div>
+              <div className="flex items-center gap-2 text-fuchsia-400">
+                <div className="w-3 h-3 rounded-sm bg-fuchsia-500/20 border border-fuchsia-500/30"></div> Turma Fixa
+              </div>
               <div className="flex items-center gap-2 text-orange-400">
                 <div className="w-3 h-3 rounded-sm bg-orange-500/20 border border-orange-500/30"></div> Aula Especial
               </div>
@@ -225,6 +248,19 @@ export default function OverviewDisponibilidadeModal({ isOpen, onClose, professo
                                     >
                                       <span className="font-semibold text-[10px] truncate w-full max-w-[110px]">{ocupacao.alunoNome}</span>
                                       <span className="text-[8px] opacity-80 uppercase tracking-wider">{ocupacao.tipo_aula.replace('_', ' ')}</span>
+                                    </div>
+                                  );
+                                }
+
+                                if (ocupacao.isTurma) {
+                                  return (
+                                    <div 
+                                      key={idx}
+                                      className="w-full py-1 px-1.5 rounded-md text-center bg-fuchsia-500/10 text-fuchsia-400 border border-fuchsia-500/20 flex flex-col items-center justify-center"
+                                      title={`Turma Fixa: ${ocupacao.alunoNome} (${ocupacao.instrumento})`}
+                                    >
+                                      <span className="font-semibold text-[10px] truncate w-full max-w-[110px]">{ocupacao.alunoNome.replace('Turma: ', '')}</span>
+                                      <span className="text-[8px] opacity-70 truncate w-full max-w-[110px]">{ocupacao.instrumento}</span>
                                     </div>
                                   );
                                 }

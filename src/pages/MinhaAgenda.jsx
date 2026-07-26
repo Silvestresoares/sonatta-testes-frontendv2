@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { RefreshCw, Calendar as CalendarIcon, Clock } from 'lucide-react';
 import RegistroAulaModal from '../components/RegistroAulaModal';
+import RegistroTurmaModal from '../components/RegistroTurmaModal';
 import CalendarioVisual from '../components/CalendarioVisual';
 import AulasTimeline from '../components/AulasTimeline';
 
@@ -51,6 +52,8 @@ export default function MinhaAgenda({ professorId }) {
   const [dataSelecionada, setDataSelecionada] = useState(new Date());
   const [registroAberto, setRegistroAberto] = useState(false);
   const [aulaSelecionada, setAulaSelecionada] = useState(null);
+  const [registroTurmaAberto, setRegistroTurmaAberto] = useState(false);
+  const [turmaSelecionada, setTurmaSelecionada] = useState(null);
 
   const token = localStorage.getItem('@sonatta:token');
   const profId = professorId && professorId !== '' ? Number(professorId) : null;
@@ -143,6 +146,12 @@ export default function MinhaAgenda({ professorId }) {
   };
 
   const abrirRegistro = (aula) => {
+    if (aula.tipo_aula === 'aula_turma' || aula.turma_id) {
+      setTurmaSelecionada(aula.tipo_aula === 'aula_turma' ? aula : { ...aula, id: aula.turma_id });
+      setRegistroTurmaAberto(true);
+      return;
+    }
+
     setAulaSelecionada({
       id: aula.dadosRegistro?.id || aula.id,
       aluno_id: aula.aluno_id,
@@ -163,6 +172,12 @@ export default function MinhaAgenda({ professorId }) {
   const fecharRegistro = () => {
     setRegistroAberto(false);
     setAulaSelecionada(null);
+    carregarAgenda();
+  };
+
+  const fecharRegistroTurma = () => {
+    setRegistroTurmaAberto(false);
+    setTurmaSelecionada(null);
     carregarAgenda();
   };
 
@@ -253,6 +268,13 @@ export default function MinhaAgenda({ professorId }) {
         onClose={fecharRegistro}
         aula={aulaSelecionada}
         onSave={fecharRegistro}
+      />
+
+      <RegistroTurmaModal
+        isOpen={registroTurmaAberto}
+        onClose={fecharRegistroTurma}
+        turmaAula={turmaSelecionada}
+        onSave={fecharRegistroTurma}
       />
     </div>
   );

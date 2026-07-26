@@ -156,10 +156,6 @@ export default function RegistroAulaModal({ isOpen, onClose, aluno, aula, onSave
     e.preventDefault();
     
     // Validações simples
-    if (!formData.status_presenca) {
-      setErro('Status de presença é obrigatório');
-      return;
-    }
 
     if (!formData.data_aula) {
       setErro('Data da aula é obrigatória');
