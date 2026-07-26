@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Calendar, DollarSign, User, ChevronDown, CheckCircle2, AlertCircle } from 'lucide-react';
+import { Calendar, DollarSign, User, ChevronDown, CheckCircle2, AlertCircle, BookOpen } from 'lucide-react';
 import PortalLayout from '../../components/PortalLayout';
 import { useNavigate } from 'react-router-dom';
 
@@ -13,6 +13,7 @@ export default function DashboardPortal() {
   const [agenda, setAgenda] = useState([]);
   const [financeiro, setFinanceiro] = useState([]);
   const [materiais, setMateriais] = useState([]);
+  const [registros, setRegistros] = useState([]);
   const [alunoSelecionado, setAlunoSelecionado] = useState(null);
   const [carregando, setCarregando] = useState(true);
   const [erro, setErro] = useState('');
@@ -90,6 +91,16 @@ export default function DashboardPortal() {
       } else {
         setMateriais([]);
       }
+
+      // Registros Pedagógicos
+      const resRegistros = await fetch(`${API_URL}/api/portal/registros-aula?aluno_id=${id}`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (resRegistros.ok) {
+        setRegistros(await resRegistros.json());
+      } else {
+        setRegistros([]);
+      }
     } catch (err) {
       console.error(err);
     }
@@ -159,17 +170,93 @@ export default function DashboardPortal() {
               </div>
               <div className="p-4">
                 {agenda.length === 0 ? (
-                  <p className="text-zinc-500 text-sm text-center py-4">Nenhuma turma encontrada.</p>
+                  <p className="text-zinc-500 text-sm text-center py-4">Nenhuma aula encontrada.</p>
                 ) : (
                   <div className="space-y-3">
                     {agenda.map((turma, idx) => (
-                      <div key={idx} className="bg-zinc-950/50 border border-zinc-800 rounded-xl p-4 hover:border-emerald-500/30 transition-colors">
-                        <div className="font-medium text-emerald-400 mb-1">{turma.curso_nome} - {turma.turma_nome}</div>
+                      <div key={idx} className={`bg-zinc-950/50 border ${turma.tipo === 'regular' ? 'border-blue-500/20' : 'border-zinc-800'} rounded-xl p-4 hover:border-emerald-500/30 transition-colors`}>
+                        <div className={`font-medium mb-1 ${turma.tipo === 'regular' ? 'text-blue-400' : 'text-emerald-400'}`}>
+                          {turma.curso_nome} {turma.tipo === 'regular' ? '' : `- ${turma.turma_nome}`}
+                        </div>
                         <div className="text-sm text-zinc-300 flex items-center gap-2">
-                          <span className="bg-zinc-800 px-2 py-1 rounded text-xs">{turma.dia_semana}</span>
+                          <span className={`${turma.tipo === 'regular' ? 'bg-blue-900/30 text-blue-300' : 'bg-zinc-800'} px-2 py-1 rounded text-xs`}>
+                            {turma.dia_semana}
+                          </span>
                           <span>{turma.horario_inicio} às {turma.horario_fim}</span>
                         </div>
                         <div className="text-xs text-zinc-500 mt-2">Prof. {turma.professor_nome}</div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Registros Pedagógicos */}
+            <div className="bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden shadow-lg">
+              <div className="bg-blue-900/20 border-b border-zinc-800 p-4 flex items-center gap-3">
+                <BookOpen className="text-blue-400" size={24} />
+                <h3 className="text-lg font-bold text-white">Registros de Aula</h3>
+              </div>
+              <div className="p-4">
+                {registros.length === 0 ? (
+                  <p className="text-zinc-500 text-sm text-center py-4">Nenhum registro de aula recente.</p>
+                ) : (
+                  <div className="space-y-4">
+                    {registros.map((reg, idx) => (
+                      <div key={idx} className="bg-zinc-950/50 border border-zinc-800 rounded-xl p-4 relative overflow-hidden group hover:border-zinc-700 transition-all">
+                        {/* Indicador de Status */}
+                        <div className={`absolute left-0 top-0 bottom-0 w-1 ${
+                          reg.status_presenca === 'presente' ? 'bg-emerald-500' :
+                          reg.status_presenca === 'cancelada' ? 'bg-red-500' :
+                          reg.status_presenca === 'reagendada' ? 'bg-blue-500' :
+                          'bg-amber-500' // Falta
+                        }`}></div>
+                        
+                        <div className="pl-3">
+                          <div className="flex justify-between items-start mb-2">
+                            <div>
+                              <div className="text-xs font-bold text-zinc-500 uppercase tracking-widest mb-1">
+                                {new Date(reg.data_aula).toLocaleDateString('pt-BR', { timeZone: 'UTC' })}
+                              </div>
+                              <div className="text-sm font-medium text-white">{reg.turma_nome ? `Turma: ${reg.turma_nome}` : 'Aula Individual'}</div>
+                            </div>
+                            <span className={`text-xs px-2 py-1 rounded-md font-bold uppercase ${
+                              reg.status_presenca === 'presente' ? 'bg-emerald-500/10 text-emerald-400' :
+                              reg.status_presenca === 'cancelada' ? 'bg-red-500/10 text-red-400' :
+                              reg.status_presenca === 'reagendada' ? 'bg-blue-500/10 text-blue-400' :
+                              'bg-amber-500/10 text-amber-400'
+                            }`}>
+                              {reg.status_presenca === 'falta_aluno_aviso' ? 'Falta (C/ Av.)' : 
+                               reg.status_presenca === 'falta_aluno_sem_aviso' ? 'Falta (S/ Av.)' : 
+                               reg.status_presenca || 'Registrado'}
+                            </span>
+                          </div>
+
+                          {reg.conteudo_trabalhado && (
+                            <div className="mt-3">
+                              <p className="text-xs font-semibold text-zinc-400 mb-1">Conteúdo Trabalhado:</p>
+                              <p className="text-sm text-zinc-300 whitespace-pre-wrap leading-relaxed bg-zinc-900/50 p-3 rounded-lg border border-zinc-800/50">
+                                {reg.conteudo_trabalhado}
+                              </p>
+                            </div>
+                          )}
+
+                          {reg.tarefas_casa && (
+                            <div className="mt-3">
+                              <p className="text-xs font-semibold text-amber-400/80 mb-1 flex items-center gap-1">
+                                <span>📝</span> Tarefa de Casa:
+                              </p>
+                              <p className="text-sm text-amber-100/70 whitespace-pre-wrap leading-relaxed bg-amber-900/10 p-3 rounded-lg border border-amber-500/20">
+                                {reg.tarefas_casa}
+                              </p>
+                            </div>
+                          )}
+
+                          <div className="mt-3 text-xs text-zinc-500 flex items-center gap-1 border-t border-zinc-800 pt-2">
+                            <User size={12} /> Prof. {reg.professor_nome}
+                          </div>
+                        </div>
                       </div>
                     ))}
                   </div>

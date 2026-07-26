@@ -115,7 +115,7 @@ export default function AulasTimeline({ aulas = [], onAbrirRegistro = null, onEd
                   <User size={18} className="text-emerald-400 flex-shrink-0" />
                 )}
                 <p className="text-base font-bold text-zinc-900 dark:text-white">{aula.nome_aluno || aula.aluno}</p>
-                {(!aula.data_aula || aula.data_aula <= dataHojeISO) && (
+                {(!aula.data_aula || String(aula.data_aula).substring(0, 10) <= dataHojeISO) && (
                   <button
                     onClick={() => onAbrirRegistro && onAbrirRegistro(aula)}
                     className={`p-1 rounded-md transition-all cursor-pointer active:scale-95 ${statusConfig.color} hover:bg-white/5`}
