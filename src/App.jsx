@@ -3,6 +3,7 @@ import { Routes, Route, useLocation, Navigate, useNavigate } from 'react-router-
 import Login from './pages/Login';
 import Sidebar from './components/Sidebar';
 import NotificationBanner from './components/NotificationBanner';
+import UpdateToast from './components/UpdateToast';
 import { Menu } from 'lucide-react';
 
 // Importações das páginas
@@ -116,6 +117,23 @@ export default function App() {
     return () => window.removeEventListener('assinatura_suspensa', handleSuspensa);
   }, []);
 
+  // Polling de Aviso Global
+  const [avisoGlobal, setAvisoGlobal] = useState(null);
+  useEffect(() => {
+    const buscarAviso = () => {
+      fetch(`${API_URL}/api/avisos/ativo`)
+        .then(res => res.json())
+        .then(data => setAvisoGlobal(data.aviso || null))
+        .catch(() => setAvisoGlobal(null));
+    };
+
+    // Busca na montagem
+    buscarAviso();
+    // E a cada 5 minutos
+    const interval = setInterval(buscarAviso, 1000 * 60 * 5);
+    return () => clearInterval(interval);
+  }, []);
+
   // Verifica token ao montar
   useEffect(() => {
     const verificarToken = async () => {
@@ -168,6 +186,19 @@ export default function App() {
     navigate('/', { replace: true }); // <-- Força a rota a voltar para o início de forma limpa
   };
 
+  const GlobalBanner = () => {
+    if (!avisoGlobal) return null;
+    return (
+      <div className={`w-full z-[100] relative px-4 py-2 text-center text-sm font-semibold text-white shadow-md ${
+        avisoGlobal.tipo === 'alert' ? 'bg-red-600' :
+        avisoGlobal.tipo === 'success' ? 'bg-emerald-600' :
+        'bg-blue-600'
+      }`}>
+        {avisoGlobal.mensagem}
+      </div>
+    );
+  };
+
   if (carregando) {
     return (
       <div className="min-h-screen bg-zinc-950 flex items-center justify-center text-zinc-400">
@@ -179,28 +210,21 @@ export default function App() {
     );
   }
 
-  // Verificação de rotas exclusivas do Portal ANTES do bloqueio de login do admin
-  if (location.pathname.startsWith('/portal')) {
-    return (
-      <Routes>
-        <Route path="/portal/login" element={<LoginPortal />} />
-        <Route path="/portal/dashboard" element={<DashboardPortal />} />
-        <Route path="/portal/*" element={<Navigate to="/portal/login" />} />
-      </Routes>
-    );
-  }
 
-  // Se a assinatura estiver suspensa, trava a aplicação inteira
-  if (assinaturaSuspensa) {
-    return <AssinaturaSuspensa />;
-  }
+
 
   // Se não logado, mostra login admin
   if (!estaLogado) {
-    return <Login aoLogar={(usuario) => {
-      setUsuarioInfo(usuario || null);
-      setEstaLogado(true);
-    }} />;
+    return (
+      <>
+        <GlobalBanner />
+        <Login aoLogar={(usuario) => {
+          setUsuarioInfo(usuario || null);
+          setEstaLogado(true);
+        }} />
+        <UpdateToast />
+      </>
+    );
   }
 
   const tipoUsuario = localStorage.getItem('@sonatta:tipo_usuario') || usuarioInfo?.tipo_usuario || 'admin';
@@ -211,44 +235,56 @@ export default function App() {
   // Se logado como Super Admin, mostra APENAS o painel de Super Admin
   if (isSuperAdmin) {
     return (
-      <Routes>
-        <Route path="/" element={<SuperAdmin onLogout={handleLogout} />} />
-        <Route path="*" element={<Navigate to="/" replace />} />
-      </Routes>
+      <div className="flex flex-col min-h-screen">
+        <GlobalBanner />
+        <Routes>
+          <Route path="/" element={<SuperAdmin onLogout={handleLogout} />} />
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
+        <UpdateToast />
+      </div>
     );
   }
 
   // Se logado como professor, mostra painel restrito
   if (ehProfessor) {
     return (
-      <AulasFrequenciaProvider>
-        <Routes>
-          <Route path="/" element={<LayoutComSidebar onLogout={handleLogout} tipoUsuario={tipoUsuario} professorId={professorId} isSuperAdmin={isSuperAdmin}><MinhaAgenda professorId={professorId} /></LayoutComSidebar>} />
-          <Route path="/minha-agenda" element={<LayoutComSidebar onLogout={handleLogout} tipoUsuario={tipoUsuario} professorId={professorId} isSuperAdmin={isSuperAdmin}><MinhaAgenda professorId={professorId} /></LayoutComSidebar>} />
-          <Route path="/minhas-turmas" element={<LayoutComSidebar onLogout={handleLogout} tipoUsuario={tipoUsuario} professorId={professorId} isSuperAdmin={isSuperAdmin}><MinhasTurmas /></LayoutComSidebar>} />
-          <Route path="/meus-recebimentos" element={<LayoutComSidebar onLogout={handleLogout} tipoUsuario={tipoUsuario} professorId={professorId} isSuperAdmin={isSuperAdmin}><MeusRecebimentos professorId={professorId} /></LayoutComSidebar>} />
-          <Route path="/materiais" element={<LayoutComSidebar onLogout={handleLogout} tipoUsuario={tipoUsuario} professorId={professorId} isSuperAdmin={isSuperAdmin}><Materiais /></LayoutComSidebar>} />
-          <Route path="*" element={<Navigate to="/minha-agenda" replace />} />
-        </Routes>
-      </AulasFrequenciaProvider>
+      <div className="flex flex-col min-h-screen">
+        <GlobalBanner />
+        <AulasFrequenciaProvider>
+          <Routes>
+            <Route path="/" element={<LayoutComSidebar onLogout={handleLogout} tipoUsuario={tipoUsuario} professorId={professorId} isSuperAdmin={isSuperAdmin}><MinhaAgenda professorId={professorId} /></LayoutComSidebar>} />
+            <Route path="/minha-agenda" element={<LayoutComSidebar onLogout={handleLogout} tipoUsuario={tipoUsuario} professorId={professorId} isSuperAdmin={isSuperAdmin}><MinhaAgenda professorId={professorId} /></LayoutComSidebar>} />
+            <Route path="/minhas-turmas" element={<LayoutComSidebar onLogout={handleLogout} tipoUsuario={tipoUsuario} professorId={professorId} isSuperAdmin={isSuperAdmin}><MinhasTurmas /></LayoutComSidebar>} />
+            <Route path="/meus-recebimentos" element={<LayoutComSidebar onLogout={handleLogout} tipoUsuario={tipoUsuario} professorId={professorId} isSuperAdmin={isSuperAdmin}><MeusRecebimentos professorId={professorId} /></LayoutComSidebar>} />
+            <Route path="/materiais" element={<LayoutComSidebar onLogout={handleLogout} tipoUsuario={tipoUsuario} professorId={professorId} isSuperAdmin={isSuperAdmin}><Materiais /></LayoutComSidebar>} />
+            <Route path="*" element={<Navigate to="/minha-agenda" replace />} />
+          </Routes>
+          <UpdateToast />
+        </AulasFrequenciaProvider>
+      </div>
     );
   }
 
   // Se logado como admin, mostra painel completo com rotas
   return (
-    <AulasFrequenciaProvider>
-      <Routes>
-        <Route path="/" element={<LayoutComSidebar onLogout={handleLogout} tipoUsuario={tipoUsuario} professorId={professorId} isSuperAdmin={isSuperAdmin}><Dashboard /></LayoutComSidebar>} />
-        <Route path="/alunos" element={<LayoutComSidebar onLogout={handleLogout} tipoUsuario={tipoUsuario} professorId={professorId} isSuperAdmin={isSuperAdmin}><Alunos /></LayoutComSidebar>} />
-        <Route path="/agenda" element={<LayoutComSidebar onLogout={handleLogout} tipoUsuario={tipoUsuario} professorId={professorId} isSuperAdmin={isSuperAdmin}><Agenda /></LayoutComSidebar>} />
-        <Route path="/aulas-experimentais" element={<LayoutComSidebar onLogout={handleLogout} tipoUsuario={tipoUsuario} professorId={professorId} isSuperAdmin={isSuperAdmin}><AulasExperimentais /></LayoutComSidebar>} />
-        <Route path="/professores" element={<LayoutComSidebar onLogout={handleLogout} tipoUsuario={tipoUsuario} professorId={professorId} isSuperAdmin={isSuperAdmin}><Professores /></LayoutComSidebar>} />
-        <Route path="/responsaveis" element={<LayoutComSidebar onLogout={handleLogout} tipoUsuario={tipoUsuario} professorId={professorId} isSuperAdmin={isSuperAdmin}><Responsaveis /></LayoutComSidebar>} />
-        <Route path="/cursos-turmas" element={<LayoutComSidebar onLogout={handleLogout} tipoUsuario={tipoUsuario} professorId={professorId} isSuperAdmin={isSuperAdmin}><CursosTurmas /></LayoutComSidebar>} />
-        <Route path="/financeiro" element={<LayoutComSidebar onLogout={handleLogout} tipoUsuario={tipoUsuario} professorId={professorId} isSuperAdmin={isSuperAdmin}><Financeiro /></LayoutComSidebar>} />
-        <Route path="/materiais" element={<LayoutComSidebar onLogout={handleLogout} tipoUsuario={tipoUsuario} professorId={professorId} isSuperAdmin={isSuperAdmin}><Materiais /></LayoutComSidebar>} />
-        <Route path="*" element={<Navigate to="/" replace />} />
-      </Routes>
-    </AulasFrequenciaProvider>
+    <div className="flex flex-col min-h-screen">
+      <GlobalBanner />
+      <AulasFrequenciaProvider>
+        <Routes>
+          <Route path="/" element={<LayoutComSidebar onLogout={handleLogout} tipoUsuario={tipoUsuario} professorId={professorId} isSuperAdmin={isSuperAdmin}><Dashboard /></LayoutComSidebar>} />
+          <Route path="/alunos" element={<LayoutComSidebar onLogout={handleLogout} tipoUsuario={tipoUsuario} professorId={professorId} isSuperAdmin={isSuperAdmin}><Alunos /></LayoutComSidebar>} />
+          <Route path="/agenda" element={<LayoutComSidebar onLogout={handleLogout} tipoUsuario={tipoUsuario} professorId={professorId} isSuperAdmin={isSuperAdmin}><Agenda /></LayoutComSidebar>} />
+          <Route path="/aulas-experimentais" element={<LayoutComSidebar onLogout={handleLogout} tipoUsuario={tipoUsuario} professorId={professorId} isSuperAdmin={isSuperAdmin}><AulasExperimentais /></LayoutComSidebar>} />
+          <Route path="/professores" element={<LayoutComSidebar onLogout={handleLogout} tipoUsuario={tipoUsuario} professorId={professorId} isSuperAdmin={isSuperAdmin}><Professores /></LayoutComSidebar>} />
+          <Route path="/responsaveis" element={<LayoutComSidebar onLogout={handleLogout} tipoUsuario={tipoUsuario} professorId={professorId} isSuperAdmin={isSuperAdmin}><Responsaveis /></LayoutComSidebar>} />
+          <Route path="/cursos-turmas" element={<LayoutComSidebar onLogout={handleLogout} tipoUsuario={tipoUsuario} professorId={professorId} isSuperAdmin={isSuperAdmin}><CursosTurmas /></LayoutComSidebar>} />
+          <Route path="/financeiro" element={<LayoutComSidebar onLogout={handleLogout} tipoUsuario={tipoUsuario} professorId={professorId} isSuperAdmin={isSuperAdmin}><Financeiro /></LayoutComSidebar>} />
+          <Route path="/materiais" element={<LayoutComSidebar onLogout={handleLogout} tipoUsuario={tipoUsuario} professorId={professorId} isSuperAdmin={isSuperAdmin}><Materiais /></LayoutComSidebar>} />
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
+        <UpdateToast />
+      </AulasFrequenciaProvider>
+    </div>
   );
 }

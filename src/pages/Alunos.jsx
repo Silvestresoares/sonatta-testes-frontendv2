@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import HistoricoAlunoModal from '../components/HistoricoAlunoModal';
-
+import { exportarParaCSV, exportarParaPDF } from '../utils/exportar';
 // Detecta a URL da internet ou usa o localhost se estiver testando no computador
 // Deixe vazio em produção para usar o proxy do vercel.json, ou use a env se preferir
 const _envApi = import.meta.env.VITE_API_URL;
@@ -33,6 +33,14 @@ export default function Alunos() {
   const [totalAlunos, setTotalAlunos] = useState(0);
   const limite = 20;
 
+  // Estados do Relatório de Movimentação
+  const [abaPrincipal, setAbaPrincipal] = useState('alunos'); // 'alunos' ou 'movimentacao'
+  const [dataInicioMov, setDataInicioMov] = useState('');
+  const [dataFimMov, setDataFimMov] = useState('');
+  const [matriculasMov, setMatriculasMov] = useState([]);
+  const [cancelamentosMov, setCancelamentosMov] = useState([]);
+  const [carregandoMov, setCarregandoMov] = useState(false);
+
   // Controle de Edição vs Cadastro
   const [modalAberto, setModalAberto] = useState(false);
   const [idSendoEditado, setIdSendoEditado] = useState(null);
@@ -63,6 +71,75 @@ export default function Alunos() {
   const [responsaveis, setResponsaveis] = useState([]);
 
   // 1. BUSCAR ALUNOS E PROFESSORES (GET)
+  const buscarHistoricoMovimentacao = async () => {
+    const token = localStorage.getItem('@sonatta:token');
+    if (!token) return;
+    setCarregandoMov(true);
+    try {
+      const url = new URL(`${API_URL}/api/alunos/historico/movimentacao`);
+      if (dataInicioMov) url.searchParams.append('dataInicio', dataInicioMov);
+      if (dataFimMov) url.searchParams.append('dataFim', dataFimMov);
+
+      const resposta = await fetch(url, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (resposta.ok) {
+        const dados = await resposta.json();
+        setMatriculasMov(dados.matriculas || []);
+        setCancelamentosMov(dados.cancelamentos || []);
+      }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setCarregandoMov(false);
+    }
+  };
+
+  const exportarMovimentacaoPDF = () => {
+    const colunasMatriculas = [
+      { header: 'Aluno', key: 'nome' },
+      { header: 'Data da Matrícula', key: 'data_matricula' },
+      { header: 'Status Atual', key: 'status' }
+    ];
+    const colunasCancelamentos = [
+      { header: 'Aluno', key: 'nome' },
+      { header: 'Data do Cancelamento', key: 'data_inativacao' },
+      { header: 'Status Atual', key: 'status' }
+    ];
+    
+    if (matriculasMov.length > 0) {
+      exportarParaPDF(
+        matriculasMov.map(m => ({ ...m, data_matricula: formatarDataParaExibicao(m.data_matricula) })),
+        colunasMatriculas,
+        'Relatório de Novas Matrículas',
+        'matriculas'
+      );
+    }
+    if (cancelamentosMov.length > 0) {
+      exportarParaPDF(
+        cancelamentosMov.map(m => ({ ...m, data_inativacao: formatarDataParaExibicao(m.data_inativacao) })),
+        colunasCancelamentos,
+        'Relatório de Cancelamentos',
+        'cancelamentos'
+      );
+    }
+  };
+
+  const exportarMovimentacaoCSV = () => {
+    const colunasMatriculas = [
+      { header: 'Aluno', key: 'nome' },
+      { header: 'Data da Matrícula', key: 'data_matricula' },
+      { header: 'Status Atual', key: 'status' }
+    ];
+    const colunasCancelamentos = [
+      { header: 'Aluno', key: 'nome' },
+      { header: 'Data do Cancelamento', key: 'data_inativacao' },
+      { header: 'Status Atual', key: 'status' }
+    ];
+    if (matriculasMov.length > 0) exportarParaCSV(matriculasMov, colunasMatriculas, 'matriculas_csv');
+    if (cancelamentosMov.length > 0) exportarParaCSV(cancelamentosMov, colunasCancelamentos, 'cancelamentos_csv');
+  };
+
   const carregarAlunos = async () => {
     const token = localStorage.getItem('@sonatta:token');
     if (!token) return;
@@ -140,6 +217,12 @@ export default function Alunos() {
   useEffect(() => {
     carregarAlunos();
   }, [pagina, filtroStatus, busca]); // Recarrega ao mudar paginação ou filtros
+
+  useEffect(() => {
+    if (abaPrincipal === 'movimentacao') {
+      buscarHistoricoMovimentacao();
+    }
+  }, [abaPrincipal]);
 
   useEffect(() => {
     carregarProfessores();
@@ -394,7 +477,29 @@ export default function Alunos() {
         </button>
       </div>
 
-      {/* Barra de Filtros */}
+      {/* Abas */}
+      <div className="flex bg-zinc-900 border border-zinc-800 rounded-lg mb-6 p-1">
+        <button
+          onClick={() => setAbaPrincipal('alunos')}
+          className={`flex-1 py-3 rounded font-medium transition-all ${
+            abaPrincipal === 'alunos' ? 'bg-sky-600 text-white' : 'text-zinc-400 hover:text-white'
+          }`}
+        >
+          👥 Gerenciar Alunos
+        </button>
+        <button
+          onClick={() => setAbaPrincipal('movimentacao')}
+          className={`flex-1 py-3 rounded font-medium transition-all ${
+            abaPrincipal === 'movimentacao' ? 'bg-sky-600 text-white' : 'text-zinc-400 hover:text-white'
+          }`}
+        >
+          📈 Relatório de Movimentação
+        </button>
+      </div>
+
+      {abaPrincipal === 'alunos' && (
+        <>
+          {/* Barra de Filtros */}
       <div className="mb-6 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 p-4 rounded-xl flex flex-col sm:flex-row gap-4 items-center justify-between shadow-sm">
         <div className="w-full sm:flex-1">
           <input 
@@ -497,9 +602,9 @@ export default function Alunos() {
                           ✏️
                         </button>
                         <button 
-                          onClick={(e) => { e.stopPropagation(); handleDeletarAluno(aluno.id, aluno.nome); }} 
+                          onClick={(e) => { e.stopPropagation(); handleDeletarAluno(aluno.id, aluno.nome); }}
                           className="text-rose-400 hover:text-rose-300 p-2 rounded transition-all cursor-pointer hover:bg-rose-500/10"
-                          title="Excluir Aluno"
+                          title="Excluir aluno definitivamente"
                         >
                           🗑️
                         </button>
@@ -509,8 +614,8 @@ export default function Alunos() {
                 ))
               ) : (
                 <tr>
-                  <td colSpan="7" className="text-center py-12 text-zinc-500">
-                    Nenhum aluno encontrado para os filtros selecionados.
+                  <td colSpan="7" className="text-center p-8 text-zinc-500">
+                    Nenhum aluno encontrado com estes filtros.
                   </td>
                 </tr>
               )}
@@ -541,6 +646,146 @@ export default function Alunos() {
               Próxima
             </button>
           </div>
+        </div>
+      )}
+      </>
+      )}
+
+      {abaPrincipal === 'movimentacao' && (
+        <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-6">
+          <div className="mb-6 flex flex-col md:flex-row md:items-end gap-3 bg-zinc-950 p-4 rounded-lg border border-zinc-800">
+            <div className="w-full md:w-48">
+              <label className="text-xs uppercase text-zinc-500 mb-1 block">Data Inicial</label>
+              <input
+                type="date"
+                value={dataInicioMov}
+                onChange={(e) => setDataInicioMov(e.target.value)}
+                className="w-full bg-zinc-900 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-sky-500"
+              />
+            </div>
+            <div className="w-full md:w-48">
+              <label className="text-xs uppercase text-zinc-500 mb-1 block">Data Final</label>
+              <input
+                type="date"
+                value={dataFimMov}
+                onChange={(e) => setDataFimMov(e.target.value)}
+                className="w-full bg-zinc-900 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-sky-500"
+              />
+            </div>
+            <button
+              onClick={buscarHistoricoMovimentacao}
+              className="bg-sky-600 hover:bg-sky-700 px-6 py-2 rounded-lg text-sm font-medium transition-all"
+            >
+              Pesquisar
+            </button>
+          </div>
+
+          <div className="flex flex-col md:flex-row gap-4 mb-6">
+            <div className="flex-1 bg-zinc-950 p-4 rounded-lg border border-zinc-800 flex justify-between items-center">
+              <div>
+                <span className="text-xs text-zinc-500 uppercase block mb-1">Novas Matrículas</span>
+                <span className="text-2xl font-bold text-emerald-400">{matriculasMov.length}</span>
+              </div>
+              <span className="text-3xl opacity-50">🟢</span>
+            </div>
+            <div className="flex-1 bg-zinc-950 p-4 rounded-lg border border-zinc-800 flex justify-between items-center">
+              <div>
+                <span className="text-xs text-zinc-500 uppercase block mb-1">Cancelamentos (Inativações)</span>
+                <span className="text-2xl font-bold text-rose-400">{cancelamentosMov.length}</span>
+              </div>
+              <span className="text-3xl opacity-50">🔴</span>
+            </div>
+            <div className="flex-1 flex flex-col gap-2 justify-center">
+              <button onClick={exportarMovimentacaoPDF} className="bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold py-3 rounded transition-colors shadow-lg">📄 EXPORTAR PDF</button>
+              <button onClick={exportarMovimentacaoCSV} className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold py-3 rounded transition-colors shadow-lg">📊 EXPORTAR EXCEL</button>
+            </div>
+          </div>
+
+          {/* Resumo por Professor */}
+          <div className="mb-6 p-4 bg-zinc-950 border border-zinc-800 rounded-lg">
+            <h3 className="text-sm font-bold text-zinc-300 uppercase mb-3">Balanço por Professor</h3>
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+              {(() => {
+                const balanco = {};
+                matriculasMov.forEach(m => {
+                  const prof = m.professor_nome || 'Sem Professor';
+                  balanco[prof] = (balanco[prof] || 0) + 1;
+                });
+                cancelamentosMov.forEach(c => {
+                  const prof = c.professor_nome || 'Sem Professor';
+                  balanco[prof] = (balanco[prof] || 0) - 1;
+                });
+                return Object.keys(balanco).sort().map(prof => (
+                  <div key={prof} className="bg-zinc-900 border border-zinc-700 p-3 rounded-md flex justify-between items-center">
+                    <span className="text-xs text-zinc-400 truncate pr-2">{prof}</span>
+                    <span className={`text-sm font-bold ${balanco[prof] > 0 ? 'text-emerald-400' : balanco[prof] < 0 ? 'text-rose-400' : 'text-zinc-500'}`}>
+                      {balanco[prof] > 0 ? '+' : ''}{balanco[prof]}
+                    </span>
+                  </div>
+                ));
+              })()}
+            </div>
+          </div>
+
+          {carregandoMov ? (
+            <div className="p-12 text-center text-zinc-500">🔄 Buscando dados...</div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="border border-emerald-900/50 rounded-xl overflow-hidden bg-zinc-950/50 flex flex-col max-h-[600px]">
+                <div className="bg-emerald-900/20 p-3 border-b border-emerald-900/50 sticky top-0">
+                  <h3 className="font-bold text-emerald-400">Novas Matrículas ({matriculasMov.length})</h3>
+                </div>
+                <div className="overflow-y-auto p-2">
+                  {matriculasMov.length > 0 ? (
+                    <ul className="divide-y divide-zinc-800">
+                      {matriculasMov.map(m => (
+                        <li key={m.id} className="p-3 hover:bg-zinc-900 transition-colors flex justify-between items-center rounded-lg">
+                          <div>
+                            <p className="font-medium text-zinc-200">{m.nome}</p>
+                            <div className="flex gap-2 items-center mt-1">
+                              <span className="text-[10px] bg-zinc-800 text-zinc-400 px-1.5 py-0.5 rounded">👨‍🏫 {m.professor_nome || 'Sem Prof.'}</span>
+                            </div>
+                          </div>
+                          <div className="text-right">
+                            <p className="text-xs text-zinc-400">{formatarDataParaExibicao(m.data_matricula)}</p>
+                          </div>
+                        </li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <div className="p-6 text-center text-zinc-500 text-sm">Sem matrículas no período.</div>
+                  )}
+                </div>
+              </div>
+
+              <div className="border border-rose-900/50 rounded-xl overflow-hidden bg-zinc-950/50 flex flex-col max-h-[600px]">
+                <div className="bg-rose-900/20 p-3 border-b border-rose-900/50 sticky top-0">
+                  <h3 className="font-bold text-rose-400">Cancelamentos ({cancelamentosMov.length})</h3>
+                </div>
+                <div className="overflow-y-auto p-2">
+                  {cancelamentosMov.length > 0 ? (
+                    <ul className="divide-y divide-zinc-800">
+                      {cancelamentosMov.map(m => (
+                        <li key={m.id} className="p-3 hover:bg-zinc-900 transition-colors flex justify-between items-center rounded-lg">
+                          <div>
+                            <p className="font-medium text-zinc-200">{m.nome}</p>
+                            <div className="flex gap-2 items-center mt-1">
+                              <span className="text-[10px] bg-zinc-800 text-zinc-400 px-1.5 py-0.5 rounded">👨‍🏫 {m.professor_nome || 'Sem Prof.'}</span>
+                            </div>
+                          </div>
+                          <div className="text-right">
+                            <p className="text-xs text-zinc-400">{formatarDataParaExibicao(m.data_inativacao)}</p>
+                          </div>
+                        </li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <div className="p-6 text-center text-zinc-500 text-sm">Sem cancelamentos no período.</div>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       )}
 

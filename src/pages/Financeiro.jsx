@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { exportarParaCSV, exportarParaPDF } from '../utils/exportar';
 
 const _envApi = import.meta.env.VITE_API_URL;
 const _defaultLocal = 'http://localhost:3005';
@@ -19,6 +20,15 @@ export default function Financeiro() {
   const [carregandoProfessores, setCarregandoProfessores] = useState(false);
   const [resumoFinanceiro, setResumoFinanceiro] = useState({ receitas: 0, despesas: 0, saldo: 0, total_lancamentos: 0 });
 
+  // Estados do Histórico Avançado
+  const [buscaHistorico, setBuscaHistorico] = useState('');
+  const [tipoHistorico, setTipoHistorico] = useState('Todos');
+  const [statusHistorico, setStatusHistorico] = useState('Todos');
+  const [dataInicioHist, setDataInicioHist] = useState('');
+  const [dataFimHist, setDataFimHist] = useState('');
+  const [resultadosHistorico, setResultadosHistorico] = useState([]);
+  const [resumoHistorico, setResumoHistorico] = useState({ receitas: 0, despesas: 0, saldo: 0, total_lancamentos: 0 });
+  const [carregandoHistorico, setCarregandoHistorico] = useState(false);
   // Paginação Frontend
   const [paginaAlunos, setPaginaAlunos] = useState(1);
   const [paginaTransacoes, setPaginaTransacoes] = useState(1);
@@ -140,6 +150,79 @@ export default function Financeiro() {
       setResumoFinanceiro({ receitas: 0, despesas: 0, saldo: 0, total_lancamentos: 0 });
     }
   };
+
+  const buscarHistoricoCompleto = async () => {
+    const token = localStorage.getItem('@sonatta:token');
+    if (!token) return;
+    setCarregandoHistorico(true);
+
+    try {
+      const params = new URLSearchParams({
+        busca: buscaHistorico,
+        tipo: tipoHistorico === 'Todos' ? '' : tipoHistorico,
+        status: statusHistorico === 'Todos' ? '' : statusHistorico,
+        dataInicio: dataInicioHist,
+        dataFim: dataFimHist
+      });
+
+      const [resposta, resumoResp] = await Promise.all([
+        fetch(`${API_URL}/api/financeiro?${params.toString()}`, {
+          method: 'GET',
+          headers: { 'Authorization': `Bearer ${token}` }
+        }),
+        fetch(`${API_URL}/api/financeiro/resumo?${params.toString()}`, {
+          method: 'GET',
+          headers: { 'Authorization': `Bearer ${token}` }
+        })
+      ]);
+
+      if (resposta.ok) {
+        const dados = await resposta.json();
+        setResultadosHistorico(dados);
+      }
+      if (resumoResp.ok) {
+        const resumo = await resumoResp.json();
+        setResumoHistorico(resumo);
+      }
+    } catch (erro) {
+      console.error('Erro ao buscar histórico completo:', erro);
+    } finally {
+      setCarregandoHistorico(false);
+    }
+  };
+
+  const exportarHistoricoFinanceiroCSV = () => {
+    const colunas = [
+      { header: 'Descrição', key: 'descricao' },
+      { header: 'Tipo', key: 'tipo' },
+      { header: 'Status', key: 'status' },
+      { header: 'Valor (R$)', key: 'valor' },
+      { header: 'Data', key: 'data' }
+    ];
+    exportarParaCSV(resultadosHistorico, colunas, 'historico_financeiro');
+  };
+
+  const exportarHistoricoFinanceiroPDF = () => {
+    const colunas = [
+      { header: 'Descrição', key: 'descricao' },
+      { header: 'Tipo', key: 'tipo' },
+      { header: 'Status', key: 'status' },
+      { header: 'Valor (R$)', key: 'valor' },
+      { header: 'Data', key: 'data' }
+    ];
+    const dados = resultadosHistorico.map(r => ({
+      ...r,
+      data: formatarData(r.data),
+      valor: Number(r.valor).toFixed(2)
+    }));
+    exportarParaPDF(dados, colunas, 'Relatório Financeiro', 'historico_financeiro');
+  };
+
+  useEffect(() => {
+    if (abaSelecionada === 'historico') {
+      buscarHistoricoCompleto();
+    }
+  }, [abaSelecionada]);
 
   const carregarFinanceiroProfessores = async () => {
     const token = localStorage.getItem('@sonatta:token');
@@ -656,6 +739,16 @@ export default function Financeiro() {
             >
               👨‍🏫 Professores ({professoresFinanceiro.length})
             </button>
+            <button
+              onClick={() => setAbaSelecionada('historico')}
+              className={`flex-1 py-3 rounded font-medium transition-all ${
+                abaSelecionada === 'historico'
+                  ? 'bg-sky-600 text-white'
+                  : 'text-zinc-400 hover:text-white'
+              }`}
+            >
+              🔍 Histórico Avançado
+            </button>
           </div>
 
           {/* Conteúdo da Aba: MENSALIDADES */}
@@ -952,6 +1045,112 @@ export default function Financeiro() {
               )}
             </div>
           )}
+
+          {/* Conteúdo da Aba: HISTÓRICO AVANÇADO */}
+          {abaSelecionada === 'historico' && (
+            <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-6">
+              <div className="mb-6 flex flex-col md:flex-row md:items-end gap-3 bg-zinc-950 p-4 rounded-lg border border-zinc-800">
+                <div className="flex-1">
+                  <label className="text-xs uppercase text-zinc-500 mb-1 block">Buscar (Aluno ou Descrição)</label>
+                  <input
+                    value={buscaHistorico}
+                    onChange={(e) => setBuscaHistorico(e.target.value)}
+                    placeholder="Ex: João, Mensalidade..."
+                    className="w-full bg-zinc-900 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-sky-500"
+                  />
+                </div>
+                <div className="w-full md:w-32">
+                  <label className="text-xs uppercase text-zinc-500 mb-1 block">Data Inicial</label>
+                  <input
+                    type="date"
+                    value={dataInicioHist}
+                    onChange={(e) => setDataInicioHist(e.target.value)}
+                    className="w-full bg-zinc-900 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-sky-500"
+                  />
+                </div>
+                <div className="w-full md:w-32">
+                  <label className="text-xs uppercase text-zinc-500 mb-1 block">Data Final</label>
+                  <input
+                    type="date"
+                    value={dataFimHist}
+                    onChange={(e) => setDataFimHist(e.target.value)}
+                    className="w-full bg-zinc-900 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-sky-500"
+                  />
+                </div>
+                <button
+                  onClick={buscarHistoricoCompleto}
+                  className="bg-sky-600 hover:bg-sky-700 px-6 py-2 rounded-lg text-sm font-medium transition-all"
+                >
+                  Pesquisar
+                </button>
+              </div>
+
+              {/* Resumo do Histórico */}
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+                <div className="bg-zinc-950 p-4 rounded-lg border border-zinc-800">
+                  <span className="text-xs text-zinc-500 uppercase block mb-1">Total Receitas (Pago)</span>
+                  <span className="text-xl font-bold text-emerald-400">R$ {Number(resumoHistorico?.receitas || 0).toFixed(2)}</span>
+                </div>
+                <div className="bg-zinc-950 p-4 rounded-lg border border-zinc-800">
+                  <span className="text-xs text-zinc-500 uppercase block mb-1">Total Despesas (Pago)</span>
+                  <span className="text-xl font-bold text-rose-400">R$ {Number(resumoHistorico?.despesas || 0).toFixed(2)}</span>
+                </div>
+                <div className="bg-zinc-950 p-4 rounded-lg border border-zinc-800">
+                  <span className="text-xs text-zinc-500 uppercase block mb-1">Saldo Líquido</span>
+                  <span className={`text-xl font-bold ${Number(resumoHistorico?.saldo || 0) >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
+                    R$ {Number(resumoHistorico?.saldo || 0).toFixed(2)}
+                  </span>
+                </div>
+                <div className="flex flex-col gap-2 justify-center">
+                  <button onClick={exportarHistoricoFinanceiroPDF} className="bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold py-2 rounded transition-colors w-full">📄 EXPORTAR PDF</button>
+                  <button onClick={exportarHistoricoFinanceiroCSV} className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold py-2 rounded transition-colors w-full">📊 EXPORTAR EXCEL</button>
+                </div>
+              </div>
+
+              {/* Tabela do Histórico */}
+              {carregandoHistorico ? (
+                <div className="p-12 text-center text-zinc-500">🔄 Buscando dados...</div>
+              ) : resultadosHistorico.length > 0 ? (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b border-zinc-800 bg-zinc-950">
+                        <th className="text-left p-3 font-semibold">Data</th>
+                        <th className="text-left p-3 font-semibold">Descrição / Aluno</th>
+                        <th className="text-center p-3 font-semibold">Tipo</th>
+                        <th className="text-right p-3 font-semibold">Valor</th>
+                        <th className="text-center p-3 font-semibold">Status</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {resultadosHistorico.map((t) => (
+                        <tr key={t.id} className="border-b border-zinc-800/50 hover:bg-zinc-800/20">
+                          <td className="p-3 text-zinc-400 text-xs">{formatarData(t.data)}</td>
+                          <td className="p-3 text-zinc-200">{t.descricao}</td>
+                          <td className="p-3 text-center">
+                            <span className={`text-xs font-bold px-2 py-1 rounded ${
+                              t.tipo === 'Receita' ? 'bg-emerald-900/50 text-emerald-300' : 'bg-rose-900/50 text-rose-300'
+                            }`}>{t.tipo}</span>
+                          </td>
+                          <td className={`p-3 text-right font-semibold ${t.tipo === 'Receita' ? 'text-emerald-400' : 'text-rose-400'}`}>
+                            R$ {Number(t.valor || 0).toFixed(2)}
+                          </td>
+                          <td className="p-3 text-center">
+                            <span className={`text-[10px] uppercase font-bold px-2 py-1 rounded-full ${
+                              t.status === 'Pago' ? 'text-emerald-400 border border-emerald-400/30' : 'text-amber-400 border border-amber-400/30'
+                            }`}>{t.status}</span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              ) : (
+                <div className="p-12 text-center text-zinc-500">📭 Nenhum registro encontrado para essa busca.</div>
+              )}
+            </div>
+          )}
+
         </>
       ) : (
         <div className="flex flex-col items-center justify-center py-32 bg-zinc-900 border border-zinc-800 rounded-2xl text-center shadow-inner">

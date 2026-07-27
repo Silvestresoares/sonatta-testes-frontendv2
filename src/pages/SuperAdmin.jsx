@@ -11,6 +11,12 @@ export default function SuperAdmin({ onLogout }) {
   const [erro, setErro] = useState('');
   const [termoBusca, setTermoBusca] = useState('');
   const [filtroStatus, setFiltroStatus] = useState('todas'); // 'todas', 'em_dia', 'a_vencer', 'vencidas'
+  const [abaAtual, setAbaAtual] = useState('escolas'); // 'escolas' ou 'avisos'
+
+  // Avisos State
+  const [avisos, setAvisos] = useState([]);
+  const [novoAvisoTexto, setNovoAvisoTexto] = useState('');
+  const [novoAvisoTipo, setNovoAvisoTipo] = useState('info'); // info, alert, success
   
   // Modal State
   const [escolaEditando, setEscolaEditando] = useState(null);
@@ -22,22 +28,64 @@ export default function SuperAdmin({ onLogout }) {
   const buscarEscolas = async () => {
     try {
       setLoading(true);
-      const resposta = await fetch(`${API_URL}/api/super-admin/escolas`, {
+      await fetch(`${API_URL}/api/super-admin/escolas`, {
         headers: { 'Authorization': `Bearer ${token}` }
-      });
-      if (!resposta.ok) throw new Error('Falha ao carregar as escolas.');
-      const dados = await resposta.json();
-      setEscolas(dados);
+      })
+        .then(res => res.json())
+        .then(data => setEscolas(data))
+        .catch(err => {
+          console.error(err);
+          setErro('Erro ao carregar escolas.');
+        })
+        .finally(() => setLoading(false));
     } catch (err) {
       setErro(err.message);
-    } finally {
-      setLoading(false);
     }
+  };
+
+  const buscarAvisos = () => {
+    const token = localStorage.getItem('@sonatta:token');
+    fetch(`${API_URL}/api/super-admin/avisos`, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    })
+      .then(res => res.json())
+      .then(data => setAvisos(data))
+      .catch(err => console.error('Erro ao carregar avisos', err));
   };
 
   useEffect(() => {
     buscarEscolas();
+    buscarAvisos();
   }, []);
+
+  const adicionarAviso = async (e) => {
+    e.preventDefault();
+    try {
+      const res = await fetch(`${API_URL}/api/super-admin/avisos`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify({ mensagem: novoAvisoTexto, tipo: novoAvisoTipo })
+      });
+      if (res.ok) {
+        setNovoAvisoTexto('');
+        buscarAvisos();
+      }
+    } catch (err) {
+      alert('Erro ao criar aviso');
+    }
+  };
+
+  const alternarStatusAviso = async (id) => {
+    try {
+      await fetch(`${API_URL}/api/super-admin/avisos/${id}/alternar`, {
+        method: 'PATCH',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      buscarAvisos();
+    } catch (err) {
+      alert('Erro ao alterar status');
+    }
+  };
 
   const escolasFiltradas = escolas.filter(e => {
     // 1. Filtro por termo de busca
@@ -156,11 +204,27 @@ export default function SuperAdmin({ onLogout }) {
         </button>
       </header>
 
-      <div className="flex-1 overflow-y-auto p-6">
+      <main className="flex-1 p-6 md:p-8 overflow-auto relative">
         <div className="max-w-6xl mx-auto space-y-6">
 
+          {/* Abas */}
+          <div className="flex items-center gap-4 border-b border-zinc-800 pb-2">
+            <button
+              onClick={() => setAbaAtual('escolas')}
+              className={`px-4 py-2 font-medium transition-colors border-b-2 ${abaAtual === 'escolas' ? 'border-emerald-500 text-emerald-400' : 'border-transparent text-zinc-400 hover:text-white'}`}
+            >
+              Escolas
+            </button>
+            <button
+              onClick={() => setAbaAtual('avisos')}
+              className={`px-4 py-2 font-medium transition-colors border-b-2 ${abaAtual === 'avisos' ? 'border-emerald-500 text-emerald-400' : 'border-transparent text-zinc-400 hover:text-white'}`}
+            >
+              Avisos Globais
+            </button>
+          </div>
+
           {/* Cards de Alerta de Assinatura */}
-          {(escolasVencidas > 0 || escolasAVencer > 0) && (
+          {abaAtual === 'escolas' && (escolasVencidas > 0 || escolasAVencer > 0) && (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
               {escolasVencidas > 0 && (
                 <div className="bg-rose-500/10 border border-rose-500/30 rounded-xl p-4 flex items-center justify-between">
@@ -188,110 +252,196 @@ export default function SuperAdmin({ onLogout }) {
             </div>
           )}
           
-          <div className="flex justify-between items-center">
-            <h2 className="text-lg font-semibold text-white">Escolas Cadastradas</h2>
-            <div className="flex items-center gap-3">
-              <select 
-                value={filtroStatus}
-                onChange={(e) => setFiltroStatus(e.target.value)}
-                className="bg-zinc-900 border border-zinc-700 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-emerald-500 transition-colors text-sm"
-              >
-                <option value="todas">Todos os Status</option>
-                <option value="em_dia">Em Dia</option>
-                <option value="a_vencer">A Vencer (até 3 dias)</option>
-                <option value="vencidas">Vencidas</option>
-              </select>
-              <div className="relative w-64">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400" size={18} />
-                <input 
-                  type="text" 
-                  placeholder="Buscar escola ou email..." 
-                  value={termoBusca}
-                  onChange={(e) => setTermoBusca(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2 bg-zinc-900 border border-zinc-700 rounded-lg text-white focus:outline-none focus:border-emerald-500 transition-colors text-sm"
-                />
+          {/* Conteúdo Aba Escolas */}
+          {abaAtual === 'escolas' && (
+            <>
+              <div className="flex justify-between items-center">
+                <h2 className="text-lg font-semibold text-white">Escolas Cadastradas</h2>
+                <div className="flex items-center gap-3">
+                  <select 
+                    value={filtroStatus}
+                    onChange={(e) => setFiltroStatus(e.target.value)}
+                    className="bg-zinc-900 border border-zinc-700 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-emerald-500 transition-colors text-sm"
+                  >
+                    <option value="todas">Todos os Status</option>
+                    <option value="em_dia">Em Dia</option>
+                    <option value="a_vencer">A Vencer (até 3 dias)</option>
+                    <option value="vencidas">Vencidas</option>
+                  </select>
+                  <div className="relative w-64">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400" size={18} />
+                    <input 
+                      type="text" 
+                      placeholder="Buscar escola ou email..." 
+                      value={termoBusca}
+                      onChange={(e) => setTermoBusca(e.target.value)}
+                      className="w-full pl-10 pr-4 py-2 bg-zinc-900 border border-zinc-700 rounded-lg text-white focus:outline-none focus:border-emerald-500 transition-colors text-sm"
+                    />
+                  </div>
+                </div>
               </div>
-            </div>
-          </div>
 
-          {erro && (
-            <div className="bg-rose-500/10 border border-rose-500/30 text-rose-400 p-4 rounded-lg flex items-center gap-3">
-              <AlertCircle size={20} />
-              {erro}
-            </div>
+              {erro && (
+                <div className="bg-rose-500/10 border border-rose-500/30 text-rose-400 p-4 rounded-lg flex items-center gap-3">
+                  <AlertCircle size={20} />
+                  {erro}
+                </div>
+              )}
+
+              {loading ? (
+                <div className="text-center py-10 text-zinc-500">Carregando escolas...</div>
+              ) : (
+                <div className="bg-zinc-900 border border-zinc-800 rounded-xl overflow-hidden">
+                  <table className="w-full text-left border-collapse">
+                    <thead>
+                      <tr className="border-b border-zinc-800 bg-zinc-800/50">
+                        <th className="px-6 py-4 text-sm font-semibold text-zinc-400">Escola</th>
+                        <th className="px-6 py-4 text-sm font-semibold text-zinc-400">Contato</th>
+                        <th className="px-6 py-4 text-sm font-semibold text-zinc-400">Plano</th>
+                        <th className="px-6 py-4 text-sm font-semibold text-zinc-400">Vencimento</th>
+                        <th className="px-6 py-4 text-sm font-semibold text-zinc-400 text-right">Ação</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-zinc-800">
+                      {escolasFiltradas.map(escola => (
+                        <tr key={escola.id} className={`transition-colors ${obterClasseStatusLinha(escola)}`}>
+                          <td className="px-6 py-4">
+                            <div className="font-medium text-white">{escola.nome_escola}</div>
+                            <div className="text-xs text-zinc-500">ID: {escola.id}</div>
+                          </td>
+                          <td className="px-6 py-4">
+                            <div className="text-sm text-zinc-300">{escola.email}</div>
+                            <div className="text-xs text-zinc-500">Tel: {escola.telefone_comercial || 'Não informado'}</div>
+                            {escola.documento && (
+                              <div className="text-xs text-zinc-500 mt-0.5">Doc: {escola.documento}</div>
+                            )}
+                          </td>
+                          <td className="px-6 py-4">
+                            <span className={`inline-flex px-2 py-1 rounded text-xs font-medium ${
+                              escola.plano === 'Vitalicio' ? 'bg-amber-500/10 text-amber-500 border border-amber-500/20' : 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
+                            }`}>
+                              {escola.plano}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4">
+                            {escola.plano === 'Vitalicio' ? (
+                              <span className="text-zinc-500 text-sm">--/--/----</span>
+                            ) : (
+                              <span className={`text-sm ${
+                                new Date(escola.data_vencimento_assinatura) < new Date() 
+                                  ? 'text-rose-400 font-bold' 
+                                  : Math.ceil((new Date(escola.data_vencimento_assinatura) - new Date()) / (1000 * 60 * 60 * 24)) <= 3
+                                    ? 'text-amber-400 font-bold'
+                                    : 'text-zinc-300'
+                              }`}>
+                                {escola.data_vencimento_assinatura ? new Date(escola.data_vencimento_assinatura).toLocaleDateString('pt-BR', {timeZone: 'UTC'}) : 'Não definido'}
+                              </span>
+                            )}
+                          </td>
+                          <td className="px-6 py-4 text-right">
+                            <button 
+                              onClick={() => abrirModalEdicao(escola)}
+                              className="p-2 text-zinc-400 hover:text-emerald-400 hover:bg-emerald-400/10 rounded-lg transition-colors"
+                            >
+                              <Edit2 size={18} />
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                      {escolasFiltradas.length === 0 && (
+                        <tr>
+                          <td colSpan="5" className="px-6 py-8 text-center text-zinc-500">Nenhuma escola encontrada.</td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </>
           )}
 
-          {loading ? (
-            <div className="text-center py-10 text-zinc-500">Carregando escolas...</div>
-          ) : (
-            <div className="bg-zinc-900 rounded-xl border border-zinc-800 overflow-hidden">
-              <table className="w-full text-left border-collapse">
-                <thead>
-                  <tr className="border-b border-zinc-800 bg-zinc-800/50">
-                    <th className="px-6 py-4 text-sm font-semibold text-zinc-400">Escola</th>
-                    <th className="px-6 py-4 text-sm font-semibold text-zinc-400">Contato</th>
-                    <th className="px-6 py-4 text-sm font-semibold text-zinc-400">Plano</th>
-                    <th className="px-6 py-4 text-sm font-semibold text-zinc-400">Vencimento</th>
-                    <th className="px-6 py-4 text-sm font-semibold text-zinc-400 text-right">Ação</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-zinc-800">
-                  {escolasFiltradas.map(escola => (
-                    <tr key={escola.id} className={`transition-colors ${obterClasseStatusLinha(escola)}`}>
-                      <td className="px-6 py-4">
-                        <div className="font-medium text-white">{escola.nome_escola}</div>
-                        <div className="text-xs text-zinc-500">ID: {escola.id}</div>
-                      </td>
-                      <td className="px-6 py-4">
-                        <div className="text-sm text-zinc-300">{escola.email}</div>
-                        <div className="text-xs text-zinc-500">Tel: {escola.telefone_comercial || 'Não informado'}</div>
-                        {escola.documento && (
-                          <div className="text-xs text-zinc-500 mt-0.5">Doc: {escola.documento}</div>
-                        )}
-                      </td>
-                      <td className="px-6 py-4">
-                        <span className={`inline-flex px-2 py-1 rounded text-xs font-medium ${
-                          escola.plano === 'Vitalicio' ? 'bg-amber-500/10 text-amber-500 border border-amber-500/20' : 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
-                        }`}>
-                          {escola.plano}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4">
-                        {escola.plano === 'Vitalicio' ? (
-                          <span className="text-zinc-500 text-sm">--/--/----</span>
-                        ) : (
-                          <span className={`text-sm ${
-                            new Date(escola.data_vencimento_assinatura) < new Date() 
-                              ? 'text-rose-400 font-bold' 
-                              : Math.ceil((new Date(escola.data_vencimento_assinatura) - new Date()) / (1000 * 60 * 60 * 24)) <= 3
-                                ? 'text-amber-400 font-bold'
-                                : 'text-zinc-300'
-                          }`}>
-                            {escola.data_vencimento_assinatura ? new Date(escola.data_vencimento_assinatura).toLocaleDateString('pt-BR', {timeZone: 'UTC'}) : 'Não definido'}
-                          </span>
-                        )}
-                      </td>
-                      <td className="px-6 py-4 text-right">
+          {/* Conteúdo Aba Avisos */}
+          {abaAtual === 'avisos' && (
+            <div className="space-y-6">
+              <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-6">
+                <h2 className="text-lg font-semibold text-white mb-4">Novo Aviso Global</h2>
+                <form onSubmit={adicionarAviso} className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-zinc-400 mb-1">Mensagem do Aviso</label>
+                    <textarea 
+                      required
+                      value={novoAvisoTexto}
+                      onChange={e => setNovoAvisoTexto(e.target.value)}
+                      className="w-full px-4 py-2 bg-zinc-950 border border-zinc-800 rounded-lg text-white focus:outline-none focus:border-emerald-500 min-h-[100px]"
+                      placeholder="Ex: O sistema passará por manutenção hoje às 23h..."
+                    ></textarea>
+                  </div>
+                  <div className="flex gap-4 items-end">
+                    <div className="w-48">
+                      <label className="block text-sm font-medium text-zinc-400 mb-1">Tipo / Cor</label>
+                      <select 
+                        value={novoAvisoTipo}
+                        onChange={e => setNovoAvisoTipo(e.target.value)}
+                        className="w-full px-4 py-2 bg-zinc-950 border border-zinc-800 rounded-lg text-white focus:outline-none focus:border-emerald-500 h-[42px]"
+                      >
+                        <option value="info">Informação (Azul)</option>
+                        <option value="alert">Alerta (Vermelho)</option>
+                        <option value="success">Sucesso (Verde)</option>
+                      </select>
+                    </div>
+                    <button type="submit" className="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold py-2 px-6 rounded-lg transition-colors h-[42px]">
+                      Publicar Aviso
+                    </button>
+                  </div>
+                </form>
+              </div>
+
+              <div className="bg-zinc-900 border border-zinc-800 rounded-xl overflow-hidden">
+                <div className="p-4 border-b border-zinc-800">
+                  <h3 className="font-semibold text-white">Avisos Recentes</h3>
+                </div>
+                <div className="divide-y divide-zinc-800">
+                  {avisos.length === 0 ? (
+                    <div className="p-6 text-center text-zinc-500">Nenhum aviso encontrado.</div>
+                  ) : (
+                    avisos.map(aviso => (
+                      <div key={aviso.id} className="p-4 flex items-center justify-between hover:bg-zinc-800/30 transition-colors">
+                        <div>
+                          <div className="flex items-center gap-2 mb-1">
+                            <span className={`text-xs font-bold px-2 py-0.5 rounded uppercase ${
+                              aviso.tipo === 'alert' ? 'bg-red-500/20 text-red-400' :
+                              aviso.tipo === 'success' ? 'bg-emerald-500/20 text-emerald-400' :
+                              'bg-blue-500/20 text-blue-400'
+                            }`}>
+                              {aviso.tipo}
+                            </span>
+                            <span className="text-xs text-zinc-500">
+                              {new Date(aviso.data_criacao).toLocaleString('pt-BR')}
+                            </span>
+                          </div>
+                          <p className={`text-sm ${aviso.ativo ? 'text-white' : 'text-zinc-500 line-through'}`}>
+                            {aviso.mensagem}
+                          </p>
+                        </div>
                         <button 
-                          onClick={() => abrirModalEdicao(escola)}
-                          className="p-2 text-zinc-400 hover:text-emerald-400 hover:bg-emerald-400/10 rounded-lg transition-colors"
+                          onClick={() => alternarStatusAviso(aviso.id)}
+                          className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
+                            aviso.ativo 
+                            ? 'bg-rose-500/10 text-rose-500 hover:bg-rose-500/20' 
+                            : 'bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500/20'
+                          }`}
                         >
-                          <Edit2 size={18} />
+                          {aviso.ativo ? 'Desativar' : 'Reativar'}
                         </button>
-                      </td>
-                    </tr>
-                  ))}
-                  {escolasFiltradas.length === 0 && (
-                    <tr>
-                      <td colSpan="5" className="px-6 py-8 text-center text-zinc-500">Nenhuma escola encontrada.</td>
-                    </tr>
+                      </div>
+                    ))
                   )}
-                </tbody>
-              </table>
+                </div>
+              </div>
             </div>
           )}
         </div>
-      </div>
+      </main>
 
       {/* Modal de Edição de Assinatura */}
       {escolaEditando && (

@@ -13,7 +13,7 @@ export default defineConfig({
         enabled: true,
         type: 'module',
       },
-      registerType: 'autoUpdate',
+      registerType: 'prompt',
       includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'logo.png'],
       manifest: {
         name: 'Sonatta - Gestão de Ensino Musical',
