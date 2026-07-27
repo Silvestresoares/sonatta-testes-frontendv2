@@ -84,6 +84,23 @@ export default function AulasTimeline({ aulas = [], onAbrirRegistro = null, onEd
       {aulasOrdenadas.map((aula, index) => {
         const statusValue = aula.status || aula.status_presenca || aula.dadosRegistro?.status_presenca || 'pendente';
         const statusConfig = getStatusConfig(statusValue);
+        
+        let showPrancheta = true;
+        if (aula.data_aula) {
+          const dataAulaStr = String(aula.data_aula).substring(0, 10);
+          if (dataAulaStr > dataHojeISO) {
+            showPrancheta = false;
+          } else if (dataAulaStr === dataHojeISO && aula.horario) {
+            const [h, m] = aula.horario.split(':').map(Number);
+            const agora = new Date();
+            const minAtualTotal = agora.getHours() * 60 + agora.getMinutes();
+            const minAulaTotal = h * 60 + (m || 0);
+            if (minAtualTotal < minAulaTotal) {
+              showPrancheta = false;
+            }
+          }
+        }
+
         return (
           <div
             key={aula.id || index}
@@ -115,7 +132,7 @@ export default function AulasTimeline({ aulas = [], onAbrirRegistro = null, onEd
                   <User size={18} className="text-emerald-400 flex-shrink-0" />
                 )}
                 <p className="text-base font-bold text-zinc-900 dark:text-white">{aula.nome_aluno || aula.aluno}</p>
-                {(!aula.data_aula || String(aula.data_aula).substring(0, 10) <= dataHojeISO) && (
+                {showPrancheta && (
                   <button
                     onClick={() => onAbrirRegistro && onAbrirRegistro(aula)}
                     className={`p-1 rounded-md transition-all cursor-pointer active:scale-95 ${statusConfig.color} hover:bg-white/5`}
