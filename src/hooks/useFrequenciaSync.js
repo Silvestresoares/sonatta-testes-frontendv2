@@ -16,7 +16,6 @@ export function useFrequenciaSync(alunoId, mes, ano) {
       
       canal.onmessage = (evento) => {
         if (evento.data.tipo === 'frequencia-atualizada' && evento.data.alunoId === alunoId) {
-          console.log('🔄 useFrequenciaSync: Atualização recebida', evento.data);
           setAtualizacaoPendente(true);
           setUltimaAtualizacao(Date.now());
           

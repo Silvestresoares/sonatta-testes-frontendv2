@@ -75,9 +75,7 @@ export default function NotificationBanner() {
           body: JSON.stringify(subscription)
         });
 
-        if (response.ok) {
-          console.log('Inscrito para notificações com sucesso!');
-        } else {
+        if (!response.ok) {
           console.error('Erro ao enviar inscrição para o backend.');
         }
       }

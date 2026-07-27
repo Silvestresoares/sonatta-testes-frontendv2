@@ -26,7 +26,6 @@ export function useSincronizacaoAulas(alunoId, mes = null, ano = null) {
     const carregarDados = async () => {
       try {
         await sincronizarDados(alunoId, mes, ano);
-        console.log('✅ Dados sincronizados:', { alunoId, mes, ano });
       } catch (erro) {
         console.error('❌ Erro ao sincronizar dados:', erro);
       }
@@ -40,8 +39,6 @@ export function useSincronizacaoAulas(alunoId, mes = null, ano = null) {
     if (atualizacoes.length === 0) return;
 
     const ultimaAtualizacao = atualizacoes[atualizacoes.length - 1];
-
-    console.log('📡 Atualização detectada:', ultimaAtualizacao.tipo);
 
     // Limpar timer anterior
     if (timerRef.current) {
@@ -133,7 +130,6 @@ export function useFrequenciaEmTempoReal(alunoId, callback) {
           evento.data.alunoId === alunoId &&
           callback
         ) {
-          console.log('⚡ Frequência atualizada em tempo real:', evento.data);
           callback(evento.data);
         }
       };
@@ -164,7 +160,6 @@ export function useAutoSincronizacao(alunoId, mes = null, ano = null, intervalMs
 
     // Sincronizar em intervalos
     const timer = setInterval(() => {
-      console.log('⏰ Auto-sincronização...');
       sincronizarDados(alunoId, mes, ano).catch(console.error);
     }, intervalMs);
 

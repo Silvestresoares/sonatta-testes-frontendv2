@@ -29,11 +29,8 @@ export function AulasFrequenciaProvider({ children }) {
     try {
       canalAulasRef.current = new BroadcastChannel('sonatta_updates');
       canalAulasRef.current.onmessage = (evento) => {
-        console.log('📡 AulasFrequenciaContext: Mensagem recebida', evento.data);
         
-        // Suporte a mensagens legadas em formato string
         if (evento.data === 'atualizar_dados') {
-          console.log('📡 Recarga global solicitada via string');
           return;
         }
 
@@ -49,7 +46,6 @@ export function AulasFrequenciaProvider({ children }) {
             break;
           case 'recarregar-aulas':
             // Trigger para recarregar dados do backend
-            console.log('📡 Requisição de recarga de aulas recebida');
             break;
           default:
             break;
@@ -354,8 +350,6 @@ export function AulasFrequenciaProvider({ children }) {
   const logout = useCallback((e) => {
     // Se vier de um clique em link/botão, previne comportamentos padrão do navegador
     if (e && e.preventDefault) e.preventDefault();
-    
-    console.log('🚪 Iniciando processo de encerramento de sessão...');
 
     // 1. Limpa TODOS os tipos de armazenamento para não deixar rastros
     localStorage.clear();

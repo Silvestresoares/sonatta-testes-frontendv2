@@ -20,6 +20,8 @@ export default function Login({ aoLogar }) {
   // Estados para Cadastro de Nova Escola + Administrador
   const [nomeEscola, setNomeEscola] = useState('');
   const [emailCadastro, setEmailCadastro] = useState('');
+  const [telefoneCadastro, setTelefoneCadastro] = useState('');
+  const [documentoCadastro, setDocumentoCadastro] = useState('');
   const [senhaCadastro, setSenhaCadastro] = useState('');
   const [confirmarSenha, setConfirmarSenha] = useState('');
 
@@ -54,6 +56,9 @@ export default function Login({ aoLogar }) {
         localStorage.setItem('@sonatta:usuario_nome', usuarioLogado.nome || 'Usuário');
         localStorage.setItem('@sonatta:tipo_usuario', usuarioLogado.tipo_usuario || 'admin');
         localStorage.setItem('@sonatta:professor_id', usuarioLogado.professor_id || '');
+        localStorage.setItem('@sonatta:is_super_admin', usuarioLogado.is_super_admin || false);
+        localStorage.setItem('@sonatta:plano', usuarioLogado.plano || 'Vitalicio');
+        localStorage.setItem('@sonatta:data_vencimento', usuarioLogado.data_vencimento_assinatura || '');
         alert(`Bem-vindo de volta, ${usuarioLogado.nome || 'Usuário'}!`);
         if (aoLogar) aoLogar(usuarioLogado);
       } else {
@@ -84,6 +89,8 @@ export default function Login({ aoLogar }) {
         body: JSON.stringify({ 
           nome_escola: nomeEscola,
           nome: nomeEscola,
+          telefone_comercial: telefoneCadastro,
+          documento: documentoCadastro,
           email: emailCadastro, 
           senha: senhaCadastro 
         })
@@ -93,7 +100,7 @@ export default function Login({ aoLogar }) {
 
       if (resposta.ok) {
         alert("Escola cadastrada com sucesso! Agora você já pode fazer login.");
-        setNomeEscola(''); setEmailCadastro(''); setSenhaCadastro(''); setConfirmarSenha('');
+        setNomeEscola(''); setEmailCadastro(''); setTelefoneCadastro(''); setDocumentoCadastro(''); setSenhaCadastro(''); setConfirmarSenha('');
         setAba('login');
       } else {
         alert(dados.erro || "Erro ao cadastrar escola.");
@@ -223,6 +230,55 @@ export default function Login({ aoLogar }) {
                 onChange={e => setNomeEscola(e.target.value)}
                 className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-sm text-white outline-none focus:border-emerald-500 transition-all placeholder-zinc-600"
               />
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-xs font-bold text-zinc-400 uppercase mb-1.5">Telefone de Contato</label>
+                <input 
+                  type="text" 
+                  placeholder="(00) 00000-0000"
+                  value={telefoneCadastro} 
+                  onChange={e => {
+                  let v = e.target.value.replace(/\D/g, '');
+                  if (v.length > 11) v = v.substring(0, 11);
+                  if (v.length > 10) {
+                    v = v.replace(/^(\d{2})(\d{5})(\d{4}).*/, '($1) $2-$3');
+                  } else if (v.length > 6) {
+                    v = v.replace(/^(\d{2})(\d{4})(\d{0,4}).*/, '($1) $2-$3');
+                  } else if (v.length > 2) {
+                    v = v.replace(/^(\d{2})(\d{0,5})/, '($1) $2');
+                  }
+                  setTelefoneCadastro(v);
+                }}
+                  className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-sm text-white outline-none focus:border-emerald-500 transition-all placeholder-zinc-600"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-zinc-400 uppercase mb-1.5">CPF ou CNPJ</label>
+                <input 
+                  type="text" 
+                  placeholder="Apenas números"
+                  value={documentoCadastro} 
+                  onChange={e => {
+                  let v = e.target.value.replace(/\D/g, '');
+                  if (v.length > 14) v = v.substring(0, 14);
+                  
+                  if (v.length <= 11) {
+                    if (v.length > 9) v = v.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4');
+                    else if (v.length > 6) v = v.replace(/(\d{3})(\d{3})(\d{1,3})/, '$1.$2.$3');
+                    else if (v.length > 3) v = v.replace(/(\d{3})(\d{1,3})/, '$1.$2');
+                  } else {
+                    if (v.length > 12) v = v.replace(/(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})/, '$1.$2.$3/$4-$5');
+                    else if (v.length > 8) v = v.replace(/(\d{2})(\d{3})(\d{3})(\d{1,4})/, '$1.$2.$3/$4');
+                    else if (v.length > 5) v = v.replace(/(\d{2})(\d{3})(\d{1,3})/, '$1.$2.$3');
+                    else if (v.length > 2) v = v.replace(/(\d{2})(\d{1,3})/, '$1.$2');
+                  }
+                  setDocumentoCadastro(v);
+                }}
+                  className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-sm text-white outline-none focus:border-emerald-500 transition-all placeholder-zinc-600"
+                />
+              </div>
             </div>
 
             <div>

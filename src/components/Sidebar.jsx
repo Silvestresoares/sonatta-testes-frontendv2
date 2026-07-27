@@ -3,7 +3,7 @@ import { NavLink, useNavigate } from 'react-router-dom';
 import { LogOut, PlusCircle, Repeat, RotateCcw, Lightbulb, X, Folder } from 'lucide-react';
 import AgendamentoAulaModal from './AgendamentoAulaModal'; 
 
-export default function Sidebar({ onLogout, tipoUsuario, professorId, isOpen, onClose }) {
+export default function Sidebar({ onLogout, tipoUsuario, professorId, isOpen, onClose, isSuperAdmin }) {
   const navigate = useNavigate();
 
   const _envApi = import.meta.env.VITE_API_URL;
