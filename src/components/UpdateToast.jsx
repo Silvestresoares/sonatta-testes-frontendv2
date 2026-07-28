@@ -28,12 +28,6 @@ export default function UpdateToast() {
         </div>
         <div className="flex items-center gap-2">
           <button
-            onClick={() => updateServiceWorker(true)}
-            className="flex items-center gap-1 bg-white text-emerald-600 px-3 py-1.5 rounded-lg text-sm font-semibold hover:bg-emerald-50 transition-colors"
-          >
-            <RefreshCw size={14} /> Atualizar
-          </button>
-          <button
             onClick={() => setNeedRefresh(false)}
             className="p-1.5 hover:bg-emerald-700 rounded-lg transition-colors text-emerald-100"
           >
