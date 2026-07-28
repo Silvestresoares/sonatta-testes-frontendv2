@@ -199,6 +199,22 @@ export default function App() {
     );
   };
 
+  const isPortalRoute = location.pathname.startsWith('/portal');
+
+  if (isPortalRoute) {
+    return (
+      <div className="flex flex-col min-h-screen">
+        <GlobalBanner />
+        <Routes>
+          <Route path="/portal/login" element={<LoginPortal />} />
+          <Route path="/portal/dashboard" element={<DashboardPortal />} />
+          <Route path="*" element={<Navigate to="/portal/login" replace />} />
+        </Routes>
+        <UpdateToast />
+      </div>
+    );
+  }
+
   if (carregando) {
     return (
       <div className="min-h-screen bg-zinc-950 flex items-center justify-center text-zinc-400">

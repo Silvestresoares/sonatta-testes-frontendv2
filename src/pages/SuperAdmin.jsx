@@ -186,7 +186,7 @@ export default function SuperAdmin({ onLogout }) {
 
   return (
     <div className="flex-1 flex flex-col h-screen overflow-hidden bg-zinc-950">
-      <header className="flex-shrink-0 bg-zinc-900 border-b border-zinc-800 p-6 flex justify-between items-center">
+      <header className="flex-shrink-0 bg-zinc-900 border-b border-zinc-800 p-4 sm:p-6 flex flex-col sm:flex-row justify-between items-center gap-4 sm:gap-0">
         <div className="flex items-center gap-3">
           <div className="p-2 bg-amber-500/20 text-amber-500 rounded-lg">
             <Crown size={24} />
@@ -208,7 +208,7 @@ export default function SuperAdmin({ onLogout }) {
         <div className="max-w-6xl mx-auto space-y-6">
 
           {/* Abas */}
-          <div className="flex items-center gap-4 border-b border-zinc-800 pb-2">
+          <div className="flex flex-wrap items-center gap-2 sm:gap-4 border-b border-zinc-800 pb-2">
             <button
               onClick={() => setAbaAtual('escolas')}
               className={`px-4 py-2 font-medium transition-colors border-b-2 ${abaAtual === 'escolas' ? 'border-emerald-500 text-emerald-400' : 'border-transparent text-zinc-400 hover:text-white'}`}
@@ -255,20 +255,20 @@ export default function SuperAdmin({ onLogout }) {
           {/* Conteúdo Aba Escolas */}
           {abaAtual === 'escolas' && (
             <>
-              <div className="flex justify-between items-center">
+              <div className="flex flex-col lg:flex-row lg:justify-between lg:items-center gap-4">
                 <h2 className="text-lg font-semibold text-white">Escolas Cadastradas</h2>
-                <div className="flex items-center gap-3">
+                <div className="flex flex-col sm:flex-row items-center gap-3 w-full lg:w-auto">
                   <select 
                     value={filtroStatus}
                     onChange={(e) => setFiltroStatus(e.target.value)}
-                    className="bg-zinc-900 border border-zinc-700 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-emerald-500 transition-colors text-sm"
+                    className="w-full sm:w-auto bg-zinc-900 border border-zinc-700 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-emerald-500 transition-colors text-sm"
                   >
                     <option value="todas">Todos os Status</option>
                     <option value="em_dia">Em Dia</option>
                     <option value="a_vencer">A Vencer (até 3 dias)</option>
                     <option value="vencidas">Vencidas</option>
                   </select>
-                  <div className="relative w-64">
+                  <div className="relative w-full sm:w-64">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400" size={18} />
                     <input 
                       type="text" 
@@ -292,7 +292,8 @@ export default function SuperAdmin({ onLogout }) {
                 <div className="text-center py-10 text-zinc-500">Carregando escolas...</div>
               ) : (
                 <div className="bg-zinc-900 border border-zinc-800 rounded-xl overflow-hidden">
-                  <table className="w-full text-left border-collapse">
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left border-collapse min-w-[800px]">
                     <thead>
                       <tr className="border-b border-zinc-800 bg-zinc-800/50">
                         <th className="px-6 py-4 text-sm font-semibold text-zinc-400">Escola</th>
@@ -355,6 +356,7 @@ export default function SuperAdmin({ onLogout }) {
                       )}
                     </tbody>
                   </table>
+                  </div>
                 </div>
               )}
             </>
@@ -376,8 +378,8 @@ export default function SuperAdmin({ onLogout }) {
                       placeholder="Ex: O sistema passará por manutenção hoje às 23h..."
                     ></textarea>
                   </div>
-                  <div className="flex gap-4 items-end">
-                    <div className="w-48">
+                  <div className="flex flex-col sm:flex-row gap-4 sm:items-end">
+                    <div className="w-full sm:w-48">
                       <label className="block text-sm font-medium text-zinc-400 mb-1">Tipo / Cor</label>
                       <select 
                         value={novoAvisoTipo}
@@ -389,7 +391,7 @@ export default function SuperAdmin({ onLogout }) {
                         <option value="success">Sucesso (Verde)</option>
                       </select>
                     </div>
-                    <button type="submit" className="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold py-2 px-6 rounded-lg transition-colors h-[42px]">
+                    <button type="submit" className="w-full sm:w-auto bg-emerald-600 hover:bg-emerald-700 text-white font-semibold py-2 px-6 rounded-lg transition-colors h-[42px]">
                       Publicar Aviso
                     </button>
                   </div>
@@ -405,7 +407,7 @@ export default function SuperAdmin({ onLogout }) {
                     <div className="p-6 text-center text-zinc-500">Nenhum aviso encontrado.</div>
                   ) : (
                     avisos.map(aviso => (
-                      <div key={aviso.id} className="p-4 flex items-center justify-between hover:bg-zinc-800/30 transition-colors">
+                      <div key={aviso.id} className="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4 sm:gap-2 hover:bg-zinc-800/30 transition-colors">
                         <div>
                           <div className="flex items-center gap-2 mb-1">
                             <span className={`text-xs font-bold px-2 py-0.5 rounded uppercase ${
@@ -425,7 +427,7 @@ export default function SuperAdmin({ onLogout }) {
                         </div>
                         <button 
                           onClick={() => alternarStatusAviso(aviso.id)}
-                          className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
+                          className={`self-start sm:self-auto px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
                             aviso.ativo 
                             ? 'bg-rose-500/10 text-rose-500 hover:bg-rose-500/20' 
                             : 'bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500/20'
