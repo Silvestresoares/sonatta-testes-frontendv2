@@ -784,6 +784,25 @@ function ModalProfessor({ professor, onClose, onSalvo, token, todosAlunos }) {
 
   const set = (campo, valor) => setForm(f => ({ ...f, [campo]: valor }));
 
+  const buscarCep = async (cepBuscado) => {
+    const cepLimpo = cepBuscado.replace(/\D/g, '');
+    if (cepLimpo.length !== 8) return;
+    try {
+      const res = await fetch(`https://viacep.com.br/ws/${cepLimpo}/json/`);
+      const data = await res.json();
+      if (!data.erro) {
+        setForm(prev => ({
+          ...prev,
+          endereco: data.logradouro ? `${data.logradouro}, ` : prev.endereco,
+          cidade: data.localidade || prev.cidade,
+          estado: data.uf || prev.estado
+        }));
+      }
+    } catch (e) {
+      console.error('Erro ao buscar CEP:', e);
+    }
+  };
+
   const salvar = async (e) => {
     e.preventDefault();
     setErroFormulario('');
@@ -884,11 +903,34 @@ function ModalProfessor({ professor, onClose, onSalvo, token, todosAlunos }) {
                   <InputField label="Nome Completo *" value={form.nome} onChange={e => set('nome', e.target.value)} required />
                 </div>
                 <div className="grid grid-cols-2 gap-4">
-                  <InputField label="CPF" placeholder="000.000.000-00" value={form.cpf} onChange={e => set('cpf', e.target.value)} />
+                  <InputField 
+                    label="CPF" 
+                    placeholder="000.000.000-00" 
+                    maxLength={14}
+                    value={form.cpf} 
+                    onChange={e => {
+                      let val = e.target.value.replace(/\D/g, '');
+                      val = val.replace(/(\d{3})(\d)/, '$1.$2');
+                      val = val.replace(/(\d{3})(\d)/, '$1.$2');
+                      val = val.replace(/(\d{3})(\d{1,2})$/, '$1-$2');
+                      set('cpf', val);
+                    }} 
+                  />
                   <InputField label="RG" value={form.rg} onChange={e => set('rg', e.target.value)} />
                   <InputField label="Data de Nascimento" type="date" value={form.data_nascimento} onChange={e => set('data_nascimento', e.target.value)} />
                   <InputField label="E-mail" type="email" value={form.email} onChange={e => set('email', e.target.value)} />
-                  <InputField label="Telefone" placeholder="(00) 00000-0000" value={form.telefone} onChange={e => set('telefone', e.target.value)} />
+                  <InputField 
+                    label="Telefone" 
+                    placeholder="(00) 00000-0000" 
+                    maxLength={15}
+                    value={form.telefone} 
+                    onChange={e => {
+                      let val = e.target.value.replace(/\D/g, '');
+                      val = val.replace(/^(\d{2})(\d)/g, '($1) $2');
+                      val = val.replace(/(\d)(\d{4})$/, '$1-$2');
+                      set('telefone', val);
+                    }} 
+                  />
                   <InputField label="WhatsApp" placeholder="(00) 00000-0000" value={form.whatsapp} onChange={e => set('whatsapp', e.target.value)} />
                 </div>
                 <div className="grid grid-cols-1 gap-4">
@@ -899,7 +941,19 @@ function ModalProfessor({ professor, onClose, onSalvo, token, todosAlunos }) {
                     <InputField label="Cidade" value={form.cidade} onChange={e => set('cidade', e.target.value)} />
                   </div>
                   <InputField label="Estado" placeholder="SP" maxLength={2} value={form.estado} onChange={e => set('estado', e.target.value.toUpperCase())} />
-                  <InputField label="CEP" placeholder="00000-000" value={form.cep} onChange={e => set('cep', e.target.value)} />
+                  <InputField 
+                    label="CEP" 
+                    placeholder="00000-000" 
+                    maxLength={9}
+                    value={form.cep} 
+                    onChange={e => {
+                      let val = e.target.value.replace(/\D/g, '');
+                      if (val.length > 5) val = val.replace(/^(\d{5})(\d)/, '$1-$2');
+                      set('cep', val);
+                      if (val.replace(/\D/g, '').length === 8) buscarCep(val);
+                    }}
+                    onBlur={(e) => buscarCep(e.target.value)} 
+                  />
                 </div>
               </>
             )}

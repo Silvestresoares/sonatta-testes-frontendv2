@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Routes, Route, useLocation, Navigate, useNavigate } from 'react-router-dom'; // <-- Adicionado useNavigate aqui
 import Login from './pages/Login';
+import LandingPage from './pages/LandingPage';
 import Sidebar from './components/Sidebar';
 import NotificationBanner from './components/NotificationBanner';
 import UpdateToast from './components/UpdateToast';
@@ -66,10 +67,20 @@ function LayoutComSidebar({ children, onLogout, tipoUsuario, professorId }) {
     const diffTime = venc - hoje;
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
     
-    if (diffDays < 0) {
-      avisoBanner = <div className="bg-red-500/20 border-b border-red-500/50 text-red-200 p-3 text-center text-sm font-semibold">⚠️ Sua assinatura venceu há {Math.abs(diffDays)} dia(s). Regularize o pagamento para evitar o bloqueio total do sistema.</div>;
-    } else if (diffDays <= 3) {
-      avisoBanner = <div className="bg-amber-500/20 border-b border-amber-500/50 text-amber-200 p-3 text-center text-sm font-semibold">⚠️ Atenção! Sua assinatura vence em {diffDays === 0 ? 'hoje' : `${diffDays} dia(s)`}. Regularize o pagamento para evitar a suspensão.</div>;
+    if (plano === 'Trial 10 dias') {
+      if (diffDays < 0) {
+        avisoBanner = <div className="bg-red-500/20 border-b border-red-500/50 text-red-200 p-3 text-center text-sm font-semibold">⚠️ Seu período de teste expirou há {Math.abs(diffDays)} dia(s). Escolha um plano para restaurar o acesso!</div>;
+      } else if (diffDays <= 3) {
+        avisoBanner = <div className="bg-amber-500/20 border-b border-amber-500/50 text-amber-200 p-3 text-center text-sm font-semibold">⚠️ Seu período de teste acaba em {diffDays === 0 ? 'hoje' : `${diffDays} dia(s)`}. Vá em "Minha Assinatura" e escolha um plano.</div>;
+      } else {
+        avisoBanner = <div className="bg-blue-500/20 border-b border-blue-500/50 text-blue-200 p-3 text-center text-sm font-semibold">🎉 Você está no período de teste grátis (Restam {diffDays} dias). Aproveite todas as funcionalidades!</div>;
+      }
+    } else {
+      if (diffDays < 0) {
+        avisoBanner = <div className="bg-red-500/20 border-b border-red-500/50 text-red-200 p-3 text-center text-sm font-semibold">⚠️ Sua assinatura venceu há {Math.abs(diffDays)} dia(s). Regularize o pagamento para evitar o bloqueio total do sistema.</div>;
+      } else if (diffDays <= 3) {
+        avisoBanner = <div className="bg-amber-500/20 border-b border-amber-500/50 text-amber-200 p-3 text-center text-sm font-semibold">⚠️ Atenção! Sua assinatura vence em {diffDays === 0 ? 'hoje' : `${diffDays} dia(s)`}. Regularize o pagamento para evitar a suspensão.</div>;
+      }
     }
   }
 
@@ -202,7 +213,27 @@ export default function App() {
 
   const isPortalRoute = location.pathname.startsWith('/portal');
 
-  if (assinaturaSuspensa) {
+  const ativaLocalStorage = typeof window !== 'undefined' ? localStorage.getItem('@sonatta:ativa') : 'true';
+  const isSuspendedLocally = ativaLocalStorage === 'false';
+  
+  const dataVencimento = typeof window !== 'undefined' ? localStorage.getItem('@sonatta:data_vencimento') : null;
+  const plano = typeof window !== 'undefined' ? localStorage.getItem('@sonatta:plano') : 'Vitalicio';
+  const tipoUsuarioLocal = typeof window !== 'undefined' ? localStorage.getItem('@sonatta:tipo_usuario') : 'admin';
+  
+  let isExpiredLocally = false;
+  if (tipoUsuarioLocal !== 'professor' && plano !== 'Vitalicio' && dataVencimento) {
+    const hoje = new Date();
+    hoje.setHours(0,0,0,0);
+    const venc = new Date(dataVencimento);
+    venc.setHours(0,0,0,0);
+    const diffTime = venc - hoje;
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    if (diffDays < 0) {
+      isExpiredLocally = true;
+    }
+  }
+
+  if (assinaturaSuspensa || isSuspendedLocally || isExpiredLocally) {
     return <AssinaturaSuspensa />;
   }
 
@@ -234,17 +265,24 @@ export default function App() {
 
 
 
-  // Se não logado, mostra login admin
+  // Se não logado, mostra as rotas públicas (Landing Page e Login)
   if (!estaLogado) {
     return (
-      <>
+      <div className="flex flex-col min-h-screen">
         <GlobalBanner />
-        <Login aoLogar={(usuario) => {
-          setUsuarioInfo(usuario || null);
-          setEstaLogado(true);
-        }} />
+        <Routes>
+          <Route path="/" element={<LandingPage />} />
+          <Route path="/login" element={
+            <Login aoLogar={(usuario) => {
+              setUsuarioInfo(usuario || null);
+              setEstaLogado(true);
+            }} />
+          } />
+          {/* Se a pessoa tentar entrar em algo não autorizado, manda pra home */}
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
         <UpdateToast />
-      </>
+      </div>
     );
   }
 

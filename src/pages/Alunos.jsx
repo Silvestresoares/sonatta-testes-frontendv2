@@ -57,6 +57,10 @@ export default function Alunos() {
   const [cpf, setCpf] = useState('');
   const [email, setEmail] = useState('');
   const [telefone, setTelefone] = useState('');
+  const [endereco, setEndereco] = useState('');
+  const [cidade, setCidade] = useState('');
+  const [estado, setEstado] = useState('');
+  const [cep, setCep] = useState('');
   const [dataMatricula, setDataMatricula] = useState('');
   const [primeiraAula, setPrimeiraAula] = useState('');
   const [diaAula, setDiaAula] = useState('Segunda'); 
@@ -307,7 +311,8 @@ export default function Alunos() {
       aulas_mes_entrada: aulasMesEntrada ? parseInt(aulasMesEntrada) : 4,
       status_mensalidade: statusMensalidade,
       professor_id: professorId ? Number(professorId) : null,
-      responsavel_id: responsavelId ? Number(responsavelId) : null
+      responsavel_id: responsavelId ? Number(responsavelId) : null,
+      endereco, cidade, estado, cep
     };
 
     try {
@@ -397,9 +402,13 @@ export default function Alunos() {
     
     setMensalidade(aluno.mensalidade || '');
     setQuantidadeAulas(aluno.quantidade_aulas?.toString() || '4');
-    setAulasMesEntrada(aluno.aulas_mes_entrada?.toString() || '4');
+    setAulasMesEntrada(aluno.aulas_mes_entrada || '4');
     setProfessorId(aluno.professor_id || '');
     setResponsavelId(aluno.responsavel_id || '');
+    setEndereco(aluno.endereco || '');
+    setCidade(aluno.cidade || '');
+    setEstado(aluno.estado || '');
+    setCep(aluno.cep || '');
     setModalAberto(true);
   };
 
@@ -417,9 +426,30 @@ export default function Alunos() {
     setModalAberto(false);
     setIdSendoEditado(null);
     setNome(''); setCpf(''); setEmail(''); setTelefone(''); setDataMatricula(''); setPrimeiraAula(''); setMensalidade(''); setHorario(''); 
-    setInstrumento(''); setStatus('Ativo'); setDiaAula('Segunda'); setQuantidadeAulas(''); setAulasMesEntrada('4'); setStatusMensalidade('Pendente');
+    setInstrumento(''); setStatus('Ativo'); setDiaAula('Segunda'); setQuantidadeAulas(''); setAulasMesEntrada('4'); 
+    setStatusMensalidade('Pendente');
     setProfessorId('');
     setResponsavelId('');
+    setEndereco('');
+    setCidade('');
+    setEstado('');
+    setCep('');
+  };
+
+  const buscarCep = async (cepBuscado) => {
+    const cepLimpo = cepBuscado.replace(/\D/g, '');
+    if (cepLimpo.length !== 8) return;
+    try {
+      const res = await fetch(`https://viacep.com.br/ws/${cepLimpo}/json/`);
+      const data = await res.json();
+      if (!data.erro) {
+        setEndereco(data.logradouro ? `${data.logradouro}, ` : endereco);
+        setCidade(data.localidade || cidade);
+        setEstado(data.uf || estado);
+      }
+    } catch (e) {
+      console.error('Erro ao buscar CEP:', e);
+    }
   };
 
   // O filtro agora é feito via API, então usamos diretamente os alunos carregados
@@ -809,17 +839,74 @@ export default function Alunos() {
                 
                 <div>
                   <label className="text-xs font-bold text-zinc-500 uppercase">WhatsApp / Tel</label>
-                  <input type="text" value={telefone} onChange={e => setTelefone(e.target.value)} className="w-full bg-zinc-950 border border-zinc-800 rounded-lg p-2 mt-1 outline-none focus:border-emerald-500 text-white text-sm" />
+                  <input 
+                    type="text" 
+                    maxLength={15}
+                    value={telefone} 
+                    onChange={e => {
+                      let val = e.target.value.replace(/\D/g, '');
+                      val = val.replace(/^(\d{2})(\d)/g, '($1) $2');
+                      val = val.replace(/(\d)(\d{4})$/, '$1-$2');
+                      setTelefone(val);
+                    }} 
+                    className="w-full bg-zinc-950 border border-zinc-800 rounded-lg p-2 mt-1 outline-none focus:border-emerald-500 text-white text-sm" 
+                  />
                 </div>
                 <div>
                   <label className="text-xs font-bold text-zinc-500 uppercase">CPF</label>
-                  <input type="text" value={cpf} onChange={e => setCpf(e.target.value)} className="w-full bg-zinc-950 border border-zinc-800 rounded-lg p-2 mt-1 outline-none focus:border-emerald-500 text-white text-sm" />
+                  <input 
+                    type="text" 
+                    maxLength={14}
+                    value={cpf} 
+                    onChange={e => {
+                      let val = e.target.value.replace(/\D/g, '');
+                      val = val.replace(/(\d{3})(\d)/, '$1.$2');
+                      val = val.replace(/(\d{3})(\d)/, '$1.$2');
+                      val = val.replace(/(\d{3})(\d{1,2})$/, '$1-$2');
+                      setCpf(val);
+                    }} 
+                    className="w-full bg-zinc-950 border border-zinc-800 rounded-lg p-2 mt-1 outline-none focus:border-emerald-500 text-white text-sm" 
+                  />
                 </div>
 
                 <div className="col-span-2">
                   <label className="text-xs font-bold text-zinc-500 uppercase">E-mail</label>
                   <input type="email" value={email} onChange={e => setEmail(e.target.value)} className="w-full bg-zinc-950 border border-zinc-800 rounded-lg p-2 mt-1 outline-none focus:border-emerald-500 text-white text-sm" />
                 </div>
+
+                <div className="col-span-2">
+                  <label className="text-xs font-bold text-zinc-500 uppercase">Endereço Completo</label>
+                  <input type="text" placeholder="Rua, Número, Bairro" value={endereco} onChange={e => setEndereco(e.target.value)} className="w-full bg-zinc-950 border border-zinc-800 rounded-lg p-2 mt-1 outline-none focus:border-emerald-500 text-white text-sm" />
+                </div>
+
+                <div>
+                  <label className="text-xs font-bold text-zinc-500 uppercase">CEP</label>
+                  <input 
+                    type="text" 
+                    placeholder="00000-000" 
+                    maxLength={9}
+                    value={cep} 
+                    onChange={e => {
+                      let val = e.target.value.replace(/\D/g, '');
+                      if (val.length > 5) val = val.replace(/^(\d{5})(\d)/, '$1-$2');
+                      setCep(val);
+                      if (val.replace(/\D/g, '').length === 8) buscarCep(val);
+                    }}
+                    onBlur={(e) => buscarCep(e.target.value)} 
+                    className="w-full bg-zinc-950 border border-zinc-800 rounded-lg p-2 mt-1 outline-none focus:border-emerald-500 text-white text-sm" 
+                  />
+                </div>
+
+                <div>
+                  <label className="text-xs font-bold text-zinc-500 uppercase">Cidade</label>
+                  <input type="text" value={cidade} onChange={e => setCidade(e.target.value)} className="w-full bg-zinc-950 border border-zinc-800 rounded-lg p-2 mt-1 outline-none focus:border-emerald-500 text-white text-sm" />
+                </div>
+
+                <div>
+                  <label className="text-xs font-bold text-zinc-500 uppercase">Estado</label>
+                  <input type="text" placeholder="SP" maxLength={2} value={estado} onChange={e => setEstado(e.target.value.toUpperCase())} className="w-full bg-zinc-950 border border-zinc-800 rounded-lg p-2 mt-1 outline-none focus:border-emerald-500 text-white text-sm" />
+                </div>
+
 
                 <div>
                   <label className="text-xs font-bold text-zinc-500 uppercase">Instrumento</label>

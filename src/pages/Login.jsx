@@ -11,7 +11,7 @@ const API_URL = (typeof window !== 'undefined' && window.location && window.loca
 export default function Login({ aoLogar }) {
   // 🔌 Controla se exibe o login/cadastro padrão ou as telas novas de recuperação
   const [telaAtual, setTelaAtual] = useState('painel'); // 'painel', 'esqueci', 'redefinir'
-  const [aba, setAba] = useState('login'); // 'login' ou 'cadastro'
+
   
   // Estado para o modal de imagens de propaganda
   const [imagemAberta, setImagemAberta] = useState(null);
@@ -20,13 +20,7 @@ export default function Login({ aoLogar }) {
   const [emailLogin, setEmailLogin] = useState('');
   const [senhaLogin, setSenhaLogin] = useState('');
 
-  // Estados para Cadastro de Nova Escola + Administrador
-  const [nomeEscola, setNomeEscola] = useState('');
-  const [emailCadastro, setEmailCadastro] = useState('');
-  const [telefoneCadastro, setTelefoneCadastro] = useState('');
-  const [documentoCadastro, setDocumentoCadastro] = useState('');
-  const [senhaCadastro, setSenhaCadastro] = useState('');
-  const [confirmarSenha, setConfirmarSenha] = useState('');
+
 
   // 🕵️ Captura automática se o usuário veio pelo link do e-mail (?token=...)
   useEffect(() => {
@@ -61,6 +55,7 @@ export default function Login({ aoLogar }) {
         localStorage.setItem('@sonatta:professor_id', usuarioLogado.professor_id || '');
         localStorage.setItem('@sonatta:is_super_admin', usuarioLogado.is_super_admin || false);
         localStorage.setItem('@sonatta:plano', usuarioLogado.plano || 'Vitalicio');
+        localStorage.setItem('@sonatta:ativa', usuarioLogado.ativa !== false ? 'true' : 'false');
         localStorage.setItem('@sonatta:data_vencimento', usuarioLogado.data_vencimento_assinatura || '');
         alert(`Bem-vindo de volta, ${usuarioLogado.nome || 'Usuário'}!`);
         if (aoLogar) aoLogar(usuarioLogado);
@@ -73,46 +68,7 @@ export default function Login({ aoLogar }) {
     }
   };
 
-  // Submissão do Cadastro Unificado (Mapeado exatamente para /api/registrar)
-  const handleCadastro = async (e) => {
-    e.preventDefault();
 
-    if (!nomeEscola || !emailCadastro || !senhaCadastro) {
-      return alert("Preencha todos os campos obrigatórios!");
-    }
-
-    if (senhaCadastro !== confirmarSenha) {
-      return alert("As senhas não coincidem!");
-    }
-
-    try {
-      const resposta = await fetch(`${API_URL}/api/auth/cadastro`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          nome_escola: nomeEscola,
-          nome: nomeEscola,
-          telefone_comercial: telefoneCadastro,
-          documento: documentoCadastro,
-          email: emailCadastro, 
-          senha: senhaCadastro 
-        })
-      });
-
-      const dados = await resposta.json();
-
-      if (resposta.ok) {
-        alert("Escola cadastrada com sucesso! Agora você já pode fazer login.");
-        setNomeEscola(''); setEmailCadastro(''); setTelefoneCadastro(''); setDocumentoCadastro(''); setSenhaCadastro(''); setConfirmarSenha('');
-        setAba('login');
-      } else {
-        alert(dados.erro || "Erro ao cadastrar escola.");
-      }
-    } catch (erro) {
-      console.error("Erro na requisição de cadastro:", erro);
-      alert("Não foi possível conectar ao servidor.");
-    }
-  };
 
   // 🔀 RENDERIZAÇÃO CONDICIONAL
   if (telaAtual === 'esqueci') {
@@ -160,7 +116,9 @@ export default function Login({ aoLogar }) {
         {/* Conteúdo sobre a imagem */}
         <div className="relative z-10 flex flex-col items-start p-16 max-w-2xl animate-in fade-in slide-in-from-left-8 duration-1000 fill-mode-both delay-300">
           <div className="flex items-center mb-6">
-            <h1 className="text-6xl font-bold text-white tracking-tight" style={{ fontFamily: "'Dancing Script', cursive" }}>Sonatta</h1>
+            <a href="/" className="hover:opacity-80 transition-opacity">
+              <h1 className="text-6xl font-bold text-white tracking-tight" style={{ fontFamily: "'Dancing Script', cursive" }}>Sonatta</h1>
+            </a>
           </div>
           <h2 className="text-4xl font-extrabold text-white leading-tight mb-4 animate-float">
             Gestão moderna para<br/><span className="text-emerald-400">escolas de música.</span>
@@ -233,23 +191,20 @@ export default function Login({ aoLogar }) {
 
         {/* Branding Mobile Apenas */}
         <div className="lg:hidden text-center mb-10 mt-16">
-          <h1 className="text-5xl font-bold text-white tracking-tight" style={{ fontFamily: "'Dancing Script', cursive" }}>Sonatta</h1>
+          <a href="/" className="hover:opacity-80 transition-opacity inline-block">
+            <h1 className="text-5xl font-bold text-white tracking-tight" style={{ fontFamily: "'Dancing Script', cursive" }}>Sonatta</h1>
+          </a>
         </div>
 
         {/* Formulários Container */}
         <div className="w-full max-w-[420px] lg:mt-0 relative z-10 animate-in fade-in slide-in-from-bottom-8 duration-700 fill-mode-both delay-300">
           
           <div className="mb-8">
-            <h3 className="text-3xl font-bold text-white mb-2">{aba === 'login' ? 'Acesse sua conta' : 'Crie sua Escola'}</h3>
-            <p className="text-sm text-zinc-400">
-              {aba === 'login' 
-                ? 'Insira suas credenciais para gerenciar sua escola.'
-                : 'Preencha os dados abaixo para começar a usar o Sonatta.'}
-            </p>
+            <h3 className="text-3xl font-bold text-white mb-2">Acesse sua conta</h3>
+            <p className="text-sm text-zinc-400">Insira suas credenciais para gerenciar sua escola.</p>
           </div>
 
           {/* Formulário de Login */}
-          {aba === 'login' && (
             <form onSubmit={handleLogin} className="space-y-5 animate-in fade-in slide-in-from-bottom-4 duration-500">
               <div>
                 <label className="block text-[13px] font-semibold text-zinc-300 uppercase tracking-wide mb-2">E-mail de acesso</label>
@@ -290,145 +245,8 @@ export default function Login({ aoLogar }) {
               >
                 Entrar no Sistema
               </button>
-
-              <div className="text-center mt-6">
-                <p className="text-sm text-zinc-400">
-                  Ainda não tem conta?{' '}
-                  <button 
-                    type="button" 
-                    onClick={() => setAba('cadastro')}
-                    className="text-emerald-400 hover:text-emerald-300 font-semibold transition-colors"
-                  >
-                    Cadastre sua escola
-                  </button>
-                </p>
-              </div>
             </form>
-          )}
 
-          {/* Formulário de Cadastro */}
-          {aba === 'cadastro' && (
-            <form onSubmit={handleCadastro} className="space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-500">
-              
-              <div>
-                <label className="block text-[11px] font-bold text-zinc-400 uppercase tracking-wide mb-1">Nome da Escola / Admin *</label>
-                <input 
-                  type="text" 
-                  required 
-                  placeholder="Ex: Conservatório Sonatta"
-                  value={nomeEscola} 
-                  onChange={e => setNomeEscola(e.target.value)}
-                  className="w-full bg-zinc-900 border border-zinc-800 rounded-xl px-4 py-2.5 text-sm text-white outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition-all placeholder-zinc-600"
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-[11px] font-bold text-zinc-400 uppercase tracking-wide mb-1">Telefone de Contato</label>
-                  <input 
-                    type="text" 
-                    placeholder="(00) 00000-0000"
-                    value={telefoneCadastro} 
-                    onChange={e => {
-                    let v = e.target.value.replace(/\D/g, '');
-                    if (v.length > 11) v = v.substring(0, 11);
-                    if (v.length > 10) {
-                      v = v.replace(/^(\d{2})(\d{5})(\d{4}).*/, '($1) $2-$3');
-                    } else if (v.length > 6) {
-                      v = v.replace(/^(\d{2})(\d{4})(\d{0,4}).*/, '($1) $2-$3');
-                    } else if (v.length > 2) {
-                      v = v.replace(/^(\d{2})(\d{0,5})/, '($1) $2');
-                    }
-                    setTelefoneCadastro(v);
-                  }}
-                    className="w-full bg-zinc-900 border border-zinc-800 rounded-xl px-4 py-2.5 text-sm text-white outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition-all placeholder-zinc-600"
-                  />
-                </div>
-                <div>
-                  <label className="block text-[11px] font-bold text-zinc-400 uppercase tracking-wide mb-1">CPF ou CNPJ</label>
-                  <input 
-                    type="text" 
-                    placeholder="Apenas números"
-                    value={documentoCadastro} 
-                    onChange={e => {
-                    let v = e.target.value.replace(/\D/g, '');
-                    if (v.length > 14) v = v.substring(0, 14);
-                    
-                    if (v.length <= 11) {
-                      if (v.length > 9) v = v.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4');
-                      else if (v.length > 6) v = v.replace(/(\d{3})(\d{3})(\d{1,3})/, '$1.$2.$3');
-                      else if (v.length > 3) v = v.replace(/(\d{3})(\d{1,3})/, '$1.$2');
-                    } else {
-                      if (v.length > 12) v = v.replace(/(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})/, '$1.$2.$3/$4-$5');
-                      else if (v.length > 8) v = v.replace(/(\d{2})(\d{3})(\d{3})(\d{1,4})/, '$1.$2.$3/$4');
-                      else if (v.length > 5) v = v.replace(/(\d{2})(\d{3})(\d{1,3})/, '$1.$2.$3');
-                      else if (v.length > 2) v = v.replace(/(\d{2})(\d{1,3})/, '$1.$2');
-                    }
-                    setDocumentoCadastro(v);
-                  }}
-                    className="w-full bg-zinc-900 border border-zinc-800 rounded-xl px-4 py-2.5 text-sm text-white outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition-all placeholder-zinc-600"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-[11px] font-bold text-zinc-400 uppercase tracking-wide mb-1">E-mail de Login *</label>
-                <input 
-                  type="email" 
-                  required 
-                  placeholder="adm@escola.com"
-                  value={emailCadastro} 
-                  onChange={e => setEmailCadastro(e.target.value)}
-                  className="w-full bg-zinc-900 border border-zinc-800 rounded-xl px-4 py-2.5 text-sm text-white outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition-all placeholder-zinc-600"
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-[11px] font-bold text-zinc-400 uppercase tracking-wide mb-1">Senha *</label>
-                  <input 
-                    type="password" 
-                    required 
-                    placeholder="••••••••"
-                    value={senhaCadastro} 
-                    onChange={e => setSenhaCadastro(e.target.value)}
-                    className="w-full bg-zinc-900 border border-zinc-800 rounded-xl px-4 py-2.5 text-sm text-white outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition-all placeholder-zinc-600"
-                  />
-                </div>
-                <div>
-                  <label className="block text-[11px] font-bold text-zinc-400 uppercase tracking-wide mb-1">Confirmar *</label>
-                  <input 
-                    type="password" 
-                    required 
-                    placeholder="••••••••"
-                    value={confirmarSenha} 
-                    onChange={e => setConfirmarSenha(e.target.value)}
-                    className="w-full bg-zinc-900 border border-zinc-800 rounded-xl px-4 py-2.5 text-sm text-white outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition-all placeholder-zinc-600"
-                  />
-                </div>
-              </div>
-
-              <button 
-                type="submit"
-                className="w-full bg-emerald-500 hover:bg-emerald-400 text-zinc-950 font-bold py-3 rounded-xl text-[15px] transition-all shadow-lg hover:shadow-emerald-500/25 mt-4"
-              >
-                Finalizar Cadastro
-              </button>
-
-              <div className="text-center mt-6">
-                <p className="text-sm text-zinc-400">
-                  Já possui uma conta?{' '}
-                  <button 
-                    type="button" 
-                    onClick={() => setAba('login')}
-                    className="text-emerald-400 hover:text-emerald-300 font-semibold transition-colors"
-                  >
-                    Fazer Login
-                  </button>
-                </p>
-              </div>
-            </form>
-          )}
 
         </div>
         

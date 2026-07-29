@@ -17,6 +17,10 @@ export default function Responsaveis() {
   const [cpf, setCpf] = useState('');
   const [email, setEmail] = useState('');
   const [telefone, setTelefone] = useState('');
+  const [endereco, setEndereco] = useState('');
+  const [cidade, setCidade] = useState('');
+  const [estado, setEstado] = useState('');
+  const [cep, setCep] = useState('');
 
   const carregarResponsaveis = async () => {
     const token = localStorage.getItem('@sonatta:token');
@@ -44,6 +48,10 @@ export default function Responsaveis() {
     setCpf('');
     setEmail('');
     setTelefone('');
+    setEndereco('');
+    setCidade('');
+    setEstado('');
+    setCep('');
     setIdSendoEditado(null);
   };
 
@@ -58,7 +66,27 @@ export default function Responsaveis() {
     setCpf(responsavel.cpf || '');
     setEmail(responsavel.email || '');
     setTelefone(responsavel.telefone || '');
+    setEndereco(responsavel.endereco || '');
+    setCidade(responsavel.cidade || '');
+    setEstado(responsavel.estado || '');
+    setCep(responsavel.cep || '');
     setModalAberto(true);
+  };
+
+  const buscarCep = async (cepBuscado) => {
+    const cepLimpo = cepBuscado.replace(/\D/g, '');
+    if (cepLimpo.length !== 8) return;
+    try {
+      const res = await fetch(`https://viacep.com.br/ws/${cepLimpo}/json/`);
+      const data = await res.json();
+      if (!data.erro) {
+        setEndereco(data.logradouro ? `${data.logradouro}, ` : endereco);
+        setCidade(data.localidade || cidade);
+        setEstado(data.uf || estado);
+      }
+    } catch (e) {
+      console.error('Erro ao buscar CEP:', e);
+    }
   };
 
   const salvarResponsavel = async (e) => {
@@ -66,7 +94,7 @@ export default function Responsaveis() {
     const token = localStorage.getItem('@sonatta:token');
     if (!token) return;
 
-    const payload = { nome, cpf, email, telefone };
+    const payload = { nome, cpf, email, telefone, endereco, cidade, estado, cep };
     const metodo = idSendoEditado ? 'PUT' : 'POST';
     const url = idSendoEditado ? `${API_URL}/api/responsaveis/${idSendoEditado}` : `${API_URL}/api/responsaveis`;
 
@@ -231,15 +259,67 @@ export default function Responsaveis() {
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-zinc-400 mb-1">CPF</label>
-                    <input type="text" value={cpf} onChange={e => setCpf(e.target.value)} className="w-full bg-zinc-950 border border-zinc-800 text-white px-3 py-2 rounded-lg focus:outline-none focus:border-emerald-500 transition-colors" />
+                    <input 
+                      type="text" 
+                      maxLength={14}
+                      value={cpf} 
+                      onChange={e => {
+                        let val = e.target.value.replace(/\D/g, '');
+                        val = val.replace(/(\d{3})(\d)/, '$1.$2');
+                        val = val.replace(/(\d{3})(\d)/, '$1.$2');
+                        val = val.replace(/(\d{3})(\d{1,2})$/, '$1-$2');
+                        setCpf(val);
+                      }} 
+                      className="w-full bg-zinc-950 border border-zinc-800 text-white px-3 py-2 rounded-lg focus:outline-none focus:border-emerald-500 transition-colors" 
+                    />
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-zinc-400 mb-1">Telefone / WhatsApp</label>
-                    <input type="text" value={telefone} onChange={e => setTelefone(e.target.value)} className="w-full bg-zinc-950 border border-zinc-800 text-white px-3 py-2 rounded-lg focus:outline-none focus:border-emerald-500 transition-colors" />
+                    <input 
+                      type="text" 
+                      maxLength={15}
+                      value={telefone} 
+                      onChange={e => {
+                        let val = e.target.value.replace(/\D/g, '');
+                        val = val.replace(/^(\d{2})(\d)/g, '($1) $2');
+                        val = val.replace(/(\d)(\d{4})$/, '$1-$2');
+                        setTelefone(val);
+                      }} 
+                      className="w-full bg-zinc-950 border border-zinc-800 text-white px-3 py-2 rounded-lg focus:outline-none focus:border-emerald-500 transition-colors" 
+                    />
                   </div>
                   <div className="md:col-span-2">
                     <label className="block text-sm font-medium text-zinc-400 mb-1">E-mail</label>
                     <input type="email" value={email} onChange={e => setEmail(e.target.value)} className="w-full bg-zinc-950 border border-zinc-800 text-white px-3 py-2 rounded-lg focus:outline-none focus:border-emerald-500 transition-colors" />
+                  </div>
+                  <div className="md:col-span-2">
+                    <label className="block text-sm font-medium text-zinc-400 mb-1">Endereço Completo</label>
+                    <input type="text" placeholder="Rua, Número, Bairro" value={endereco} onChange={e => setEndereco(e.target.value)} className="w-full bg-zinc-950 border border-zinc-800 text-white px-3 py-2 rounded-lg focus:outline-none focus:border-emerald-500 transition-colors" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-zinc-400 mb-1">CEP</label>
+                    <input 
+                      type="text" 
+                      placeholder="00000-000" 
+                      maxLength={9}
+                      value={cep} 
+                      onChange={e => {
+                        let val = e.target.value.replace(/\D/g, '');
+                        if (val.length > 5) val = val.replace(/^(\d{5})(\d)/, '$1-$2');
+                        setCep(val);
+                        if (val.replace(/\D/g, '').length === 8) buscarCep(val);
+                      }}
+                      onBlur={(e) => buscarCep(e.target.value)} 
+                      className="w-full bg-zinc-950 border border-zinc-800 text-white px-3 py-2 rounded-lg focus:outline-none focus:border-emerald-500 transition-colors" 
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-zinc-400 mb-1">Cidade</label>
+                    <input type="text" value={cidade} onChange={e => setCidade(e.target.value)} className="w-full bg-zinc-950 border border-zinc-800 text-white px-3 py-2 rounded-lg focus:outline-none focus:border-emerald-500 transition-colors" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-zinc-400 mb-1">Estado</label>
+                    <input type="text" placeholder="SP" maxLength={2} value={estado} onChange={e => setEstado(e.target.value.toUpperCase())} className="w-full bg-zinc-950 border border-zinc-800 text-white px-3 py-2 rounded-lg focus:outline-none focus:border-emerald-500 transition-colors" />
                   </div>
                 </div>
               </form>

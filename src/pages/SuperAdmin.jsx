@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Crown, Search, Edit2, X, Save, AlertCircle, Lock, Unlock, Trash2 } from 'lucide-react';
+import { Crown, Search, Edit2, X, Save, AlertCircle, Lock, Unlock, Trash2, CheckCircle } from 'lucide-react';
 
 const _envApi = import.meta.env.VITE_API_URL;
 const _defaultLocal = 'http://localhost:3005';
@@ -203,6 +203,66 @@ export default function SuperAdmin({ onLogout }) {
       alert(err.message);
     } finally {
       setGerandoCobranca(false);
+    }
+  };
+
+  const gerarCobrancaManual = async () => {
+    if (!dataVencimento) {
+      alert('Informe uma data de vencimento para gerar a cobrança.');
+      return;
+    }
+    
+    try {
+      setGerandoCobranca(true);
+      const res = await fetch(`${API_URL}/api/super-admin/escolas/${escolaEditando.id}/gerar-cobranca-manual`, {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}` 
+        },
+        body: JSON.stringify({ data_vencimento: dataVencimento })
+      });
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.erro || 'Falha ao gerar cobrança manual.');
+      
+      alert('Cobrança gerada com sucesso! \n\nO código PIX Copia e Cola é:\n\n' + data.pixPayload);
+      
+      // Opcional: copiar automaticamente para a área de transferência
+      try {
+        await navigator.clipboard.writeText(data.pixPayload);
+        alert('O código PIX foi copiado para sua área de transferência!');
+      } catch (err) {
+        console.error('Não foi possível copiar automaticamente', err);
+      }
+
+      buscarFaturas(escolaEditando.id);
+    } catch (err) {
+      alert(err.message);
+    } finally {
+      setGerandoCobranca(false);
+    }
+  };
+
+  const marcarFaturaPaga = async (faturaId) => {
+    if (!window.confirm('Tem certeza que deseja marcar esta fatura como paga? A escola será desbloqueada por mais 1 mês.')) {
+      return;
+    }
+
+    try {
+      const res = await fetch(`${API_URL}/api/super-admin/escolas/faturas/${faturaId}/marcar-pago`, {
+        method: 'PATCH',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.erro || 'Falha ao marcar como paga.');
+      
+      alert('Fatura marcada como paga com sucesso!');
+      buscarFaturas(escolaEditando.id);
+      buscarEscolas(); // Atualiza a data de vencimento principal
+    } catch (err) {
+      alert(err.message);
     }
   };
 
@@ -603,9 +663,8 @@ export default function SuperAdmin({ onLogout }) {
                   onChange={(e) => setPlanoSelecionado(e.target.value)}
                   className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-4 py-2.5 text-white focus:outline-none focus:border-emerald-500"
                 >
-                  <option value="Mensal">Mensal</option>
-                  <option value="Semestral">Semestral</option>
-                  <option value="Anual">Anual</option>
+                  <option value="Automático">Automático (Pacotes por quantidade)</option>
+                  <option value="Personalizado">Personalizado (Fixo)</option>
                   <option value="Vitalicio">Vitalício</option>
                 </select>
               </div>
@@ -623,31 +682,43 @@ export default function SuperAdmin({ onLogout }) {
                       />
                     </div>
                     <div className="flex-1">
-                      <label className="block text-sm text-zinc-400 mb-1">Valor p/ Aluno (R$)</label>
+                      <label className="block text-sm text-zinc-400 mb-1">Valor do Plano (R$)</label>
                       <input 
                         type="number"
                         min="0"
                         step="0.01"
                         value={valorPorAluno}
                         onChange={(e) => setValorPorAluno(e.target.value)}
-                        className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-emerald-500"
+                        disabled={planoSelecionado === 'Automático'}
+                        className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-emerald-500 disabled:opacity-50 disabled:cursor-not-allowed"
                       />
                     </div>
                   </div>
                   <p className="text-xs text-zinc-500 mt-1">
-                    No dia seguinte ao vencimento, a escola será bloqueada. A cobrança baseia-se nos alunos ativos × {Number(valorPorAluno).toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'})}.
+                    {planoSelecionado === 'Automático' 
+                      ? 'O valor é calculado e atualizado automaticamente de acordo com o pacote de alunos da escola.' 
+                      : 'O valor da cobrança será exatamente este valor fixado.'}
                   </p>
 
                   <div className="mt-6 pt-4 border-t border-zinc-800">
                     <div className="flex justify-between items-center mb-4">
                       <h3 className="text-sm font-semibold text-white">Histórico de Cobranças</h3>
-                      <button 
-                        onClick={gerarNovaCobranca}
-                        disabled={gerandoCobranca}
-                        className="text-xs bg-emerald-500 hover:bg-emerald-600 text-zinc-950 font-bold px-3 py-1.5 rounded transition-colors disabled:opacity-50"
-                      >
-                        {gerandoCobranca ? 'Gerando...' : 'Gerar Nova Cobrança'}
-                      </button>
+                      <div className="flex gap-2">
+                        <button 
+                          onClick={gerarCobrancaManual}
+                          disabled={gerandoCobranca}
+                          className="text-xs bg-zinc-800 hover:bg-zinc-700 text-white border border-zinc-700 font-medium px-3 py-1.5 rounded transition-colors disabled:opacity-50"
+                        >
+                          Gerar PIX
+                        </button>
+                        <button 
+                          onClick={gerarNovaCobranca}
+                          disabled={gerandoCobranca}
+                          className="text-xs bg-emerald-500 hover:bg-emerald-600 text-zinc-950 font-bold px-3 py-1.5 rounded transition-colors disabled:opacity-50"
+                        >
+                          {gerandoCobranca ? 'Gerando...' : 'Gerar Via Asaas'}
+                        </button>
+                      </div>
                     </div>
                     
                     <div className="space-y-2 max-h-40 overflow-y-auto pr-2 custom-scrollbar">
@@ -670,13 +741,26 @@ export default function SuperAdmin({ onLogout }) {
                               }`}>
                                 {fatura.status}
                               </span>
-                              {fatura.asaas_invoice_url && (
+                              {fatura.asaas_invoice_url ? (
                                 <a href={fatura.asaas_invoice_url} target="_blank" rel="noopener noreferrer" className="text-xs text-emerald-400 hover:underline">
-                                  Ver Fatura
+                                  Ver Fatura Asaas
                                 </a>
+                              ) : (
+                                <span className="text-[10px] text-zinc-500 font-medium bg-zinc-800 px-2 py-0.5 rounded">
+                                  Fatura Manual (PIX Offline)
+                                </span>
                               )}
                             </div>
-                            <div className="ml-3 pl-3 border-l border-zinc-700/50 flex items-center">
+                            <div className="ml-3 pl-3 border-l border-zinc-700/50 flex items-center gap-1">
+                              {fatura.status !== 'Pago' && !fatura.asaas_invoice_url && (
+                                <button 
+                                  onClick={() => marcarFaturaPaga(fatura.id)}
+                                  title="Marcar como Pago (Liberar Escola)"
+                                  className="text-zinc-400 hover:text-emerald-400 p-1.5 rounded-md hover:bg-emerald-500/10 transition-colors"
+                                >
+                                  <CheckCircle size={16} />
+                                </button>
+                              )}
                               {fatura.status !== 'Pago' && (
                                 <button 
                                   onClick={() => excluirFatura(fatura.id)}

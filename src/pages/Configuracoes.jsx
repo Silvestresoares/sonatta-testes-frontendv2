@@ -152,6 +152,25 @@ export default function Configuracoes() {
     }
   };
 
+  const buscarCep = async (cepBuscado) => {
+    const cepLimpo = cepBuscado.replace(/\D/g, '');
+    if (cepLimpo.length !== 8) return;
+    try {
+      const res = await fetch(`https://viacep.com.br/ws/${cepLimpo}/json/`);
+      const data = await res.json();
+      if (!data.erro) {
+        setFormData(prev => ({
+          ...prev,
+          endereco: data.logradouro ? `${data.logradouro}, ` : '',
+          cidade: data.localidade || prev.cidade,
+          estado: data.uf || prev.estado
+        }));
+      }
+    } catch (e) {
+      console.error('Erro ao buscar CEP:', e);
+    }
+  };
+
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
@@ -380,9 +399,23 @@ export default function Configuracoes() {
                   <input
                     type="text"
                     name="documento"
+                    maxLength={18}
                     value={formData.documento}
-                    onChange={handleChange}
-                    placeholder="Somente números"
+                    onChange={e => {
+                      let val = e.target.value.replace(/\D/g, '');
+                      if (val.length <= 11) {
+                        val = val.replace(/(\d{3})(\d)/, '$1.$2');
+                        val = val.replace(/(\d{3})(\d)/, '$1.$2');
+                        val = val.replace(/(\d{3})(\d{1,2})$/, '$1-$2');
+                      } else {
+                        val = val.replace(/^(\d{2})(\d)/, '$1.$2');
+                        val = val.replace(/^(\d{2})\.(\d{3})(\d)/, '$1.$2.$3');
+                        val = val.replace(/\.(\d{3})(\d)/, '.$1/$2');
+                        val = val.replace(/(\d{4})(\d)/, '$1-$2');
+                      }
+                      setFormData(prev => ({ ...prev, documento: val }));
+                    }}
+                    placeholder="000.000.000-00 ou 00.000.000/0000-00"
                     className="w-full px-4 py-2 bg-zinc-950 border border-zinc-800 rounded-lg text-white focus:outline-none focus:border-emerald-500 transition-colors"
                   />
                 </div>
@@ -414,9 +447,16 @@ export default function Configuracoes() {
                   <input
                     type="text"
                     name="telefone_comercial"
+                    maxLength={15}
                     value={formData.telefone_comercial}
-                    onChange={handleChange}
+                    onChange={e => {
+                      let val = e.target.value.replace(/\D/g, '');
+                      val = val.replace(/^(\d{2})(\d)/g, '($1) $2');
+                      val = val.replace(/(\d)(\d{4})$/, '$1-$2');
+                      setFormData(prev => ({ ...prev, telefone_comercial: val }));
+                    }}
                     className="w-full px-4 py-2 bg-zinc-950 border border-zinc-800 rounded-lg text-white focus:outline-none focus:border-emerald-500 transition-colors"
+                    placeholder="(00) 00000-0000"
                   />
                 </div>
 
@@ -458,9 +498,19 @@ export default function Configuracoes() {
                   <input
                     type="text"
                     name="cep"
+                    maxLength={9}
                     value={formData.cep}
-                    onChange={handleChange}
+                    onChange={e => {
+                      let val = e.target.value.replace(/\D/g, '');
+                      if (val.length > 5) val = val.replace(/^(\d{5})(\d)/, '$1-$2');
+                      setFormData(prev => ({ ...prev, cep: val }));
+                      if (val.replace(/\D/g, '').length === 8) {
+                        buscarCep(val);
+                      }
+                    }}
+                    onBlur={(e) => buscarCep(e.target.value)}
                     className="w-full px-4 py-2 bg-zinc-950 border border-zinc-800 rounded-lg text-white focus:outline-none focus:border-emerald-500 transition-colors"
+                    placeholder="00000-000"
                   />
                 </div>
 
