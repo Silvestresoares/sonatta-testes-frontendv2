@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Calendar, Clock, User, Phone, Music, ChevronRight, ChevronLeft, Edit2, Trash2 } from 'lucide-react';
+import { Plus, Calendar, Clock, User, Phone, Music, ChevronRight, ChevronLeft, Edit2, Trash2, MessageCircle } from 'lucide-react';
 
 const _envApi = import.meta.env.VITE_API_URL;
 const _defaultLocal = 'http://localhost:3005';
@@ -18,6 +18,7 @@ export default function AulasExperimentais() {
   const [carregando, setCarregando] = useState(true);
   const [mostrando_formulario, setMostrando_formulario] = useState(false);
   const [idSendoEditado, setIdSendoEditado] = useState(null);
+  const [dragOverStage, setDragOverStage] = useState(null);
   
   const [formData, setFormData] = useState({
     nome_aluno: '',
@@ -33,11 +34,11 @@ export default function AulasExperimentais() {
   const [sucesso, setSucesso] = useState('');
 
   // Carregar aulas experimentais
-  const carregarAulas = async () => {
+  const carregarAulas = async (silencioso = false) => {
     const token = localStorage.getItem('@sonatta:token');
     if (!token) return;
 
-    setCarregando(true);
+    if (!silencioso) setCarregando(true);
     try {
       const resposta = await fetch(`${API_URL}/api/aulas-experimentais`, {
         method: 'GET',
@@ -55,7 +56,7 @@ export default function AulasExperimentais() {
       console.error('Erro ao carregar aulas:', erro);
       setErro('Erro ao carregar aulas experimentais');
     } finally {
-      setCarregando(false);
+      if (!silencioso) setCarregando(false);
     }
   };
 
@@ -91,7 +92,18 @@ export default function AulasExperimentais() {
   }, [erro, sucesso]);
 
   const handleMudanca = (e) => {
-    const { name, value } = e.target;
+    let { name, value } = e.target;
+    
+    if (name === 'telefone') {
+      value = value
+        .replace(/\D/g, '') // Remove tudo o que não é dígito
+        .replace(/^(\d{2})(\d)/g, '($1) $2') // Coloca parênteses em volta dos dois primeiros dígitos
+        .replace(/(\d{4,5})(\d{4})$/, '$1-$2') // Coloca hífen entre o quarto e o quinto dígitos
+        .slice(0, 15); // Limita o tamanho máximo
+    } else if (name === 'nome_aluno') {
+      value = value.replace(/\b\w/g, c => c.toUpperCase()); // Capitaliza a primeira letra de cada palavra
+    }
+
     setFormData(prev => ({
       ...prev,
       [name]: value
@@ -139,7 +151,7 @@ export default function AulasExperimentais() {
 
       setSucesso(idSendoEditado ? 'Contato atualizado com sucesso! ✏️' : 'Novo contato captado! 🎉');
       limparEdicao();
-      setTimeout(() => carregarAulas(), 1000);
+      setTimeout(() => carregarAulas(true), 1000);
     } catch (erro) {
       setErro('Erro ao salvar aula experimental');
     }
@@ -148,6 +160,10 @@ export default function AulasExperimentais() {
   const atualizarStatus = async (id, novoStatus) => {
     const token = localStorage.getItem('@sonatta:token');
     if (!token) return;
+
+    // Atualização otimista (instantânea na UI)
+    const aulasAnteriores = [...aulas];
+    setAulas(prev => prev.map(a => String(a.id) === String(id) ? { ...a, status: novoStatus } : a));
 
     try {
       const resposta = await fetch(`${API_URL}/api/aulas-experimentais/${id}/status`, {
@@ -159,13 +175,41 @@ export default function AulasExperimentais() {
         body: JSON.stringify({ status: novoStatus })
       });
 
-      if (resposta.ok) {
-        carregarAulas();
-      } else {
+      if (!resposta.ok) {
         setErro('Erro ao mover contato');
+        setAulas(aulasAnteriores); // Reverte se falhou no backend
       }
     } catch (err) {
       setErro('Erro de conexão ao mover');
+      setAulas(aulasAnteriores); // Reverte se falhou no backend
+    }
+  };
+
+  const atualizarSituacao = async (id, novaSituacao) => {
+    const token = localStorage.getItem('@sonatta:token');
+    if (!token) return;
+
+    // Atualização otimista
+    const aulasAnteriores = [...aulas];
+    setAulas(prev => prev.map(a => String(a.id) === String(id) ? { ...a, situacao_aula: novaSituacao } : a));
+
+    try {
+      const resposta = await fetch(`${API_URL}/api/aulas-experimentais/${id}/situacao`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ situacao_aula: novaSituacao })
+      });
+
+      if (!resposta.ok) {
+        setErro('Erro ao atualizar situação');
+        setAulas(aulasAnteriores);
+      }
+    } catch (err) {
+      setErro('Erro de conexão ao atualizar situação');
+      setAulas(aulasAnteriores);
     }
   };
 
@@ -181,7 +225,7 @@ export default function AulasExperimentais() {
       });
       if (!resposta.ok) throw new Error('Erro ao excluir');
       setSucesso('Lead excluído com sucesso!');
-      carregarAulas();
+      carregarAulas(true);
     } catch (erro) {
       setErro('Erro ao excluir lead');
     }
@@ -338,7 +382,25 @@ export default function AulasExperimentais() {
           STATUS_STAGES.map((stage, stageIndex) => {
             const stageAulas = aulas.filter(a => (a.status || 'novo_contato') === stage.id);
             return (
-              <div key={stage.id} className="w-[320px] flex-shrink-0 flex flex-col h-full bg-zinc-100/50 dark:bg-zinc-900/50 rounded-xl border border-zinc-200 dark:border-zinc-800/50">
+              <div 
+                key={stage.id} 
+                className={`w-[320px] flex-shrink-0 flex flex-col h-full rounded-xl border transition-colors ${dragOverStage === stage.id ? 'bg-zinc-200/50 dark:bg-zinc-800/80 border-emerald-500/50' : 'bg-zinc-100/50 dark:bg-zinc-900/50 border-zinc-200 dark:border-zinc-800/50'}`}
+                onDragOver={(e) => {
+                  e.preventDefault();
+                  setDragOverStage(stage.id);
+                }}
+                onDragLeave={() => {
+                  setDragOverStage(null);
+                }}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  setDragOverStage(null);
+                  const aulaId = e.dataTransfer.getData('aulaId');
+                  if (aulaId) {
+                    atualizarStatus(aulaId, stage.id);
+                  }
+                }}
+              >
                 {/* Column Header */}
                 <div className={`px-4 py-3 border-b border-zinc-200 dark:border-zinc-800 rounded-t-xl flex justify-between items-center ${stage.color} bg-opacity-20`}>
                   <h3 className="font-bold text-sm uppercase tracking-wider">{stage.label}</h3>
@@ -355,7 +417,14 @@ export default function AulasExperimentais() {
                     </div>
                   ) : (
                     stageAulas.map(aula => (
-                      <div key={aula.id} className="bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg p-3 shadow-sm hover:border-emerald-500/50 transition-colors group">
+                      <div 
+                        key={aula.id} 
+                        draggable
+                        onDragStart={(e) => {
+                          e.dataTransfer.setData('aulaId', aula.id.toString());
+                        }}
+                        className="bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg p-3 shadow-sm hover:border-emerald-500/50 transition-colors group cursor-grab active:cursor-grabbing"
+                      >
                         <div className="flex justify-between items-start mb-2">
                           <h4 className="font-bold text-zinc-900 dark:text-white leading-tight">{aula.nome_aluno}</h4>
                           <div className="flex opacity-0 group-hover:opacity-100 transition-opacity">
@@ -365,16 +434,40 @@ export default function AulasExperimentais() {
                         </div>
                         
                         <div className="space-y-1.5 mb-4">
-                          <div className="flex items-center gap-2 text-xs text-zinc-600 dark:text-zinc-400">
-                            <Phone size={12} className="text-zinc-400" />
+                          <a 
+                            href={`https://wa.me/55${aula.telefone.replace(/\D/g, '')}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex items-center gap-2 text-xs text-emerald-600 dark:text-emerald-400 hover:text-emerald-500 transition-colors w-fit"
+                            title="Chamar no WhatsApp"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <MessageCircle size={12} />
                             {aula.telefone}
-                          </div>
+                          </a>
                           {(aula.data_aula || aula.horario_aula) && (
-                            <div className="flex items-center gap-2 text-xs text-zinc-600 dark:text-zinc-400">
-                              <Calendar size={12} className="text-zinc-400" />
-                              <span className={!aula.data_aula || (new Date(aula.data_aula) < new Date()) ? 'text-rose-400 font-medium' : ''}>
-                                {formatarData(aula.data_aula)} {aula.horario_aula && `às ${aula.horario_aula}`}
-                              </span>
+                            <div className="flex flex-col gap-1.5 mt-2">
+                              <div className="flex items-center gap-2 text-xs text-zinc-600 dark:text-zinc-400">
+                                <Calendar size={12} className="text-zinc-400" />
+                                <span className={!aula.data_aula || (new Date(aula.data_aula) < new Date()) ? 'text-rose-400 font-medium' : ''}>
+                                  {formatarData(aula.data_aula)} {aula.horario_aula && `às ${aula.horario_aula}`}
+                                </span>
+                              </div>
+                              <select
+                                value={aula.situacao_aula || 'pendente'}
+                                onChange={(e) => atualizarSituacao(aula.id, e.target.value)}
+                                onClick={(e) => e.stopPropagation()}
+                                className={`text-[10px] font-bold bg-zinc-100 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-md px-1.5 py-0.5 outline-none cursor-pointer hover:border-emerald-500/50 transition-colors w-max
+                                  ${aula.situacao_aula === 'presente' ? 'text-emerald-600 bg-emerald-500/10 border-emerald-500/30' : 
+                                    aula.situacao_aula === 'falta' || aula.situacao_aula === 'cancelada' ? 'text-rose-500 bg-rose-500/10 border-rose-500/30' : 
+                                    aula.situacao_aula === 'reagendada' ? 'text-amber-500 bg-amber-500/10 border-amber-500/30' : 'text-zinc-500'}`}
+                              >
+                                <option value="pendente">⏳ PENDENTE</option>
+                                <option value="presente">✅ VEIO NA AULA</option>
+                                <option value="falta">❌ FALTOU</option>
+                                <option value="cancelada">🚫 CANCELOU</option>
+                                <option value="reagendada">🔄 REAGENDOU</option>
+                              </select>
                             </div>
                           )}
                           {aula.instrumento && (
