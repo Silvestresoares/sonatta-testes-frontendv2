@@ -15,8 +15,11 @@ import AulasExperimentais from './pages/AulasExperimentais';
 import Professores from './pages/Professores';
 import Responsaveis from './pages/Responsaveis';
 import CursosTurmas from './pages/CursosTurmas';
+import MinhaAssinatura from './pages/MinhaAssinatura';
+import AssinaturaSuspensa from './pages/AssinaturaSuspensa';
 import Materiais from './pages/Materiais';
 import SuperAdmin from './pages/SuperAdmin';
+import Configuracoes from './pages/Configuracoes';
 
 // Páginas do Professor
 import MinhaAgenda from './pages/MinhaAgenda';
@@ -35,8 +38,6 @@ const _envApi = import.meta.env.VITE_API_URL;
 const _defaultLocal = 'http://localhost:3005';
 const API_URL = (typeof window !== 'undefined' && window.location && window.location.hostname.includes('localhost')) ? _defaultLocal : (_envApi || _defaultLocal);
 
-// Nova Página
-import AssinaturaSuspensa from './pages/AssinaturaSuspensa';
 
 // Interceptor Global de Fetch
 const originalFetch = window.fetch;
@@ -201,6 +202,10 @@ export default function App() {
 
   const isPortalRoute = location.pathname.startsWith('/portal');
 
+  if (assinaturaSuspensa) {
+    return <AssinaturaSuspensa />;
+  }
+
   if (isPortalRoute) {
     return (
       <div className="flex flex-col min-h-screen">
@@ -297,6 +302,8 @@ export default function App() {
           <Route path="/cursos-turmas" element={<LayoutComSidebar onLogout={handleLogout} tipoUsuario={tipoUsuario} professorId={professorId} isSuperAdmin={isSuperAdmin}><CursosTurmas /></LayoutComSidebar>} />
           <Route path="/financeiro" element={<LayoutComSidebar onLogout={handleLogout} tipoUsuario={tipoUsuario} professorId={professorId} isSuperAdmin={isSuperAdmin}><Financeiro /></LayoutComSidebar>} />
           <Route path="/materiais" element={<LayoutComSidebar onLogout={handleLogout} tipoUsuario={tipoUsuario} professorId={professorId} isSuperAdmin={isSuperAdmin}><Materiais /></LayoutComSidebar>} />
+          <Route path="/configuracoes" element={<LayoutComSidebar onLogout={handleLogout} tipoUsuario={tipoUsuario} professorId={professorId} isSuperAdmin={isSuperAdmin}><Configuracoes /></LayoutComSidebar>} />
+          <Route path="/minha-assinatura" element={<LayoutComSidebar onLogout={handleLogout} tipoUsuario={tipoUsuario} professorId={professorId} isSuperAdmin={isSuperAdmin}><MinhaAssinatura /></LayoutComSidebar>} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
         <UpdateToast />

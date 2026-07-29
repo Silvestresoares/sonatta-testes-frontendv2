@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
-import { LogOut, PlusCircle, Repeat, RotateCcw, Lightbulb, X, Folder } from 'lucide-react';
+import { LogOut, PlusCircle, Repeat, RotateCcw, Lightbulb, X, Folder, Settings, CreditCard } from 'lucide-react';
 import AgendamentoAulaModal from './AgendamentoAulaModal'; 
 
 export default function Sidebar({ onLogout, tipoUsuario, professorId, isOpen, onClose, isSuperAdmin }) {
@@ -160,6 +160,16 @@ export default function Sidebar({ onLogout, tipoUsuario, professorId, isOpen, on
               <NavLink to="/materiais" className={linkStyle} onClick={onClose}>
                 <Folder size={20} />
                 Materiais
+              </NavLink>
+
+              <NavLink to="/configuracoes" className={linkStyle} onClick={onClose}>
+                <Settings size={20} />
+                Configurações
+              </NavLink>
+
+              <NavLink to="/minha-assinatura" className={linkStyle} onClick={onClose}>
+                <CreditCard size={20} />
+                Minha Assinatura
               </NavLink>
 
               {/* New section for special classes */}

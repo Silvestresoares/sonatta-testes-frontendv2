@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Users, BookOpen, Clock, Calendar } from 'lucide-react';
+import { Users, Clock, Calendar } from 'lucide-react';
 
 const _envApi = import.meta.env.VITE_API_URL;
 const _defaultLocal = 'http://localhost:3005';
@@ -19,6 +19,7 @@ export default function MinhasTurmas() {
 
   useEffect(() => {
     carregarTurmas();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const carregarTurmas = async () => {

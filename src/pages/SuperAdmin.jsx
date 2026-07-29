@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Crown, Search, Edit2, X, Save, AlertCircle } from 'lucide-react';
+import { Crown, Search, Edit2, X, Save, AlertCircle, Lock, Unlock, Trash2 } from 'lucide-react';
 
 const _envApi = import.meta.env.VITE_API_URL;
 const _defaultLocal = 'http://localhost:3005';
@@ -22,6 +22,9 @@ export default function SuperAdmin({ onLogout }) {
   const [escolaEditando, setEscolaEditando] = useState(null);
   const [planoSelecionado, setPlanoSelecionado] = useState('');
   const [dataVencimento, setDataVencimento] = useState('');
+  const [valorPorAluno, setValorPorAluno] = useState(0);
+  const [faturasEscola, setFaturasEscola] = useState([]);
+  const [gerandoCobranca, setGerandoCobranca] = useState(false);
 
   const token = localStorage.getItem('@sonatta:token');
 
@@ -32,10 +35,16 @@ export default function SuperAdmin({ onLogout }) {
         headers: { 'Authorization': `Bearer ${token}` }
       })
         .then(res => res.json())
-        .then(data => setEscolas(data))
+        .then(data => {
+          if (Array.isArray(data)) {
+            setEscolas(data);
+          } else {
+            throw new Error(data.erro || 'Erro ao carregar escolas.');
+          }
+        })
         .catch(err => {
           console.error(err);
-          setErro('Erro ao carregar escolas.');
+          setErro(err.message || 'Erro ao carregar escolas.');
         })
         .finally(() => setLoading(false));
     } catch (err) {
@@ -56,6 +65,7 @@ export default function SuperAdmin({ onLogout }) {
   useEffect(() => {
     buscarEscolas();
     buscarAvisos();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const adicionarAviso = async (e) => {
@@ -70,7 +80,7 @@ export default function SuperAdmin({ onLogout }) {
         setNovoAvisoTexto('');
         buscarAvisos();
       }
-    } catch (err) {
+    } catch (err) { // eslint-disable-line no-unused-vars
       alert('Erro ao criar aviso');
     }
   };
@@ -82,7 +92,7 @@ export default function SuperAdmin({ onLogout }) {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       buscarAvisos();
-    } catch (err) {
+    } catch (err) { // eslint-disable-line no-unused-vars
       alert('Erro ao alterar status');
     }
   };
@@ -121,6 +131,23 @@ export default function SuperAdmin({ onLogout }) {
     setEscolaEditando(escola);
     setPlanoSelecionado(escola.plano || 'Mensal');
     setDataVencimento(escola.data_vencimento_assinatura ? escola.data_vencimento_assinatura.split('T')[0] : '');
+    setValorPorAluno(escola.valor_por_aluno || 0);
+    setFaturasEscola([]);
+    buscarFaturas(escola.id);
+  };
+
+  const buscarFaturas = async (escolaId) => {
+    try {
+      const res = await fetch(`${API_URL}/api/super-admin/escolas/${escolaId}/assinaturas`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setFaturasEscola(data);
+      }
+    } catch (err) {
+      console.error('Erro ao buscar faturas', err);
+    }
   };
 
   const salvarAssinatura = async () => {
@@ -133,7 +160,8 @@ export default function SuperAdmin({ onLogout }) {
         },
         body: JSON.stringify({
           plano: planoSelecionado,
-          data_vencimento_assinatura: dataVencimento
+          data_vencimento_assinatura: dataVencimento,
+          valor_por_aluno: valorPorAluno
         })
       });
 
@@ -146,6 +174,74 @@ export default function SuperAdmin({ onLogout }) {
       buscarEscolas(); // Atualiza a lista
     } catch (err) {
       alert(err.message);
+    }
+  };
+
+  const gerarNovaCobranca = async () => {
+    if (!dataVencimento) {
+      alert('Informe uma data de vencimento para gerar a cobrança.');
+      return;
+    }
+    
+    try {
+      setGerandoCobranca(true);
+      const res = await fetch(`${API_URL}/api/super-admin/escolas/${escolaEditando.id}/gerar-cobranca`, {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}` 
+        },
+        body: JSON.stringify({ data_vencimento: dataVencimento })
+      });
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.erro || 'Falha ao gerar cobrança.');
+      
+      alert('Cobrança gerada com sucesso no Asaas!');
+      buscarFaturas(escolaEditando.id);
+    } catch (err) {
+      alert(err.message);
+    } finally {
+      setGerandoCobranca(false);
+    }
+  };
+
+  const excluirFatura = async (faturaId) => {
+    if (!window.confirm('Tem certeza que deseja cancelar esta cobrança? Ela será excluída do Asaas.')) {
+      return;
+    }
+
+    try {
+      const res = await fetch(`${API_URL}/api/super-admin/escolas/faturas/${faturaId}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.erro || 'Falha ao excluir fatura.');
+      
+      alert('Fatura excluída com sucesso!');
+      buscarFaturas(escolaEditando.id);
+      buscarEscolas();
+    } catch (err) {
+      alert(err.message);
+    }
+  };
+
+  const alternarStatusEscola = async (id) => {
+    try {
+      const res = await fetch(`${API_URL}/api/super-admin/escolas/${id}/alternar-status`, {
+        method: 'PATCH',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (res.ok) {
+        buscarEscolas();
+      } else {
+        const err = await res.json();
+        alert(err.erro || 'Erro ao alternar status da escola');
+      }
+    } catch (err) { // eslint-disable-line no-unused-vars
+      alert('Erro de conexão ao alternar status da escola');
     }
   };
 
@@ -300,6 +396,7 @@ export default function SuperAdmin({ onLogout }) {
                         <th className="px-6 py-4 text-sm font-semibold text-zinc-400">Contato</th>
                         <th className="px-6 py-4 text-sm font-semibold text-zinc-400">Plano</th>
                         <th className="px-6 py-4 text-sm font-semibold text-zinc-400">Vencimento</th>
+                        <th className="px-6 py-4 text-sm font-semibold text-zinc-400">Fatura Atual</th>
                         <th className="px-6 py-4 text-sm font-semibold text-zinc-400 text-right">Ação</th>
                       </tr>
                     </thead>
@@ -307,7 +404,10 @@ export default function SuperAdmin({ onLogout }) {
                       {escolasFiltradas.map(escola => (
                         <tr key={escola.id} className={`transition-colors ${obterClasseStatusLinha(escola)}`}>
                           <td className="px-6 py-4">
-                            <div className="font-medium text-white">{escola.nome_escola}</div>
+                            <div className="flex items-center gap-2">
+                              <span className="font-medium text-white">{escola.nome_escola}</span>
+                              {escola.ativa === false && <span className="px-1.5 py-0.5 bg-rose-500/20 text-rose-500 text-[10px] font-bold rounded uppercase">Bloqueada</span>}
+                            </div>
                             <div className="text-xs text-zinc-500">ID: {escola.id}</div>
                           </td>
                           <td className="px-6 py-4">
@@ -339,13 +439,47 @@ export default function SuperAdmin({ onLogout }) {
                               </span>
                             )}
                           </td>
+                          <td className="px-6 py-4">
+                            {escola.ultimo_status_fatura ? (
+                              <div className="flex flex-col items-start gap-1">
+                                <span className={`inline-flex px-2 py-0.5 rounded text-[10px] font-bold uppercase ${
+                                  escola.ultimo_status_fatura === 'Pago' ? 'bg-emerald-500/20 text-emerald-400' :
+                                  escola.ultimo_status_fatura === 'Atrasado' ? 'bg-rose-500/20 text-rose-400' :
+                                  'bg-amber-500/20 text-amber-400'
+                                }`}>
+                                  {escola.ultimo_status_fatura}
+                                </span>
+                                {escola.ultima_fatura_url && (
+                                  <a href={escola.ultima_fatura_url} target="_blank" rel="noopener noreferrer" className="text-xs text-emerald-400 hover:underline">
+                                    Ver boleto
+                                  </a>
+                                )}
+                              </div>
+                            ) : (
+                              <span className="text-xs text-zinc-500">Nenhuma gerada</span>
+                            )}
+                          </td>
                           <td className="px-6 py-4 text-right">
-                            <button 
-                              onClick={() => abrirModalEdicao(escola)}
-                              className="p-2 text-zinc-400 hover:text-emerald-400 hover:bg-emerald-400/10 rounded-lg transition-colors"
-                            >
-                              <Edit2 size={18} />
-                            </button>
+                            <div className="flex items-center justify-end gap-2">
+                              <button 
+                                onClick={() => alternarStatusEscola(escola.id)}
+                                title={escola.ativa ? "Bloquear Acesso" : "Liberar Acesso"}
+                                className={`p-2 rounded-lg transition-colors ${
+                                  escola.ativa 
+                                  ? 'text-rose-400 hover:text-white hover:bg-rose-500/80' 
+                                  : 'text-emerald-400 hover:text-white hover:bg-emerald-500/80'
+                                }`}
+                              >
+                                {escola.ativa ? <Lock size={18} /> : <Unlock size={18} />}
+                              </button>
+                              <button 
+                                onClick={() => abrirModalEdicao(escola)}
+                                title="Editar Assinatura"
+                                className="p-2 text-zinc-400 hover:text-emerald-400 hover:bg-emerald-400/10 rounded-lg transition-colors"
+                              >
+                                <Edit2 size={18} />
+                              </button>
+                            </div>
                           </td>
                         </tr>
                       ))}
@@ -477,18 +611,88 @@ export default function SuperAdmin({ onLogout }) {
               </div>
 
               {planoSelecionado !== 'Vitalicio' && (
-                <div>
-                  <label className="block text-sm text-zinc-400 mb-1">Data de Vencimento</label>
-                  <input 
-                    type="date"
-                    value={dataVencimento}
-                    onChange={(e) => setDataVencimento(e.target.value)}
-                    className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-4 py-2.5 text-white focus:outline-none focus:border-emerald-500"
-                  />
+                <>
+                  <div className="flex gap-4">
+                    <div className="flex-1">
+                      <label className="block text-sm text-zinc-400 mb-1">Data de Vencimento</label>
+                      <input 
+                        type="date"
+                        value={dataVencimento}
+                        onChange={(e) => setDataVencimento(e.target.value)}
+                        className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-emerald-500"
+                      />
+                    </div>
+                    <div className="flex-1">
+                      <label className="block text-sm text-zinc-400 mb-1">Valor p/ Aluno (R$)</label>
+                      <input 
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        value={valorPorAluno}
+                        onChange={(e) => setValorPorAluno(e.target.value)}
+                        className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-emerald-500"
+                      />
+                    </div>
+                  </div>
                   <p className="text-xs text-zinc-500 mt-1">
-                    No dia seguinte a esta data, a escola será bloqueada e perderá o acesso.
+                    No dia seguinte ao vencimento, a escola será bloqueada. A cobrança baseia-se nos alunos ativos × {Number(valorPorAluno).toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'})}.
                   </p>
-                </div>
+
+                  <div className="mt-6 pt-4 border-t border-zinc-800">
+                    <div className="flex justify-between items-center mb-4">
+                      <h3 className="text-sm font-semibold text-white">Histórico de Cobranças</h3>
+                      <button 
+                        onClick={gerarNovaCobranca}
+                        disabled={gerandoCobranca}
+                        className="text-xs bg-emerald-500 hover:bg-emerald-600 text-zinc-950 font-bold px-3 py-1.5 rounded transition-colors disabled:opacity-50"
+                      >
+                        {gerandoCobranca ? 'Gerando...' : 'Gerar Nova Cobrança'}
+                      </button>
+                    </div>
+                    
+                    <div className="space-y-2 max-h-40 overflow-y-auto pr-2 custom-scrollbar">
+                      {faturasEscola.length === 0 ? (
+                        <p className="text-xs text-zinc-500 text-center py-4">Nenhuma cobrança registrada.</p>
+                      ) : (
+                        faturasEscola.map(fatura => (
+                          <div key={fatura.id} className="flex items-center justify-between p-3 bg-zinc-800/50 rounded-lg border border-zinc-700/50">
+                            <div>
+                              <p className="text-sm font-medium text-white">
+                                {Number(fatura.valor).toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'})}
+                              </p>
+                              <p className="text-xs text-zinc-400">
+                                Venc: {new Date(fatura.data_vencimento).toLocaleDateString('pt-BR', {timeZone: 'UTC'})}
+                              </p>
+                            </div>
+                            <div className="flex flex-col items-end gap-1">
+                              <span className={`text-[10px] font-bold px-2 py-0.5 rounded uppercase ${
+                                fatura.status === 'Pago' ? 'bg-emerald-500/20 text-emerald-400' : 'bg-amber-500/20 text-amber-400'
+                              }`}>
+                                {fatura.status}
+                              </span>
+                              {fatura.asaas_invoice_url && (
+                                <a href={fatura.asaas_invoice_url} target="_blank" rel="noopener noreferrer" className="text-xs text-emerald-400 hover:underline">
+                                  Ver Fatura
+                                </a>
+                              )}
+                            </div>
+                            <div className="ml-3 pl-3 border-l border-zinc-700/50 flex items-center">
+                              {fatura.status !== 'Pago' && (
+                                <button 
+                                  onClick={() => excluirFatura(fatura.id)}
+                                  title="Cancelar / Excluir Cobrança"
+                                  className="text-zinc-500 hover:text-rose-400 p-1.5 rounded-md hover:bg-rose-500/10 transition-colors"
+                                >
+                                  <Trash2 size={16} />
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  </div>
+                </>
               )}
             </div>
 

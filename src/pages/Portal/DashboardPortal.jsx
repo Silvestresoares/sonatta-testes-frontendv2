@@ -1,11 +1,42 @@
 import React, { useState, useEffect } from 'react';
-import { Calendar, DollarSign, User, ChevronDown, CheckCircle2, AlertCircle, BookOpen } from 'lucide-react';
+import { Calendar, DollarSign, User, CheckCircle2, AlertCircle, BookOpen } from 'lucide-react';
 import PortalLayout from '../../components/PortalLayout';
 import { useNavigate } from 'react-router-dom';
+import { QRCodeSVG } from 'qrcode.react';
+import { generatePixPayload } from '../../utils/pixPayload';
 
 const _envApi = import.meta.env.VITE_API_URL;
 const _defaultLocal = 'http://localhost:3005';
 const API_URL = (typeof window !== 'undefined' && window.location && window.location.hostname.includes('localhost')) ? _defaultLocal : (_envApi || _defaultLocal);
+
+const getStatusInfo = (item) => {
+  if (item.status === 'Pago') {
+    return { text: 'Pago', colorClass: 'text-emerald-400 bg-emerald-400/10 border-emerald-400/20' };
+  }
+  
+  if (!item.data_vencimento) {
+    return { text: 'Pendente', colorClass: 'text-amber-400 bg-amber-400/10 border-amber-400/20' };
+  }
+
+  const vencimentoDate = new Date(item.data_vencimento);
+  vencimentoDate.setUTCHours(0,0,0,0);
+  
+  const hojeUTC = new Date();
+  hojeUTC.setUTCHours(0,0,0,0);
+
+  const diffTime = vencimentoDate.getTime() - hojeUTC.getTime();
+  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+  if (diffDays < 0) {
+    return { text: 'Vencido', colorClass: 'text-rose-400 bg-rose-400/10 border-rose-400/20' };
+  } else if (diffDays === 0) {
+    return { text: 'Vence Hoje', colorClass: 'text-orange-400 bg-orange-400/10 border-orange-400/20' };
+  } else if (diffDays <= 3) {
+    return { text: `Vence em ${diffDays} dia${diffDays > 1 ? 's' : ''}`, colorClass: 'text-amber-400 bg-amber-400/10 border-amber-400/20' };
+  } else {
+    return { hidden: true };
+  }
+};
 
 export default function DashboardPortal() {
   const navigate = useNavigate();
@@ -16,12 +47,15 @@ export default function DashboardPortal() {
   const [registros, setRegistros] = useState([]);
   const [alunoSelecionado, setAlunoSelecionado] = useState(null);
   const [carregando, setCarregando] = useState(true);
-  const [erro, setErro] = useState('');
+  const [erro, setErro] = useState(''); // eslint-disable-line no-unused-vars
   
   // Estados para troca de senha
   const [senhaAtual, setSenhaAtual] = useState('');
   const [novaSenha, setNovaSenha] = useState('');
   const [mensagemSenha, setMensagemSenha] = useState('');
+  
+  // Estado para Modal do Pix
+  const [faturaPix, setFaturaPix] = useState(null);
 
   const token = localStorage.getItem('@sonatta:portal_token');
 
@@ -31,6 +65,7 @@ export default function DashboardPortal() {
       return;
     }
     carregarPerfil();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token, navigate]);
 
   useEffect(() => {
@@ -39,6 +74,7 @@ export default function DashboardPortal() {
     } else if (dados?.tipo_usuario === 'responsavel' && alunoSelecionado) {
       carregarAgendaEFinanceiro(alunoSelecionado);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dados, alunoSelecionado]);
 
   const carregarPerfil = async () => {
@@ -338,13 +374,43 @@ export default function DashboardPortal() {
                           R$ {Number(item.valor).toFixed(2).replace('.', ',')}
                         </div>
                         {item.status === 'Pago' ? (
-                          <span className="flex items-center gap-1 text-xs font-medium text-emerald-400 bg-emerald-400/10 px-2 py-1 rounded">
-                            <CheckCircle2 size={12} /> Pago
+                          <span className={`flex items-center gap-1 text-xs font-medium border px-2 py-1 rounded ${getStatusInfo(item).colorClass}`}>
+                            <CheckCircle2 size={12} /> {getStatusInfo(item).text}
                           </span>
                         ) : (
-                          <span className="flex items-center gap-1 text-xs font-medium text-amber-400 bg-amber-400/10 px-2 py-1 rounded">
-                            <AlertCircle size={12} /> Pendente
-                          </span>
+                          <div className="flex flex-col gap-1 items-end">
+                            {!getStatusInfo(item).hidden && (
+                              <span className={`flex items-center gap-1 text-xs font-medium border px-2 py-1 rounded ${getStatusInfo(item).colorClass}`}>
+                                <AlertCircle size={12} /> {getStatusInfo(item).text}
+                              </span>
+                            )}
+                            {item.asaas_invoice_url && (
+                              <a 
+                                href={item.asaas_invoice_url}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="bg-blue-600 hover:bg-blue-700 text-white text-xs font-medium px-3 py-1.5 rounded transition-colors text-center w-full mt-1"
+                              >
+                                Pagar (Boleto/Pix)
+                              </a>
+                            )}
+                            {dados?.escola?.chave_pix && (
+                              <button 
+                                onClick={() => setFaturaPix({
+                                  ...item, 
+                                  payload: generatePixPayload({
+                                    chave: dados.escola.chave_pix,
+                                    nome: dados.escola.titular_pix || dados.escola.nome_escola,
+                                    cidade: dados.escola.cidade_pix || 'Brasil',
+                                    valor: item.valor
+                                  })
+                                })}
+                                className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-medium px-3 py-1.5 rounded transition-colors text-center w-full mt-1"
+                              >
+                                Pagar (Pix Direto)
+                              </button>
+                            )}
+                          </div>
                         )}
                       </div>
                     </div>
@@ -403,6 +469,72 @@ export default function DashboardPortal() {
           </div>
         </div>
       </div>
+
+      {faturaPix && (
+        <div className="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-50">
+          <div className="bg-zinc-900 border border-zinc-800 rounded-2xl w-full max-w-md overflow-hidden shadow-2xl flex flex-col max-h-[90vh]">
+            <div className="p-4 border-b border-zinc-800 flex justify-between items-center bg-zinc-950/50">
+              <h2 className="text-lg font-bold text-white flex items-center gap-2">
+                <DollarSign className="text-emerald-500" />
+                Pagamento via Pix
+              </h2>
+              <button onClick={() => setFaturaPix(null)} className="text-zinc-400 hover:text-white transition-colors">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+              </button>
+            </div>
+            
+            <div className="p-6 overflow-y-auto custom-scrollbar text-center flex-1">
+              <p className="text-zinc-300 font-medium mb-1">{faturaPix.descricao}</p>
+              <p className="text-2xl font-black text-white mb-6">
+                R$ {Number(faturaPix.valor).toFixed(2).replace('.', ',')}
+              </p>
+
+              <div className="bg-white p-4 rounded-xl inline-block mb-6 shadow-inner">
+                <QRCodeSVG value={faturaPix.payload} size={200} />
+              </div>
+
+              <div className="bg-zinc-950 border border-zinc-800 rounded-lg p-3 text-left mb-6">
+                <p className="text-xs text-zinc-500 mb-1 font-semibold uppercase tracking-wider">Pix Copia e Cola</p>
+                <div className="flex gap-2 items-center">
+                  <input 
+                    type="text" 
+                    readOnly 
+                    value={faturaPix.payload}
+                    className="flex-1 bg-transparent border-none text-zinc-300 text-sm focus:outline-none truncate"
+                  />
+                  <button 
+                    onClick={() => {
+                      navigator.clipboard.writeText(faturaPix.payload);
+                      alert('Código Pix copiado!');
+                    }}
+                    className="text-emerald-400 hover:text-emerald-300 font-medium text-sm px-2 py-1 bg-emerald-400/10 rounded transition-colors"
+                  >
+                    Copiar
+                  </button>
+                </div>
+              </div>
+
+              <p className="text-sm text-amber-400 bg-amber-400/10 p-3 rounded-lg border border-amber-400/20 text-left mb-4">
+                <AlertCircle size={16} className="inline mr-1 mb-1" />
+                Após realizar o pagamento, é obrigatório enviar o comprovante para a secretaria para que a baixa seja realizada.
+              </p>
+            </div>
+
+            <div className="p-4 border-t border-zinc-800 bg-zinc-950/50">
+              <a 
+                href={`https://wa.me/${dados?.escola?.telefone_comercial?.replace(/\D/g, '')}?text=Olá! Acabei de realizar o pagamento via Pix Direto da fatura: ${faturaPix.descricao} no valor de R$ ${Number(faturaPix.valor).toFixed(2).replace('.', ',')}. Segue o comprovante:`}
+                target="_blank"
+                rel="noreferrer"
+                className="w-full flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-3 px-4 rounded-lg transition-colors"
+                onClick={() => setFaturaPix(null)}
+              >
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"></path></svg>
+                Enviar Comprovante (WhatsApp)
+              </a>
+            </div>
+          </div>
+        </div>
+      )}
     </PortalLayout>
   );
 }

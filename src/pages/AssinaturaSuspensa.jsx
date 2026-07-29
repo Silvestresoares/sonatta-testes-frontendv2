@@ -38,12 +38,19 @@ export default function AssinaturaSuspensa() {
           </a>
         </div>
 
-        <button 
-          onClick={handleLogout}
-          className="text-sm text-zinc-500 hover:text-white transition-colors"
-        >
-          Sair do sistema
-        </button>
+          <button 
+            onClick={() => window.location.href = '/'}
+            className="flex items-center justify-center gap-2 w-full py-2 bg-zinc-800 hover:bg-zinc-700 text-white font-semibold rounded-lg transition-colors mb-4"
+          >
+            Já realizei o pagamento (Atualizar)
+          </button>
+
+          <button 
+            onClick={handleLogout}
+            className="text-sm text-zinc-500 hover:text-white transition-colors"
+          >
+            Sair do sistema
+          </button>
       </div>
     </div>
   );

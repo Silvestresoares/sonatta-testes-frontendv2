@@ -892,7 +892,7 @@ export default function Alunos() {
                   </div>
                 </div>
 
-                {/* LINHA 2: Mensalidade, Quantidade de Aulas, Aulas Mês de Entrada */}
+                {/* LINHA 2: Mensalidade, Quantidade de Aulas, Aulas Proporcionais */}
                 <div className="col-span-2 grid grid-cols-3 gap-4">
                   <div>
                     <label className="text-xs font-bold text-zinc-500 uppercase">Mensalidade</label>
@@ -903,7 +903,7 @@ export default function Alunos() {
                     <input type="number" min="1" value={quantidadeAulas} onChange={e => setQuantidadeAulas(e.target.value)} placeholder="Qtd..." className="w-full bg-zinc-950 border border-zinc-800 rounded-lg p-2 mt-1 outline-none focus:border-emerald-500 text-white text-sm" />
                   </div>
                   <div>
-                    <label className="text-xs font-bold text-zinc-500 uppercase">Aulas Entrada</label>
+                    <label className="text-xs font-bold text-zinc-500 uppercase">Proporcionais</label>
                     <input type="number" min="1" max="4" value={aulasMesEntrada} onChange={e => setAulasMesEntrada(e.target.value)} placeholder="Qtd..." className="w-full bg-zinc-950 border border-zinc-800 rounded-lg p-2 mt-1 outline-none focus:border-emerald-500 text-white text-sm" />
                   </div>
                 </div>

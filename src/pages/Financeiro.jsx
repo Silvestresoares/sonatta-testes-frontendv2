@@ -19,6 +19,7 @@ export default function Financeiro() {
   const [professoresFinanceiro, setProfessoresFinanceiro] = useState([]);
   const [carregandoProfessores, setCarregandoProfessores] = useState(false);
   const [resumoFinanceiro, setResumoFinanceiro] = useState({ receitas: 0, despesas: 0, saldo: 0, total_lancamentos: 0 });
+  const [asaasConfigurado, setAsaasConfigurado] = useState(false);
 
   // Estados do Histórico Avançado
   const [buscaHistorico, setBuscaHistorico] = useState('');
@@ -224,6 +225,20 @@ export default function Financeiro() {
     }
   }, [abaSelecionada]);
 
+  useEffect(() => {
+    const token = localStorage.getItem('@sonatta:token');
+    if (token) {
+      fetch(`${API_URL}/api/escola`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      })
+      .then(r => r.json())
+      .then(data => {
+        if (data.asaas_api_key) setAsaasConfigurado(true);
+      })
+      .catch(err => console.error('Erro ao verificar Asaas:', err));
+    }
+  }, []);
+
   const carregarFinanceiroProfessores = async () => {
     const token = localStorage.getItem('@sonatta:token');
     if (!token) return;
@@ -389,6 +404,48 @@ export default function Financeiro() {
     } catch (erro) { console.error(erro); }
   };
 
+  const gerarCobrancaAsaas = async (id, tipoLancamento) => {
+    const token = localStorage.getItem('@sonatta:token');
+    try {
+      const resposta = await fetch(`${API_URL}/api/financeiro/${id}/gerar-asaas`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      const data = await resposta.json();
+        if (resposta.ok) {
+        alert('Cobrança gerada com sucesso!');
+        carregarFinanceiro();
+        carregarAlunos();
+      } else {
+        alert(`Erro ao gerar cobrança: ${data.erro}`);
+      }
+    } catch (erro) {
+      console.error(erro);
+      alert('Erro de conexão ao gerar cobrança no Asaas.');
+    }
+  };
+
+  const gerarMensalidadeManual = async (alunoId) => {
+    const token = localStorage.getItem('@sonatta:token');
+    try {
+      const resposta = await fetch(`${API_URL}/api/financeiro/aluno-${alunoId}/gerar-mensalidade`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      const data = await resposta.json();
+      if (resposta.ok) {
+        alert('Mensalidade gerada com sucesso! O aluno já pode ver no portal.');
+        carregarFinanceiro();
+        carregarAlunos();
+      } else {
+        alert(`Erro ao gerar mensalidade: ${data.erro}`);
+      }
+    } catch (erro) {
+      console.error(erro);
+      alert('Erro de conexão ao gerar mensalidade.');
+    }
+  };
+
   const fecharModal = () => {
     setModalAberto(false);
     setEditandoId(null);
@@ -493,23 +550,10 @@ export default function Financeiro() {
     return dataLimpa.split('-').reverse().join('/');
   };
 
-  // ✨ Calcular valor total baseado em quantidade_aulas
-  const calcularValorTotal = (mensalidade, quantidadeAulas = 4) => {
-    const mensalidadeBase = Number(mensalidade) || 0;
-    const qtdAulas = Math.max(Number(quantidadeAulas) || 4, 1);
-    const valorPorAula = mensalidadeBase / 4;
-    
-    if (qtdAulas <= 4) {
-      return valorPorAula * qtdAulas;
-    } else {
-      return mensalidadeBase + (valorPorAula * (qtdAulas - 4));
-    }
-  };
-
   // Calcular estatísticas
   // Só calculamos mensalidades se estivermos vendo o mês atual, pois não temos histórico de alunos em meses passados/futuros
-  const totalMensalidades = isMesAtual ? alunos.reduce((sum, a) => sum + calcularValorTotal(a.mensalidade, a.quantidade_aulas), 0) : 0;
-  const mensalidadesPagas = isMesAtual ? alunos.filter(a => a.status_mensalidade === 'Pago').reduce((sum, a) => sum + calcularValorTotal(a.mensalidade, a.quantidade_aulas), 0) : 0;
+  const totalMensalidades = isMesAtual ? alunos.reduce((sum, a) => sum + Number(a.valor_calculado || 0), 0) : 0;
+  const mensalidadesPagas = isMesAtual ? alunos.filter(a => a.status_mensalidade === 'Pago').reduce((sum, a) => sum + Number(a.valor_calculado || 0), 0) : 0;
   const mensalidadesPendentes = totalMensalidades - mensalidadesPagas;
 
   // Outros Lançamentos:
@@ -791,16 +835,37 @@ export default function Financeiro() {
                           </td>
                           <td className="p-4 text-center">
                             {isMesAtual && (
-                              <button 
-                              onClick={() => alternarStatusMensalidade(aluno.id, aluno.nome, aluno.status_mensalidade || 'Pendente')}
-                              className={`px-3 py-1.5 text-xs font-medium rounded transition-all cursor-pointer ${
-                                aluno.status_mensalidade === 'Pago'
-                                  ? 'bg-amber-600/30 text-amber-300 hover:bg-amber-600/50'
-                                  : 'bg-emerald-600/30 text-emerald-300 hover:bg-emerald-600/50'
-                              }`}
-                            >
-                              {aluno.status_mensalidade === 'Pago' ? 'Marcar Pendente' : 'Marcar Pago'}
-                            </button>
+                              <div className="flex items-center justify-center gap-2">
+                                <button 
+                                  onClick={() => alternarStatusMensalidade(aluno.id, aluno.nome, aluno.status_mensalidade || 'Pendente')}
+                                  title={aluno.status_mensalidade === 'Pago' ? "Marcar como Pendente" : "Marcar como Pago Manualmente"}
+                                  className={`px-3 py-1.5 text-xs font-medium rounded transition-all cursor-pointer ${
+                                    aluno.status_mensalidade === 'Pago'
+                                      ? 'bg-amber-600/30 text-amber-300 hover:bg-amber-600/50'
+                                      : 'bg-emerald-600/30 text-emerald-300 hover:bg-emerald-600/50'
+                                  }`}
+                                >
+                                  {aluno.status_mensalidade === 'Pago' ? 'Desfazer Pago' : 'Marcar Pago'}
+                                </button>
+                                {aluno.status_mensalidade !== 'Pago' && (
+                                  asaasConfigurado ? (
+                                    <button 
+                                      onClick={() => gerarCobrancaAsaas(`aluno-${aluno.id}`, 'mensalidade')}
+                                      className="bg-blue-600 hover:bg-blue-700 px-3 py-1.5 text-xs font-medium rounded text-white transition-all shadow-lg"
+                                    >
+                                      Gerar Asaas
+                                    </button>
+                                  ) : (
+                                    <button 
+                                      onClick={() => gerarMensalidadeManual(aluno.id)}
+                                      className="bg-zinc-700 hover:bg-zinc-600 px-3 py-1.5 text-xs font-medium rounded text-white transition-all shadow-lg"
+                                      title="Gerar mensalidade pendente manualmente para o aluno ver no portal"
+                                    >
+                                      Gerar Mensalidade
+                                    </button>
+                                  )
+                                )}
+                              </div>
                             )}
                           </td>
                         </tr>
@@ -901,6 +966,14 @@ export default function Financeiro() {
                                 >
                                   {t.status === 'Pago' ? 'Marcar Pendente' : 'Marcar Pago'}
                                 </button>
+                                {asaasConfigurado && t.tipo === 'Receita' && t.status !== 'Pago' && (
+                                  <button
+                                    onClick={() => gerarCobrancaAsaas(t.id, 'lancamento')}
+                                    className="bg-blue-600 hover:bg-blue-700 px-3 py-1.5 text-xs font-medium rounded text-white transition-all shadow-lg ml-2"
+                                  >
+                                    Gerar Asaas
+                                  </button>
+                                )}
                                 <button
                                   onClick={(e) => { e.stopPropagation(); handleDeletarLancamento(t.id, t.descricao); }}
                                   className="text-rose-400 hover:text-rose-300 p-2 rounded transition-all cursor-pointer hover:bg-rose-500/10"
