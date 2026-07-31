@@ -5,7 +5,7 @@ import reactHooksPlugin from "eslint-plugin-react-hooks";
 export default [
   js.configs.recommended,
   {
-    files: ["src/**/*.{js,jsx}"],
+    files: ["**/*.{js,jsx}"],
     plugins: {
       react: reactPlugin,
       "react-hooks": reactHooksPlugin,
@@ -36,6 +36,8 @@ export default [
         navigator: "readonly",
         self: "readonly",
         clients: "readonly",
+        FormData: "readonly",
+        File: "readonly",
       },
     },
     rules: {

@@ -10,6 +10,8 @@ export default function PortalLayout({ children }) {
   const navigate = useNavigate();
   const nome = localStorage.getItem('@sonatta:portal_nome') || 'Usuário';
   const token = localStorage.getItem('@sonatta:portal_token');
+  const escolaNome = localStorage.getItem('@sonatta:portal_escola_nome') || '';
+  const escolaLogo = localStorage.getItem('@sonatta:portal_escola_logo') || '';
 
   const [modalAberto, setModalAberto] = useState(false);
   const [senhaAtual, setSenhaAtual] = useState('');
@@ -79,9 +81,13 @@ export default function PortalLayout({ children }) {
       <header className="bg-zinc-900/60 backdrop-blur-md border-b border-zinc-800/50 p-4 sticky top-0 z-50">
         <div className="max-w-4xl mx-auto flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="text-emerald-400 text-3xl font-bold" style={{ fontFamily: "'Dancing Script', cursive" }}>
-              Sonatta
-            </div>
+            {escolaLogo ? (
+              <img src={escolaLogo} alt={escolaNome || 'Escola'} className="max-h-10 object-contain" />
+            ) : (
+              <div className="text-emerald-400 text-3xl font-bold" style={{ fontFamily: "'Dancing Script', cursive" }}>
+                {escolaNome || 'Sonatta'}
+              </div>
+            )}
             <span className="text-zinc-500 text-sm hidden md:inline-block">|</span>
             <span className="text-zinc-400 font-medium hidden md:inline-block shadow-sm">Portal do Aluno</span>
           </div>
@@ -114,6 +120,13 @@ export default function PortalLayout({ children }) {
       {/* Conteúdo principal */}
       <main className="flex-1 max-w-4xl w-full mx-auto p-4 md:p-6 flex flex-col relative z-10">
         {children}
+        
+        {(escolaNome || escolaLogo) && (
+          <div className="mt-12 mb-4 text-center border-t border-zinc-800/50 pt-6">
+            <p className="text-[10px] text-zinc-500 uppercase tracking-widest font-semibold">Powered by</p>
+            <div className="text-emerald-500 font-bold text-lg" style={{ fontFamily: "'Dancing Script', cursive" }}>Sonatta</div>
+          </div>
+        )}
       </main>
 
       {/* Modal de Troca de Senha */}

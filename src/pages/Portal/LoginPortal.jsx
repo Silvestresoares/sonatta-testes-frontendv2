@@ -43,6 +43,11 @@ export default function LoginPortal() {
       localStorage.setItem('@sonatta:portal_nome', dados.usuario.nome);
       localStorage.setItem('@sonatta:portal_tipo', dados.usuario.tipo_usuario);
       
+      if (dados.escola) {
+        localStorage.setItem('@sonatta:portal_escola_nome', dados.escola.nome || '');
+        localStorage.setItem('@sonatta:portal_escola_logo', dados.escola.logo || '');
+      }
+      
       navigate('/portal/dashboard');
     } catch (err) {
       setErro(err.message);

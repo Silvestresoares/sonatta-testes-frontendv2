@@ -172,6 +172,8 @@ export default function App() {
           localStorage.setItem('@sonatta:is_super_admin', dados.usuario?.is_super_admin || false);
           localStorage.setItem('@sonatta:plano', dados.usuario?.plano || 'Vitalicio');
           localStorage.setItem('@sonatta:data_vencimento', dados.usuario?.data_vencimento_assinatura || '');
+          localStorage.setItem('@sonatta:escola_nome', dados.usuario?.nome_escola || '');
+          localStorage.setItem('@sonatta:escola_logo', dados.usuario?.logo_url || '');
           setEstaLogado(true);
         } else {
           localStorage.removeItem('@sonatta:token');

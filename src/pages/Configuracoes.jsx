@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { Settings, Save, MapPin, Phone, Mail, Link, AlertCircle, Wallet, DollarSign, CheckCircle } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { Settings, Save, MapPin, Phone, Mail, Link, AlertCircle, Wallet, DollarSign, CheckCircle, Upload } from 'lucide-react';
 
 const _envApi = import.meta.env.VITE_API_URL;
 const _defaultLocal = 'http://localhost:3005';
@@ -15,6 +15,8 @@ export default function Configuracoes() {
   const [saldoAsaas, setSaldoAsaas] = useState(null);
   const [carregandoSaldo, setCarregandoSaldo] = useState(false);
   const [ativandoAsaas, setAtivandoAsaas] = useState(false);
+  const [fazendoUpload, setFazendoUpload] = useState(false);
+  const fileInputRef = useRef(null);
   
   const [formData, setFormData] = useState({
     nome_escola: '',
@@ -26,6 +28,7 @@ export default function Configuracoes() {
     estado: '',
     cep: '',
     website: '',
+    logo_url: '',
     data_nascimento: '',
     cor_primaria: '#3B82F6',
     cor_secundaria: '#1E40AF',
@@ -61,6 +64,7 @@ export default function Configuracoes() {
           estado: data.estado || '',
           cep: data.cep || '',
           website: data.website || '',
+          logo_url: data.logo_url || '',
           data_nascimento: data.data_nascimento ? data.data_nascimento.split('T')[0] : '',
           cor_primaria: data.cor_primaria || '#3B82F6',
           cor_secundaria: data.cor_secundaria || '#1E40AF',
@@ -174,6 +178,39 @@ export default function Configuracoes() {
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
+  };
+
+  const handleUploadLogo = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    
+    setFazendoUpload(true);
+    setErro('');
+    const formDataUpload = new FormData();
+    formDataUpload.append('logo', file);
+    
+    try {
+      const res = await fetch(`${API_URL}/api/escola/upload-logo`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}` },
+        body: formDataUpload
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setFormData(prev => ({ ...prev, logo_url: `${API_URL}${data.url}` }));
+        setSucesso('Logo enviada com sucesso! Lembre-se de "Salvar Alterações".');
+        setTimeout(() => setSucesso(''), 4000);
+      } else {
+        setErro(data.erro || 'Erro ao enviar logo.');
+        window.scrollTo(0,0);
+      }
+    } catch (err) {
+      setErro('Erro de conexão ao enviar logo.');
+      window.scrollTo(0,0);
+    } finally {
+      setFazendoUpload(false);
+      e.target.value = '';
+    }
   };
 
   const handleSubmit = async (e) => {
@@ -544,6 +581,36 @@ export default function Configuracoes() {
             <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-6">
               <h2 className="text-lg font-semibold text-white mb-4 border-b border-zinc-800 pb-2">Identidade Visual</h2>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="md:col-span-2">
+                  <label className="block text-sm font-medium text-zinc-400 mb-1 flex items-center gap-1"><Link size={16}/> Logo da Escola (Link / URL)</label>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="url"
+                      name="logo_url"
+                      value={formData.logo_url}
+                      onChange={handleChange}
+                      placeholder="https://exemplo.com/minha-logo.png"
+                      className="w-full px-4 py-2 bg-zinc-950 border border-zinc-800 rounded-lg text-white focus:outline-none focus:border-emerald-500 transition-colors"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => fileInputRef.current?.click()}
+                      disabled={fazendoUpload}
+                      className="flex-shrink-0 flex items-center gap-2 px-4 py-2 bg-zinc-800 hover:bg-zinc-700 disabled:opacity-50 text-white rounded-lg transition-colors border border-zinc-700"
+                    >
+                      <Upload size={18} />
+                      {fazendoUpload ? 'Enviando...' : 'Upload'}
+                    </button>
+                    <input 
+                      type="file" 
+                      accept="image/*" 
+                      ref={fileInputRef} 
+                      onChange={handleUploadLogo} 
+                      className="hidden" 
+                    />
+                  </div>
+                  <p className="text-xs text-zinc-500 mt-1">Cole o link público da imagem da sua logo. Recomendamos imagens com fundo transparente (PNG).</p>
+                </div>
                 <div>
                   <label className="block text-sm font-medium text-zinc-400 mb-1">Cor Primária</label>
                   <div className="flex items-center gap-3">

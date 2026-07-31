@@ -57,6 +57,8 @@ export default function Login({ aoLogar }) {
         localStorage.setItem('@sonatta:plano', usuarioLogado.plano || 'Vitalicio');
         localStorage.setItem('@sonatta:ativa', usuarioLogado.ativa !== false ? 'true' : 'false');
         localStorage.setItem('@sonatta:data_vencimento', usuarioLogado.data_vencimento_assinatura || '');
+        localStorage.setItem('@sonatta:escola_nome', usuarioLogado.nome_escola || '');
+        localStorage.setItem('@sonatta:escola_logo', usuarioLogado.logo_url || '');
         alert(`Bem-vindo de volta, ${usuarioLogado.nome || 'Usuário'}!`);
         if (aoLogar) aoLogar(usuarioLogado);
       } else {

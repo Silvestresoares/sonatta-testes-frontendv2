@@ -14,6 +14,8 @@ export default function Sidebar({ onLogout, tipoUsuario, professorId, isOpen, on
   const canalComunicacao = new BroadcastChannel('sonatta_updates');
 
   const nomeUsuario = localStorage.getItem('@sonatta:usuario_nome') || 'Usuário';
+  const escolaNome = localStorage.getItem('@sonatta:escola_nome') || '';
+  const escolaLogo = localStorage.getItem('@sonatta:escola_logo') || '';
   const ehProfessor = tipoUsuario === 'professor';
 
   // Função auxiliar para deixar o botão azul quando estiver na página ativa
@@ -92,9 +94,17 @@ export default function Sidebar({ onLogout, tipoUsuario, professorId, isOpen, on
           </div>
           {/* Logo */}
           <div className="flex flex-col items-center px-2 text-center">
-            <div className="text-emerald-400 text-4xl font-bold" style={{ fontFamily: "'Dancing Script', cursive" }}>
-              <span>Sonatta</span>
-            </div>
+            {escolaLogo ? (
+              <img src={escolaLogo} alt={escolaNome || 'Escola'} className="max-h-16 mb-2 object-contain" />
+            ) : escolaNome ? (
+              <div className="text-white text-2xl font-bold mb-2">
+                <span>{escolaNome}</span>
+              </div>
+            ) : (
+              <div className="text-emerald-400 text-4xl font-bold" style={{ fontFamily: "'Dancing Script', cursive" }}>
+                <span>Sonatta</span>
+              </div>
+            )}
             {/* Nome do usuário logado */}
             <p className="text-white text-2xl" style={{ fontFamily: "'Caveat', cursive" }}>
               {nomeUsuario}
@@ -262,6 +272,12 @@ export default function Sidebar({ onLogout, tipoUsuario, professorId, isOpen, on
             <LogOut size={16} />
             Sair
           </button>
+          
+          {(escolaNome || escolaLogo) && (
+            <div className="text-center mt-4">
+              <span className="text-[10px] text-emerald-500 font-medium tracking-widest uppercase">Powered by Sonatta</span>
+            </div>
+          )}
         </div>
       </aside>
 
