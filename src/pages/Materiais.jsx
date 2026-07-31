@@ -38,10 +38,14 @@ export default function Materiais() {
       if (!resMateriais.ok || !resAlunos.ok) throw new Error('Erro ao carregar dados');
 
       const dataMateriais = await resMateriais.json();
-      const dataAlunos = await resAlunos.json();
+      let dataAlunos = await resAlunos.json();
+      
+      // Garante que é um array e filtra apenas alunos ativos
+      let listaAlunos = Array.isArray(dataAlunos) ? dataAlunos : (dataAlunos.data || []);
+      const alunosAtivos = listaAlunos.filter(a => a.status === 'Ativo');
 
       setMateriais(dataMateriais);
-      setAlunos(dataAlunos);
+      setAlunos(alunosAtivos);
     } catch (err) {
       setErro(err.message);
     } finally {
@@ -93,7 +97,7 @@ export default function Materiais() {
       if (!res.ok) throw new Error(data.erro || 'Erro ao enviar arquivo.');
 
       setMensagemSucesso('Material enviado com sucesso!');
-      
+
       // Limpa formulário
       setNome('');
       setDescricao('');
@@ -102,7 +106,7 @@ export default function Materiais() {
       if (fileInputRef.current) fileInputRef.current.value = null;
 
       carregarDados();
-      
+
       setTimeout(() => setMensagemSucesso(''), 3000);
     } catch (err) {
       setErro(err.message);
@@ -135,8 +139,8 @@ export default function Materiais() {
     return date.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' });
   };
 
-  const materiaisFiltrados = materiais.filter(m => 
-    m.nome.toLowerCase().includes(termoBusca.toLowerCase()) || 
+  const materiaisFiltrados = materiais.filter(m =>
+    m.nome.toLowerCase().includes(termoBusca.toLowerCase()) ||
     m.aluno_nome?.toLowerCase().includes(termoBusca.toLowerCase())
   );
 
@@ -144,7 +148,7 @@ export default function Materiais() {
 
   return (
     <div className="p-4 md:p-8 space-y-6">
-      
+
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl md:text-3xl font-bold text-white flex items-center gap-3">
@@ -161,7 +165,7 @@ export default function Materiais() {
           <button onClick={() => setErro('')}><X size={18} /></button>
         </div>
       )}
-      
+
       {mensagemSucesso && (
         <div className="bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 p-4 rounded-lg">
           {mensagemSucesso}
@@ -169,7 +173,7 @@ export default function Materiais() {
       )}
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        
+
         {/* Painel de Upload */}
         <div className="lg:col-span-1">
           <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 shadow-lg sticky top-6">
@@ -181,7 +185,7 @@ export default function Materiais() {
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
                 <label className="block text-xs font-bold text-zinc-400 uppercase mb-1.5">Aluno Destino *</label>
-                <select 
+                <select
                   value={alunoId}
                   onChange={e => setAlunoId(e.target.value)}
                   className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-emerald-500"
@@ -197,7 +201,7 @@ export default function Materiais() {
               <div>
                 <label className="block text-xs font-bold text-zinc-400 uppercase mb-1.5">Arquivo (Máx 10MB) *</label>
                 <div className="relative">
-                  <input 
+                  <input
                     type="file"
                     ref={fileInputRef}
                     onChange={handleFileChange}
@@ -209,7 +213,7 @@ export default function Materiais() {
 
               <div>
                 <label className="block text-xs font-bold text-zinc-400 uppercase mb-1.5">Nome / Título *</label>
-                <input 
+                <input
                   type="text"
                   value={nome}
                   onChange={e => setNome(e.target.value)}
@@ -221,7 +225,7 @@ export default function Materiais() {
 
               <div>
                 <label className="block text-xs font-bold text-zinc-400 uppercase mb-1.5">Descrição (Opcional)</label>
-                <textarea 
+                <textarea
                   value={descricao}
                   onChange={e => setDescricao(e.target.value)}
                   placeholder="Instruções para estudo..."
@@ -229,8 +233,8 @@ export default function Materiais() {
                 />
               </div>
 
-              <button 
-                type="submit" 
+              <button
+                type="submit"
                 disabled={enviando}
                 className="w-full flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-3 rounded-xl transition-all disabled:opacity-50"
               >
@@ -244,9 +248,9 @@ export default function Materiais() {
         <div className="lg:col-span-2 space-y-4">
           <div className="flex bg-zinc-900 border border-zinc-800 rounded-xl p-2 items-center">
             <Search className="text-zinc-500 ml-2" size={20} />
-            <input 
-              type="text" 
-              placeholder="Buscar por arquivo ou aluno..." 
+            <input
+              type="text"
+              placeholder="Buscar por arquivo ou aluno..."
               value={termoBusca}
               onChange={e => setTermoBusca(e.target.value)}
               className="bg-transparent border-none text-white w-full px-3 py-2 focus:outline-none text-sm placeholder-zinc-500"
@@ -289,16 +293,16 @@ export default function Materiais() {
                         </td>
                         <td className="px-6 py-4 text-center">
                           <div className="flex items-center justify-center gap-2">
-                            <a 
-                              href={`${API_URL}/uploads/${m.caminho_arquivo}`} 
-                              target="_blank" 
+                            <a
+                              href={`${API_URL}/uploads/${m.caminho_arquivo}`}
+                              target="_blank"
                               rel="noreferrer"
                               className="text-emerald-400 hover:text-emerald-300 p-2 rounded transition-all cursor-pointer hover:bg-emerald-500/10"
                               title="Baixar/Visualizar"
                             >
                               📥
                             </a>
-                            <button 
+                            <button
                               onClick={() => handleExcluir(m.id)}
                               className="text-rose-400 hover:text-rose-300 p-2 rounded transition-all cursor-pointer hover:bg-rose-500/10"
                               title="Excluir Definitivamente"
@@ -315,7 +319,7 @@ export default function Materiais() {
             )}
           </div>
         </div>
-        
+
       </div>
     </div>
   );

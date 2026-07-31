@@ -29,6 +29,13 @@ export default [
         alert: "readonly",
         confirm: "readonly",
         Event: "readonly",
+        URL: "readonly",
+        Blob: "readonly",
+        URLSearchParams: "readonly",
+        BroadcastChannel: "readonly",
+        navigator: "readonly",
+        self: "readonly",
+        clients: "readonly",
       },
     },
     rules: {

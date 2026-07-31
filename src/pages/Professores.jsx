@@ -1,7 +1,6 @@
-import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { UserPlus, Search, Filter, Download, Printer, X, ChevronDown,
-         Phone, Mail, Music, Calendar, DollarSign, Users, Clock,
-         CheckCircle, Edit2, Trash2, Eye, Plus, Minus, BookOpen,
+import React, { useState, useEffect, useMemo } from 'react';
+import { UserPlus, Search, Download, Printer, X,
+         Users, Edit2, Plus, Minus,
          ChevronLeft, ChevronRight } from 'lucide-react';
 
 const _envApi = import.meta.env.VITE_API_URL;

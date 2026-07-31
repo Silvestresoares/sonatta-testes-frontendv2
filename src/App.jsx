@@ -26,6 +26,7 @@ import Configuracoes from './pages/Configuracoes';
 import MinhaAgenda from './pages/MinhaAgenda';
 import MinhasTurmas from './pages/MinhasTurmas';
 import MeusRecebimentos from './pages/MeusRecebimentos';
+import MeusAlunos from './pages/MeusAlunos';
 
 // Páginas do Portal
 import LoginPortal from './pages/Portal/LoginPortal';
@@ -315,6 +316,7 @@ export default function App() {
             <Route path="/" element={<LayoutComSidebar onLogout={handleLogout} tipoUsuario={tipoUsuario} professorId={professorId} isSuperAdmin={isSuperAdmin}><MinhaAgenda professorId={professorId} /></LayoutComSidebar>} />
             <Route path="/minha-agenda" element={<LayoutComSidebar onLogout={handleLogout} tipoUsuario={tipoUsuario} professorId={professorId} isSuperAdmin={isSuperAdmin}><MinhaAgenda professorId={professorId} /></LayoutComSidebar>} />
             <Route path="/minhas-turmas" element={<LayoutComSidebar onLogout={handleLogout} tipoUsuario={tipoUsuario} professorId={professorId} isSuperAdmin={isSuperAdmin}><MinhasTurmas /></LayoutComSidebar>} />
+            <Route path="/meus-alunos" element={<LayoutComSidebar onLogout={handleLogout} tipoUsuario={tipoUsuario} professorId={professorId} isSuperAdmin={isSuperAdmin}><MeusAlunos /></LayoutComSidebar>} />
             <Route path="/meus-recebimentos" element={<LayoutComSidebar onLogout={handleLogout} tipoUsuario={tipoUsuario} professorId={professorId} isSuperAdmin={isSuperAdmin}><MeusRecebimentos professorId={professorId} /></LayoutComSidebar>} />
             <Route path="/materiais" element={<LayoutComSidebar onLogout={handleLogout} tipoUsuario={tipoUsuario} professorId={professorId} isSuperAdmin={isSuperAdmin}><Materiais /></LayoutComSidebar>} />
             <Route path="*" element={<Navigate to="/minha-agenda" replace />} />
