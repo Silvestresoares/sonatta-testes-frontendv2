@@ -8,6 +8,7 @@ const API_URL = (typeof window !== 'undefined' && window.location && window.loca
 const STATUS_STAGES = [
   { id: 'novo_contato', label: 'Novo Contato', color: 'bg-blue-500/10 border-blue-500/30 text-blue-400' },
   { id: 'agendada', label: 'Aula Agendada', color: 'bg-amber-500/10 border-amber-500/30 text-amber-400' },
+  { id: 'realizada', label: 'Aula Realizada(fazer contato)', color: 'bg-purple-500/10 border-purple-500/30 text-purple-400' },
   { id: 'matriculado', label: 'Matriculado', color: 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400' },
   { id: 'perdido', label: 'Perdido', color: 'bg-rose-500/10 border-rose-500/30 text-rose-400' }
 ];
@@ -19,7 +20,7 @@ export default function AulasExperimentais() {
   const [mostrando_formulario, setMostrando_formulario] = useState(false);
   const [idSendoEditado, setIdSendoEditado] = useState(null);
   const [dragOverStage, setDragOverStage] = useState(null);
-  
+
   const [formData, setFormData] = useState({
     nome_aluno: '',
     telefone: '',
@@ -27,7 +28,7 @@ export default function AulasExperimentais() {
     data_aula: '',
     horario_aula: '',
     professor_id: '',
-    status: 'novo_contato'
+    status: 'agendada'
   });
 
   const [erro, setErro] = useState('');
@@ -47,9 +48,9 @@ export default function AulasExperimentais() {
           'Authorization': `Bearer ${token}`
         }
       });
-      
+
       if (!resposta.ok) throw new Error('Erro ao carregar aulas');
-      
+
       const dados = await resposta.json();
       setAulas(dados.dados || []);
     } catch (erro) {
@@ -79,6 +80,12 @@ export default function AulasExperimentais() {
   useEffect(() => {
     carregarAulas();
     carregarProfessores();
+    
+    const intervalo = setInterval(() => {
+      carregarAulas(true);
+    }, 10000);
+    
+    return () => clearInterval(intervalo);
   }, []);
 
   useEffect(() => {
@@ -93,7 +100,7 @@ export default function AulasExperimentais() {
 
   const handleMudanca = (e) => {
     let { name, value } = e.target;
-    
+
     if (name === 'telefone') {
       value = value
         .replace(/\D/g, '') // Remove tudo o que não é dígito
@@ -129,7 +136,7 @@ export default function AulasExperimentais() {
 
     try {
       const metodo = idSendoEditado ? 'PUT' : 'POST';
-      const url = idSendoEditado 
+      const url = idSendoEditado
         ? `${API_URL}/api/aulas-experimentais/${idSendoEditado}`
         : `${API_URL}/api/aulas-experimentais`;
 
@@ -191,7 +198,13 @@ export default function AulasExperimentais() {
 
     // Atualização otimista
     const aulasAnteriores = [...aulas];
-    setAulas(prev => prev.map(a => String(a.id) === String(id) ? { ...a, situacao_aula: novaSituacao } : a));
+    setAulas(prev => prev.map(a => {
+      if (String(a.id) === String(id)) {
+        const novoStatus = (a.status !== 'matriculado' && a.status !== 'perdido' && novaSituacao !== 'pendente') ? 'realizada' : a.status;
+        return { ...a, situacao_aula: novaSituacao, status: novoStatus };
+      }
+      return a;
+    }));
 
     try {
       const resposta = await fetch(`${API_URL}/api/aulas-experimentais/${id}/situacao`, {
@@ -254,7 +267,7 @@ export default function AulasExperimentais() {
       data_aula: '',
       horario_aula: '',
       professor_id: '',
-      status: 'novo_contato'
+      status: 'agendada'
     });
     setMostrando_formulario(false);
   };
@@ -382,8 +395,8 @@ export default function AulasExperimentais() {
           STATUS_STAGES.map((stage, stageIndex) => {
             const stageAulas = aulas.filter(a => (a.status || 'novo_contato') === stage.id);
             return (
-              <div 
-                key={stage.id} 
+              <div
+                key={stage.id}
                 className={`w-[320px] flex-shrink-0 flex flex-col h-full rounded-xl border transition-colors ${dragOverStage === stage.id ? 'bg-zinc-200/50 dark:bg-zinc-800/80 border-emerald-500/50' : 'bg-zinc-100/50 dark:bg-zinc-900/50 border-zinc-200 dark:border-zinc-800/50'}`}
                 onDragOver={(e) => {
                   e.preventDefault();
@@ -417,8 +430,8 @@ export default function AulasExperimentais() {
                     </div>
                   ) : (
                     stageAulas.map(aula => (
-                      <div 
-                        key={aula.id} 
+                      <div
+                        key={aula.id}
                         draggable
                         onDragStart={(e) => {
                           e.dataTransfer.setData('aulaId', aula.id.toString());
@@ -432,9 +445,9 @@ export default function AulasExperimentais() {
                             <button onClick={() => handleExcluir(aula.id)} className="p-1 text-zinc-400 hover:text-rose-400 transition-colors" title="Excluir"><Trash2 size={14} /></button>
                           </div>
                         </div>
-                        
+
                         <div className="space-y-1.5 mb-4">
-                          <a 
+                          <a
                             href={`https://wa.me/55${aula.telefone.replace(/\D/g, '')}`}
                             target="_blank"
                             rel="noopener noreferrer"
@@ -458,9 +471,9 @@ export default function AulasExperimentais() {
                                 onChange={(e) => atualizarSituacao(aula.id, e.target.value)}
                                 onClick={(e) => e.stopPropagation()}
                                 className={`text-[10px] font-bold bg-zinc-100 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-md px-1.5 py-0.5 outline-none cursor-pointer hover:border-emerald-500/50 transition-colors w-max
-                                  ${aula.situacao_aula === 'presente' ? 'text-emerald-600 bg-emerald-500/10 border-emerald-500/30' : 
-                                    aula.situacao_aula === 'falta' || aula.situacao_aula === 'cancelada' ? 'text-rose-500 bg-rose-500/10 border-rose-500/30' : 
-                                    aula.situacao_aula === 'reagendada' ? 'text-amber-500 bg-amber-500/10 border-amber-500/30' : 'text-zinc-500'}`}
+                                  ${aula.situacao_aula === 'presente' ? 'text-emerald-600 bg-emerald-500/10 border-emerald-500/30' :
+                                    aula.situacao_aula === 'falta' || aula.situacao_aula === 'cancelada' ? 'text-rose-500 bg-rose-500/10 border-rose-500/30' :
+                                      aula.situacao_aula === 'reagendada' ? 'text-amber-500 bg-amber-500/10 border-amber-500/30' : 'text-zinc-500'}`}
                               >
                                 <option value="pendente">⏳ PENDENTE</option>
                                 <option value="presente">✅ VEIO NA AULA</option>
@@ -486,7 +499,7 @@ export default function AulasExperimentais() {
 
                         {/* Move Actions */}
                         <div className="pt-2 border-t border-zinc-100 dark:border-zinc-700 flex justify-between items-center">
-                          <button 
+                          <button
                             onClick={() => moverPara(aula, 'tras')}
                             disabled={stageIndex === 0}
                             className="p-1.5 rounded bg-zinc-100 dark:bg-zinc-700/50 hover:bg-zinc-200 dark:hover:bg-zinc-600 text-zinc-600 dark:text-zinc-300 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
@@ -494,7 +507,7 @@ export default function AulasExperimentais() {
                             <ChevronLeft size={16} />
                           </button>
                           <span className="text-[10px] uppercase font-bold text-zinc-400">Mover</span>
-                          <button 
+                          <button
                             onClick={() => moverPara(aula, 'frente')}
                             disabled={stageIndex === STATUS_STAGES.length - 1}
                             className="p-1.5 rounded bg-zinc-100 dark:bg-zinc-700/50 hover:bg-zinc-200 dark:hover:bg-zinc-600 text-zinc-600 dark:text-zinc-300 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
