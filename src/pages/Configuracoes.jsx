@@ -197,7 +197,8 @@ export default function Configuracoes() {
       });
       const data = await res.json();
       if (res.ok) {
-        setFormData(prev => ({ ...prev, logo_url: `${API_URL}${data.url}` }));
+        const urlFinal = data.url.startsWith('http') ? data.url : `${API_URL}${data.url}`;
+        setFormData(prev => ({ ...prev, logo_url: urlFinal }));
         setSucesso('Logo enviada com sucesso! Lembre-se de "Salvar Alterações".');
         setTimeout(() => setSucesso(''), 4000);
       } else {
