@@ -32,19 +32,25 @@ import MeusAlunos from './pages/MeusAlunos';
 import LoginPortal from './pages/Portal/LoginPortal';
 import DashboardPortal from './pages/Portal/DashboardPortal';
 
-// Importação dos contextos
-import { AulasFrequenciaProvider } from './contexts/AulasFrequenciaContext';
+// Contextos legados removidos
 
-// URL dinâmica
-const _envApi = import.meta.env.VITE_API_URL;
-const _defaultLocal = 'http://localhost:3005';
-const API_URL = (typeof window !== 'undefined' && window.location && window.location.hostname.includes('localhost')) ? _defaultLocal : (_envApi || _defaultLocal);
+// URL dinâmica via variável de ambiente (Vite)
+const API_URL = import.meta.env.VITE_API_URL || '';
 
 
 // Interceptor Global de Fetch
 const originalFetch = window.fetch;
-window.fetch = async (...args) => {
-  const response = await originalFetch(...args);
+window.fetch = async (url, options = {}) => {
+  // Converte a URL para string caso seja um Request object (simplificação)
+  const fetchUrl = (typeof url === 'string' && url.startsWith('/')) ? `${API_URL}${url}` : url;
+  
+  const modifiedOptions = {
+    ...options,
+    credentials: options.credentials || 'include' // <--- Injeta envio de cookies em todas as requisições
+  };
+
+  const response = await originalFetch(fetchUrl, modifiedOptions);
+  
   if (response.status === 402) {
     window.dispatchEvent(new Event('assinatura_suspensa'));
   }
@@ -155,19 +161,11 @@ export default function App() {
 
   // Verifica token ao montar
   useEffect(() => {
-    const verificarToken = async () => {
-      const token = localStorage.getItem('@sonatta:token');
-      
-      if (!token) {
-        setEstaLogado(false);
-        setCarregando(false);
-        return;
-      }
-
+    const verificarSessao = async () => {
       try {
         const resposta = await fetch(`${API_URL}/api/auth/me`, {
-          method: 'GET',
-          headers: { 'Authorization': `Bearer ${token}` }
+          method: 'GET'
+          // Não envia mais o Authorization Bearer, pois o HttpOnly Cookie vai sozinho via credentials: 'include'
         });
 
         if (resposta.ok) {
@@ -182,7 +180,6 @@ export default function App() {
           localStorage.setItem('@sonatta:escola_logo', dados.usuario?.logo_url || '');
           setEstaLogado(true);
         } else {
-          localStorage.removeItem('@sonatta:token');
           setEstaLogado(false);
         }
       } catch (erro) {
@@ -193,11 +190,18 @@ export default function App() {
       }
     };
 
-    verificarToken();
+    verificarSessao();
   }, []);
 
-  const handleLogout = () => {
-    localStorage.removeItem('@sonatta:token');
+  const handleLogout = async () => {
+    // Chama o backend para destruir o HttpOnly cookie
+    try {
+      await fetch(`${API_URL}/api/auth/logout`, { method: 'POST' });
+    } catch (e) {
+      console.error("Erro ao fazer logout:", e);
+    }
+    
+    // Limpa os dados locais
     localStorage.removeItem('@sonatta:tipo_usuario');
     localStorage.removeItem('@sonatta:professor_id');
     localStorage.removeItem('@sonatta:usuario_nome');
@@ -297,7 +301,7 @@ export default function App() {
 
   const tipoUsuario = localStorage.getItem('@sonatta:tipo_usuario') || usuarioInfo?.tipo_usuario || 'admin';
   const professorId = localStorage.getItem('@sonatta:professor_id') || usuarioInfo?.professor_id || null;
-  const isSuperAdmin = localStorage.getItem('@sonatta:is_super_admin') === 'true' || usuarioInfo?.is_super_admin === true;
+  const isSuperAdmin = usuarioInfo?.is_super_admin === true;
   const ehProfessor = tipoUsuario === 'professor';
 
   // Se logado como Super Admin, mostra APENAS o painel de Super Admin
@@ -319,7 +323,6 @@ export default function App() {
     return (
       <div className="flex flex-col min-h-screen">
         <GlobalBanner />
-        <AulasFrequenciaProvider>
           <Routes>
             <Route path="/" element={<LayoutComSidebar onLogout={handleLogout} tipoUsuario={tipoUsuario} professorId={professorId} isSuperAdmin={isSuperAdmin}><MinhaAgenda professorId={professorId} /></LayoutComSidebar>} />
             <Route path="/minha-agenda" element={<LayoutComSidebar onLogout={handleLogout} tipoUsuario={tipoUsuario} professorId={professorId} isSuperAdmin={isSuperAdmin}><MinhaAgenda professorId={professorId} /></LayoutComSidebar>} />
@@ -330,7 +333,6 @@ export default function App() {
             <Route path="*" element={<Navigate to="/minha-agenda" replace />} />
           </Routes>
           <UpdateToast />
-        </AulasFrequenciaProvider>
       </div>
     );
   }
@@ -339,7 +341,6 @@ export default function App() {
   return (
     <div className="flex flex-col min-h-screen">
       <GlobalBanner />
-      <AulasFrequenciaProvider>
         <Routes>
           <Route path="/" element={<LayoutComSidebar onLogout={handleLogout} tipoUsuario={tipoUsuario} professorId={professorId} isSuperAdmin={isSuperAdmin}><Dashboard /></LayoutComSidebar>} />
           <Route path="/alunos" element={<LayoutComSidebar onLogout={handleLogout} tipoUsuario={tipoUsuario} professorId={professorId} isSuperAdmin={isSuperAdmin}><Alunos /></LayoutComSidebar>} />
@@ -355,7 +356,6 @@ export default function App() {
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
         <UpdateToast />
-      </AulasFrequenciaProvider>
     </div>
   );
 }

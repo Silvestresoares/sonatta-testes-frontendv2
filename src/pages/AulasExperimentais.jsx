@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Plus, Calendar, Clock, User, Phone, Music, ChevronRight, ChevronLeft, Edit2, Trash2, MessageCircle } from 'lucide-react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { KanbanSkeleton } from '../components/Skeleton';
 
 const _envApi = import.meta.env.VITE_API_URL;
 const _defaultLocal = 'http://localhost:3005';
@@ -14,79 +16,122 @@ const STATUS_STAGES = [
 ];
 
 export default function AulasExperimentais() {
-  const [aulas, setAulas] = useState([]);
-  const [professores, setProfessores] = useState([]);
-  const [carregando, setCarregando] = useState(true);
+  const queryClient = useQueryClient();
+  const token = localStorage.getItem('@sonatta:token');
+
   const [mostrando_formulario, setMostrando_formulario] = useState(false);
   const [idSendoEditado, setIdSendoEditado] = useState(null);
   const [dragOverStage, setDragOverStage] = useState(null);
-
-  const [formData, setFormData] = useState({
-    nome_aluno: '',
-    telefone: '',
-    instrumento: '',
-    data_aula: '',
-    horario_aula: '',
-    professor_id: '',
-    status: 'agendada'
-  });
-
   const [erro, setErro] = useState('');
   const [sucesso, setSucesso] = useState('');
 
-  // Carregar aulas experimentais
-  const carregarAulas = async (silencioso = false) => {
-    const token = localStorage.getItem('@sonatta:token');
-    if (!token) return;
+  const [formData, setFormData] = useState({
+    nome_aluno: '', telefone: '', instrumento: '', data_aula: '', horario_aula: '', professor_id: '', status: 'agendada'
+  });
 
-    if (!silencioso) setCarregando(true);
-    try {
-      const resposta = await fetch(`${API_URL}/api/aulas-experimentais`, {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        }
+  // React Query: Busca com Cache Global e Polling Automático
+  const { data: aulas = [], isLoading: carregandoAulas } = useQuery({
+    queryKey: ['aulasExperimentais'],
+    queryFn: async () => {
+      const res = await fetch(`${API_URL}/api/aulas-experimentais`, { headers: { 'Authorization': `Bearer ${token}` } });
+      if (!res.ok) throw new Error('Erro ao carregar aulas');
+      const json = await res.json();
+      return json.dados || [];
+    },
+    enabled: !!token,
+    refetchInterval: 10000 // Substitui o antigo setInterval, de forma segura contra memory leaks
+  });
+
+  const { data: professores = [] } = useQuery({
+    queryKey: ['professores'],
+    queryFn: async () => {
+      const res = await fetch(`${API_URL}/api/professores`, { headers: { 'Authorization': `Bearer ${token}` } });
+      if (!res.ok) throw new Error('Erro ao carregar professores');
+      const json = await res.json();
+      return Array.isArray(json) ? json : (json.dados || []);
+    },
+    enabled: !!token
+  });
+
+  // Mutações React Query (Atualizações Otimistas e Revalidação Automática)
+  const mutacaoSalvar = useMutation({
+    mutationFn: async (dados) => {
+      const metodo = idSendoEditado ? 'PUT' : 'POST';
+      const url = idSendoEditado ? `${API_URL}/api/aulas-experimentais/${idSendoEditado}` : `${API_URL}/api/aulas-experimentais`;
+      const res = await fetch(url, {
+        method: metodo,
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify(dados)
       });
+      if (!res.ok) {
+        const errJson = await res.json();
+        throw new Error(errJson.erro || 'Erro ao salvar contato');
+      }
+      return res.json();
+    },
+    onSuccess: () => {
+      setSucesso(idSendoEditado ? 'Contato atualizado com sucesso!' : 'Novo contato captado!');
+      limparEdicao();
+      queryClient.invalidateQueries({ queryKey: ['aulasExperimentais'] }); // Recarrega os dados imediatamente
+    },
+    onError: (error) => setErro(error.message)
+  });
 
-      if (!resposta.ok) throw new Error('Erro ao carregar aulas');
+  const mutacaoStatus = useMutation({
+    mutationFn: async ({ id, status }) => {
+      const res = await fetch(`${API_URL}/api/aulas-experimentais/${id}/status`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify({ status })
+      });
+      if (!res.ok) throw new Error('Erro ao mover contato');
+    },
+    onMutate: async ({ id, status }) => {
+      // Cancela queries ativas para não sobrescrever a atualização otimista
+      await queryClient.cancelQueries({ queryKey: ['aulasExperimentais'] });
+      const aulasAnteriores = queryClient.getQueryData(['aulasExperimentais']);
+      
+      // Atualiza o cache de forma instantânea (UX)
+      queryClient.setQueryData(['aulasExperimentais'], old => 
+        old?.map(a => String(a.id) === String(id) ? { ...a, status } : a)
+      );
+      return { aulasAnteriores };
+    },
+    onError: (err, variables, context) => {
+      setErro('Erro de conexão ao mover');
+      // Reverte se a API falhar
+      queryClient.setQueryData(['aulasExperimentais'], context.aulasAnteriores);
+    },
+    onSettled: () => queryClient.invalidateQueries({ queryKey: ['aulasExperimentais'] })
+  });
 
-      const dados = await resposta.json();
-      setAulas(dados.dados || []);
-    } catch (erro) {
-      console.error('Erro ao carregar aulas:', erro);
-      setErro('Erro ao carregar aulas experimentais');
-    } finally {
-      if (!silencioso) setCarregando(false);
-    }
-  };
+  const mutacaoSituacao = useMutation({
+    mutationFn: async ({ id, situacao_aula }) => {
+      const res = await fetch(`${API_URL}/api/aulas-experimentais/${id}/situacao`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify({ situacao_aula })
+      });
+      if (!res.ok) throw new Error('Erro ao atualizar situação');
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['aulasExperimentais'] }),
+    onError: () => setErro('Erro de conexão ao atualizar situação')
+  });
 
-  const carregarProfessores = async () => {
-    const token = localStorage.getItem('@sonatta:token');
-    if (!token) return;
-    try {
-      const res = await fetch(`${API_URL}/api/professores`, {
+  const mutacaoExcluir = useMutation({
+    mutationFn: async (id) => {
+      const res = await fetch(`${API_URL}/api/aulas-experimentais/${id}`, {
+        method: 'DELETE',
         headers: { 'Authorization': `Bearer ${token}` }
       });
-      if (res.ok) {
-        const dados = await res.json();
-        setProfessores(Array.isArray(dados) ? dados : (dados.dados || []));
-      }
-    } catch (err) {
-      console.error('Erro ao carregar professores:', err);
-    }
-  };
-
-  useEffect(() => {
-    carregarAulas();
-    carregarProfessores();
-    
-    const intervalo = setInterval(() => {
-      carregarAulas(true);
-    }, 10000);
-    
-    return () => clearInterval(intervalo);
-  }, []);
+      if (!res.ok) throw new Error('Erro ao excluir');
+    },
+    onSuccess: () => {
+      setSucesso('Lead excluído com sucesso!');
+      queryClient.invalidateQueries({ queryKey: ['aulasExperimentais'] });
+    },
+    onError: () => setErro('Erro ao excluir lead')
+  });
 
   useEffect(() => {
     if (erro || sucesso) {
@@ -100,175 +145,41 @@ export default function AulasExperimentais() {
 
   const handleMudanca = (e) => {
     let { name, value } = e.target;
-
     if (name === 'telefone') {
-      value = value
-        .replace(/\D/g, '') // Remove tudo o que não é dígito
-        .replace(/^(\d{2})(\d)/g, '($1) $2') // Coloca parênteses em volta dos dois primeiros dígitos
-        .replace(/(\d{4,5})(\d{4})$/, '$1-$2') // Coloca hífen entre o quarto e o quinto dígitos
-        .slice(0, 15); // Limita o tamanho máximo
+      value = value.replace(/\D/g, '').replace(/^(\d{2})(\d)/g, '($1) $2').replace(/(\d{4,5})(\d{4})$/, '$1-$2').slice(0, 15);
     } else if (name === 'nome_aluno') {
-      value = value.replace(/\b\w/g, c => c.toUpperCase()); // Capitaliza a primeira letra de cada palavra
+      value = value.replace(/\b\w/g, c => c.toUpperCase());
     }
-
-    setFormData(prev => ({
-      ...prev,
-      [name]: value
-    }));
+    setFormData(prev => ({ ...prev, [name]: value }));
   };
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = (e) => {
     e.preventDefault();
-    setErro('');
-    setSucesso('');
-
-    if (!formData.nome_aluno.trim()) {
-      setErro('Nome do aluno é obrigatório');
-      return;
-    }
-    if (!formData.telefone.trim()) {
-      setErro('Telefone é obrigatório');
-      return;
-    }
-
-    const token = localStorage.getItem('@sonatta:token');
-    if (!token) return;
-
-    try {
-      const metodo = idSendoEditado ? 'PUT' : 'POST';
-      const url = idSendoEditado
-        ? `${API_URL}/api/aulas-experimentais/${idSendoEditado}`
-        : `${API_URL}/api/aulas-experimentais`;
-
-      const resposta = await fetch(url, {
-        method: metodo,
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify(formData)
-      });
-
-      const dados = await resposta.json();
-
-      if (!resposta.ok) {
-        setErro(dados.erro || 'Erro ao salvar contato');
-        return;
-      }
-
-      setSucesso(idSendoEditado ? 'Contato atualizado com sucesso!' : 'Novo contato captado!');
-      limparEdicao();
-      setTimeout(() => carregarAulas(true), 1000);
-    } catch (erro) {
-      setErro('Erro ao salvar aula experimental');
-    }
+    setErro(''); setSucesso('');
+    if (!formData.nome_aluno.trim()) return setErro('Nome do aluno é obrigatório');
+    if (!formData.telefone.trim()) return setErro('Telefone é obrigatório');
+    mutacaoSalvar.mutate(formData);
   };
 
-  const atualizarStatus = async (id, novoStatus) => {
-    const token = localStorage.getItem('@sonatta:token');
-    if (!token) return;
-
-    // Atualização otimista (instantânea na UI)
-    const aulasAnteriores = [...aulas];
-    setAulas(prev => prev.map(a => String(a.id) === String(id) ? { ...a, status: novoStatus } : a));
-
-    try {
-      const resposta = await fetch(`${API_URL}/api/aulas-experimentais/${id}/status`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({ status: novoStatus })
-      });
-
-      if (!resposta.ok) {
-        setErro('Erro ao mover contato');
-        setAulas(aulasAnteriores); // Reverte se falhou no backend
-      }
-    } catch (err) {
-      setErro('Erro de conexão ao mover');
-      setAulas(aulasAnteriores); // Reverte se falhou no backend
-    }
-  };
-
-  const atualizarSituacao = async (id, novaSituacao) => {
-    const token = localStorage.getItem('@sonatta:token');
-    if (!token) return;
-
-    // Atualização otimista
-    const aulasAnteriores = [...aulas];
-    setAulas(prev => prev.map(a => {
-      if (String(a.id) === String(id)) {
-        const novoStatus = (a.status !== 'matriculado' && a.status !== 'perdido' && novaSituacao !== 'pendente') ? 'realizada' : a.status;
-        return { ...a, situacao_aula: novaSituacao, status: novoStatus };
-      }
-      return a;
-    }));
-
-    try {
-      const resposta = await fetch(`${API_URL}/api/aulas-experimentais/${id}/situacao`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({ situacao_aula: novaSituacao })
-      });
-
-      if (!resposta.ok) {
-        setErro('Erro ao atualizar situação');
-        setAulas(aulasAnteriores);
-      }
-    } catch (err) {
-      setErro('Erro de conexão ao atualizar situação');
-      setAulas(aulasAnteriores);
-    }
-  };
-
-  const handleExcluir = async (id) => {
-    if (!window.confirm('Deseja excluir este lead permanentemente?')) return;
-    const token = localStorage.getItem('@sonatta:token');
-    if (!token) return;
-
-    try {
-      const resposta = await fetch(`${API_URL}/api/aulas-experimentais/${id}`, {
-        method: 'DELETE',
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      if (!resposta.ok) throw new Error('Erro ao excluir');
-      setSucesso('Lead excluído com sucesso!');
-      carregarAulas(true);
-    } catch (erro) {
-      setErro('Erro ao excluir lead');
+  const handleExcluir = (id) => {
+    if (window.confirm('Deseja excluir este lead permanentemente?')) {
+      mutacaoExcluir.mutate(id);
     }
   };
 
   const handleEditar = (aula) => {
     setIdSendoEditado(aula.id);
     setFormData({
-      nome_aluno: aula.nome_aluno,
-      telefone: aula.telefone,
-      instrumento: aula.instrumento || '',
-      data_aula: aula.data_aula || '',
-      horario_aula: aula.horario_aula || '',
-      professor_id: aula.professor_id || '',
-      status: aula.status || 'novo_contato'
+      nome_aluno: aula.nome_aluno, telefone: aula.telefone, instrumento: aula.instrumento || '',
+      data_aula: aula.data_aula || '', horario_aula: aula.horario_aula || '',
+      professor_id: aula.professor_id || '', status: aula.status || 'novo_contato'
     });
     setMostrando_formulario(true);
   };
 
   const limparEdicao = () => {
     setIdSendoEditado(null);
-    setFormData({
-      nome_aluno: '',
-      telefone: '',
-      instrumento: '',
-      data_aula: '',
-      horario_aula: '',
-      professor_id: '',
-      status: 'agendada'
-    });
+    setFormData({ nome_aluno: '', telefone: '', instrumento: '', data_aula: '', horario_aula: '', professor_id: '', status: 'agendada' });
     setMostrando_formulario(false);
   };
 
@@ -278,108 +189,72 @@ export default function AulasExperimentais() {
     return d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
   };
 
-  // Funções de mover nos botões
   const moverPara = (aula, direcao) => {
     const currentIndex = STATUS_STAGES.findIndex(s => s.id === (aula.status || 'novo_contato'));
     if (direcao === 'frente' && currentIndex < STATUS_STAGES.length - 1) {
-      atualizarStatus(aula.id, STATUS_STAGES[currentIndex + 1].id);
+      mutacaoStatus.mutate({ id: aula.id, status: STATUS_STAGES[currentIndex + 1].id });
     } else if (direcao === 'tras' && currentIndex > 0) {
-      atualizarStatus(aula.id, STATUS_STAGES[currentIndex - 1].id);
+      mutacaoStatus.mutate({ id: aula.id, status: STATUS_STAGES[currentIndex - 1].id });
     }
   };
 
   return (
     <div className="w-full h-full bg-slate-50 dark:bg-zinc-950 text-zinc-900 dark:text-white flex flex-col">
-      {/* Header */}
       <div className="bg-white dark:bg-gradient-to-r dark:from-zinc-900 dark:to-zinc-800 border-b border-zinc-200 dark:border-zinc-800 p-6 flex-shrink-0">
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div>
             <h1 className="text-3xl font-bold text-zinc-900 dark:text-white mb-2">🚀 CRM & Funil de Vendas</h1>
-            <p className="text-zinc-400">Gerencie contatos e aulas experimentais</p>
+            <p className="text-zinc-400">Gerencie contatos e aulas experimentais (Refatorado com React Query)</p>
           </div>
-          <button
-            onClick={() => setMostrando_formulario(!mostrando_formulario)}
-            className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg font-medium transition-all"
-          >
-            <Plus size={20} />
-            Novo Lead
+          <button onClick={() => setMostrando_formulario(!mostrando_formulario)} className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg font-medium transition-all">
+            <Plus size={20} /> Novo Lead
           </button>
         </div>
       </div>
 
-      {/* Mensagens */}
       {(erro || sucesso) && (
         <div className="px-6 pt-4 flex-shrink-0">
-          {erro && (
-            <div className="p-4 bg-rose-500/10 border border-rose-500/30 rounded-lg text-rose-400 flex items-center gap-2">
-              ❌ {erro}
-            </div>
-          )}
-          {sucesso && (
-            <div className="p-4 bg-emerald-500/10 border border-emerald-500/30 rounded-lg text-emerald-400 flex items-center gap-2">
-              ✅ {sucesso}
-            </div>
-          )}
+          {erro && <div className="p-4 bg-rose-500/10 border border-rose-500/30 rounded-lg text-rose-400 flex items-center gap-2">❌ {erro}</div>}
+          {sucesso && <div className="p-4 bg-emerald-500/10 border border-emerald-500/30 rounded-lg text-emerald-400 flex items-center gap-2">✅ {sucesso}</div>}
         </div>
       )}
 
-      {/* Formulário Modal/Inline */}
       {mostrando_formulario && (
         <div className="mx-6 mt-6 p-6 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl shadow-sm flex-shrink-0">
           <h2 className="text-xl font-bold text-zinc-900 dark:text-white mb-4 flex items-center gap-2">{idSendoEditado ? <><Edit2 size={24} /> Editar Contato</> : <><Plus size={24} /> Cadastrar Novo Lead</>}</h2>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               <div>
-                <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1 flex items-center gap-2">
-                  <User size={16} /> Nome do Aluno *
-                </label>
-                <input type="text" name="nome_aluno" value={formData.nome_aluno} onChange={handleMudanca} required placeholder="Ex: João Silva" className="w-full px-3 py-2 bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-lg text-zinc-900 dark:text-white focus:border-emerald-500 outline-none" />
+                <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1 flex items-center gap-2"><User size={16} /> Nome do Aluno *</label>
+                <input type="text" name="nome_aluno" value={formData.nome_aluno} onChange={handleMudanca} required placeholder="Ex: João Silva" className="w-full px-3 py-2 bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-lg outline-none" />
               </div>
-
               <div>
-                <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1 flex items-center gap-2">
-                  <Phone size={16} /> Telefone *
-                </label>
-                <input type="tel" name="telefone" value={formData.telefone} onChange={handleMudanca} required placeholder="(11) 99999-9999" className="w-full px-3 py-2 bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-lg text-zinc-900 dark:text-white focus:border-emerald-500 outline-none" />
+                <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1 flex items-center gap-2"><Phone size={16} /> Telefone *</label>
+                <input type="tel" name="telefone" value={formData.telefone} onChange={handleMudanca} required placeholder="(11) 99999-9999" className="w-full px-3 py-2 bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-lg outline-none" />
               </div>
-
               <div>
-                <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1 flex items-center gap-2">
-                  <Music size={16} /> Instrumento (Opcional)
-                </label>
-                <input type="text" name="instrumento" value={formData.instrumento} onChange={handleMudanca} placeholder="Ex: Piano" className="w-full px-3 py-2 bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-lg text-zinc-900 dark:text-white focus:border-emerald-500 outline-none" />
+                <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1 flex items-center gap-2"><Music size={16} /> Instrumento</label>
+                <input type="text" name="instrumento" value={formData.instrumento} onChange={handleMudanca} className="w-full px-3 py-2 bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-lg outline-none" />
               </div>
-
               <div>
-                <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1 flex items-center gap-2">
-                  <Calendar size={16} /> Data da Aula (Opcional)
-                </label>
-                <input type="date" name="data_aula" value={formData.data_aula} onChange={handleMudanca} className="w-full px-3 py-2 bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-lg text-zinc-900 dark:text-white focus:border-emerald-500 outline-none [color-scheme:light] dark:[color-scheme:dark]" />
+                <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1 flex items-center gap-2"><Calendar size={16} /> Data da Aula</label>
+                <input type="date" name="data_aula" value={formData.data_aula} onChange={handleMudanca} className="w-full px-3 py-2 bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-lg outline-none [color-scheme:light] dark:[color-scheme:dark]" />
               </div>
-
               <div>
-                <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1 flex items-center gap-2">
-                  <Clock size={16} /> Horário (Opcional)
-                </label>
-                <input type="time" name="horario_aula" value={formData.horario_aula} onChange={handleMudanca} className="w-full px-3 py-2 bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-lg text-zinc-900 dark:text-white focus:border-emerald-500 outline-none [color-scheme:light] dark:[color-scheme:dark]" />
+                <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1 flex items-center gap-2"><Clock size={16} /> Horário</label>
+                <input type="time" name="horario_aula" value={formData.horario_aula} onChange={handleMudanca} className="w-full px-3 py-2 bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-lg outline-none [color-scheme:light] dark:[color-scheme:dark]" />
               </div>
-
               <div>
-                <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1 flex items-center gap-2">
-                  <User size={16} /> Professor (Opcional)
-                </label>
-                <select name="professor_id" value={formData.professor_id} onChange={handleMudanca} className="w-full px-3 py-2 bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-lg text-zinc-900 dark:text-white focus:border-emerald-500 outline-none">
+                <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1 flex items-center gap-2"><User size={16} /> Professor</label>
+                <select name="professor_id" value={formData.professor_id} onChange={handleMudanca} className="w-full px-3 py-2 bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-lg outline-none">
                   <option value="">Selecione...</option>
-                  {professores.map(p => (
-                    <option key={p.id} value={p.id}>{p.nome}</option>
-                  ))}
+                  {professores.map(p => <option key={p.id} value={p.id}>{p.nome}</option>)}
                 </select>
               </div>
             </div>
-
             <div className="flex justify-end gap-2 pt-4">
               <button type="button" onClick={limparEdicao} className="px-4 py-2 bg-zinc-200 dark:bg-zinc-800 text-zinc-700 dark:text-white rounded-lg">Cancelar</button>
-              <button type="submit" className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-medium">{idSendoEditado ? 'Salvar Edição' : 'Cadastrar Lead'}</button>
+              <button type="submit" disabled={mutacaoSalvar.isPending} className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-medium">{idSendoEditado ? 'Salvar Edição' : 'Cadastrar Lead'}</button>
             </div>
           </form>
         </div>
@@ -387,10 +262,8 @@ export default function AulasExperimentais() {
 
       {/* Kanban Board */}
       <div className="flex-1 overflow-x-auto p-6 flex gap-6 items-start custom-scrollbar min-h-0">
-        {carregando ? (
-          <div className="w-full h-full flex items-center justify-center">
-            <div className="w-8 h-8 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin"></div>
-          </div>
+        {carregandoAulas ? (
+          <KanbanSkeleton />
         ) : (
           STATUS_STAGES.map((stage, stageIndex) => {
             const stageAulas = aulas.filter(a => (a.status || 'novo_contato') === stage.id);
@@ -398,44 +271,29 @@ export default function AulasExperimentais() {
               <div
                 key={stage.id}
                 className={`w-[320px] flex-shrink-0 flex flex-col h-full rounded-xl border transition-colors ${dragOverStage === stage.id ? 'bg-zinc-200/50 dark:bg-zinc-800/80 border-emerald-500/50' : 'bg-zinc-100/50 dark:bg-zinc-900/50 border-zinc-200 dark:border-zinc-800/50'}`}
-                onDragOver={(e) => {
-                  e.preventDefault();
-                  setDragOverStage(stage.id);
-                }}
-                onDragLeave={() => {
-                  setDragOverStage(null);
-                }}
+                onDragOver={(e) => { e.preventDefault(); setDragOverStage(stage.id); }}
+                onDragLeave={() => setDragOverStage(null)}
                 onDrop={(e) => {
                   e.preventDefault();
                   setDragOverStage(null);
                   const aulaId = e.dataTransfer.getData('aulaId');
-                  if (aulaId) {
-                    atualizarStatus(aulaId, stage.id);
-                  }
+                  if (aulaId) mutacaoStatus.mutate({ id: aulaId, status: stage.id });
                 }}
               >
-                {/* Column Header */}
                 <div className={`px-4 py-3 border-b border-zinc-200 dark:border-zinc-800 rounded-t-xl flex justify-between items-center ${stage.color} bg-opacity-20`}>
                   <h3 className="font-bold text-sm uppercase tracking-wider">{stage.label}</h3>
-                  <span className="bg-white/20 dark:bg-black/20 text-xs font-bold px-2 py-1 rounded-full">
-                    {stageAulas.length}
-                  </span>
+                  <span className="bg-white/20 dark:bg-black/20 text-xs font-bold px-2 py-1 rounded-full">{stageAulas.length}</span>
                 </div>
 
-                {/* Column Cards */}
                 <div className="p-3 flex-1 overflow-y-auto custom-scrollbar space-y-3">
                   {stageAulas.length === 0 ? (
-                    <div className="text-center p-4 text-zinc-400 dark:text-zinc-500 text-sm border-2 border-dashed border-zinc-200 dark:border-zinc-800 rounded-lg">
-                      Nenhum contato
-                    </div>
+                    <div className="text-center p-4 text-zinc-400 dark:text-zinc-500 text-sm border-2 border-dashed border-zinc-200 dark:border-zinc-800 rounded-lg">Nenhum contato</div>
                   ) : (
                     stageAulas.map(aula => (
                       <div
                         key={aula.id}
                         draggable
-                        onDragStart={(e) => {
-                          e.dataTransfer.setData('aulaId', aula.id.toString());
-                        }}
+                        onDragStart={(e) => e.dataTransfer.setData('aulaId', aula.id.toString())}
                         className="bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg p-3 shadow-sm hover:border-emerald-500/50 transition-colors group cursor-grab active:cursor-grabbing"
                       >
                         <div className="flex justify-between items-start mb-2">
@@ -452,11 +310,9 @@ export default function AulasExperimentais() {
                             target="_blank"
                             rel="noopener noreferrer"
                             className="flex items-center gap-2 text-xs text-emerald-600 dark:text-emerald-400 hover:text-emerald-500 transition-colors w-fit"
-                            title="Chamar no WhatsApp"
                             onClick={(e) => e.stopPropagation()}
                           >
-                            <MessageCircle size={12} />
-                            {aula.telefone}
+                            <MessageCircle size={12} /> {aula.telefone}
                           </a>
                           {(aula.data_aula || aula.horario_aula) && (
                             <div className="flex flex-col gap-1.5 mt-2">
@@ -468,7 +324,7 @@ export default function AulasExperimentais() {
                               </div>
                               <select
                                 value={aula.situacao_aula || 'pendente'}
-                                onChange={(e) => atualizarSituacao(aula.id, e.target.value)}
+                                onChange={(e) => mutacaoSituacao.mutate({ id: aula.id, situacao_aula: e.target.value })}
                                 onClick={(e) => e.stopPropagation()}
                                 className={`text-[10px] font-bold bg-zinc-100 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-md px-1.5 py-0.5 outline-none cursor-pointer hover:border-emerald-500/50 transition-colors w-max
                                   ${aula.situacao_aula === 'presente' ? 'text-emerald-600 bg-emerald-500/10 border-emerald-500/30' :
@@ -483,37 +339,14 @@ export default function AulasExperimentais() {
                               </select>
                             </div>
                           )}
-                          {aula.instrumento && (
-                            <div className="flex items-center gap-2 text-xs text-zinc-600 dark:text-zinc-400">
-                              <Music size={12} className="text-zinc-400" />
-                              {aula.instrumento}
-                            </div>
-                          )}
-                          {aula.professor_nome && (
-                            <div className="flex items-center gap-2 text-xs text-zinc-600 dark:text-zinc-400">
-                              <User size={12} className="text-zinc-400" />
-                              {aula.professor_nome}
-                            </div>
-                          )}
+                          {aula.instrumento && <div className="flex items-center gap-2 text-xs text-zinc-600 dark:text-zinc-400"><Music size={12} className="text-zinc-400" />{aula.instrumento}</div>}
+                          {aula.professor_nome && <div className="flex items-center gap-2 text-xs text-zinc-600 dark:text-zinc-400"><User size={12} className="text-zinc-400" />{aula.professor_nome}</div>}
                         </div>
 
-                        {/* Move Actions */}
                         <div className="pt-2 border-t border-zinc-100 dark:border-zinc-700 flex justify-between items-center">
-                          <button
-                            onClick={() => moverPara(aula, 'tras')}
-                            disabled={stageIndex === 0}
-                            className="p-1.5 rounded bg-zinc-100 dark:bg-zinc-700/50 hover:bg-zinc-200 dark:hover:bg-zinc-600 text-zinc-600 dark:text-zinc-300 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-                          >
-                            <ChevronLeft size={16} />
-                          </button>
+                          <button onClick={() => moverPara(aula, 'tras')} disabled={stageIndex === 0} className="p-1.5 rounded bg-zinc-100 dark:bg-zinc-700/50 hover:bg-zinc-200 dark:hover:bg-zinc-600 text-zinc-600 dark:text-zinc-300 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"><ChevronLeft size={16} /></button>
                           <span className="text-[10px] uppercase font-bold text-zinc-400">Mover</span>
-                          <button
-                            onClick={() => moverPara(aula, 'frente')}
-                            disabled={stageIndex === STATUS_STAGES.length - 1}
-                            className="p-1.5 rounded bg-zinc-100 dark:bg-zinc-700/50 hover:bg-zinc-200 dark:hover:bg-zinc-600 text-zinc-600 dark:text-zinc-300 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-                          >
-                            <ChevronRight size={16} />
-                          </button>
+                          <button onClick={() => moverPara(aula, 'frente')} disabled={stageIndex === STATUS_STAGES.length - 1} className="p-1.5 rounded bg-zinc-100 dark:bg-zinc-700/50 hover:bg-zinc-200 dark:hover:bg-zinc-600 text-zinc-600 dark:text-zinc-300 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"><ChevronRight size={16} /></button>
                         </div>
                       </div>
                     ))

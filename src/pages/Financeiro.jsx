@@ -1,12 +1,12 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { exportarParaCSV, exportarParaPDF } from '../utils/exportar';
 import { Receipt, Plus, Edit, Trash2 } from 'lucide-react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { TableSkeleton } from '../components/Skeleton';
 
 const _envApi = import.meta.env.VITE_API_URL;
 const _defaultLocal = 'http://localhost:3005';
 const API_URL = (typeof window !== 'undefined' && window.location && window.location.hostname.includes('localhost')) ? _defaultLocal : (_envApi || _defaultLocal);
-const canalComunicacao = new BroadcastChannel('sonatta_updates');
-const canalSincronizacao = new BroadcastChannel('sonatta_sync');
 
 export default function Financeiro() {
   const [transacoes, setTransacoes] = useState([]);
@@ -83,27 +83,24 @@ export default function Financeiro() {
   // Estados para edição
   const [editandoId, setEditandoId] = useState(null);
 
+  const queryClient = useQueryClient();
+  const token = localStorage.getItem('@sonatta:token');
+
   // 📚 Carregar alunos
-  const carregarAlunos = async () => {
-    const token = localStorage.getItem('@sonatta:token');
-    if (!token) return;
-    try {
-      const resposta = await fetch(`${API_URL}/api/alunos`, {
-        method: 'GET',
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
+  const { data: alunos = [] } = useQuery({
+    queryKey: ['alunos_financeiro'],
+    queryFn: async () => {
+      const resposta = await fetch(`${API_URL}/api/alunos`, { headers: { 'Authorization': `Bearer ${token}` } });
       const dados = await resposta.json();
-      setAlunos(Array.isArray(dados) ? dados.filter(a => a.status === 'Ativo' && a.mensalidade) : []);
-    } catch (erro) {
-      console.error("Erro ao buscar alunos:", erro);
-    }
-  };
+      return Array.isArray(dados) ? dados.filter(a => a.status === 'Ativo' && a.mensalidade) : [];
+    },
+    enabled: !!token
+  });
 
-  const carregarFinanceiro = async () => {
-    const token = localStorage.getItem('@sonatta:token');
-    if (!token) return;
-
-    try {
+  // 💰 Carregar Financeiro (Transações e Resumo)
+  const { data: dadosFinanceiros, isLoading: carregandoFinanceiro } = useQuery({
+    queryKey: ['financeiro', { busca, filtroTipo, filtroStatus, mesFiltro, anoFiltro, dataInicio, dataFim, modoFiltroData }],
+    queryFn: async () => {
       const params = new URLSearchParams({
         busca,
         tipo: filtroTipo === 'Todos' ? '' : filtroTipo,
@@ -116,39 +113,29 @@ export default function Financeiro() {
       } else {
         if (dataInicio) params.append('dataInicio', dataInicio);
         if (dataFim) params.append('dataFim', dataFim);
-        // Enviamos um parâmetro para ignorar o mês atual no backend caso esteja filtrando por período
         params.append('ignorarMesPadrao', 'true');
       }
 
       const [resposta, resumoResp] = await Promise.all([
-        fetch(`${API_URL}/api/financeiro?${params.toString()}`, {
-          method: 'GET',
-          headers: { 'Authorization': `Bearer ${token}` }
-        }),
-        fetch(`${API_URL}/api/financeiro/resumo?${params.toString()}`, {
-          method: 'GET',
-          headers: { 'Authorization': `Bearer ${token}` }
-        })
+        fetch(`${API_URL}/api/financeiro?${params.toString()}`, { headers: { 'Authorization': `Bearer ${token}` } }),
+        fetch(`${API_URL}/api/financeiro/resumo?${params.toString()}`, { headers: { 'Authorization': `Bearer ${token}` } })
       ]);
 
       if (resposta.status === 403) {
-        console.error('Acesso negado: Token inválido ou expirado.');
-        setTransacoes([]);
-        setResumoFinanceiro({ receitas: 0, despesas: 0, saldo: 0, total_lancamentos: 0 });
-        return;
+        localStorage.removeItem('@sonatta:token'); window.location.href = '/login';
+        throw new Error('Acesso negado');
       }
-
-      const dados = await resposta.json();
-      const resumo = resumoResp.ok ? await resumoResp.json() : { receitas: 0, despesas: 0, saldo: 0, total_lancamentos: 0 };
-
-      setTransacoes(Array.isArray(dados) ? dados : []);
-      setResumoFinanceiro(resumo);
-    } catch (erro) {
-      console.error('Erro ao buscar dados financeiros:', erro);
-      setTransacoes([]);
-      setResumoFinanceiro({ receitas: 0, despesas: 0, saldo: 0, total_lancamentos: 0 });
-    }
-  };
+      
+      const transacoesData = await resposta.json();
+      const resumoData = resumoResp.ok ? await resumoResp.json() : { receitas: 0, despesas: 0, saldo: 0, total_lancamentos: 0 };
+      
+      return { transacoes: Array.isArray(transacoesData) ? transacoesData : [], resumo: resumoData };
+    },
+    enabled: !!token
+  });
+  
+  const transacoes = dadosFinanceiros?.transacoes || [];
+  const resumoFinanceiro = dadosFinanceiros?.resumo || { receitas: 0, despesas: 0, saldo: 0, total_lancamentos: 0 };
 
   const exportarFinanceiroCSV = () => {
     const colunas = [
@@ -171,54 +158,38 @@ export default function Financeiro() {
     ];
     const dados = transacoes.map(r => ({
       ...r,
-      data: formatarData(r.data),
+      data: (typeof r.data === 'string' ? r.data.split('T')[0] : r.data).split('-').reverse().join('/'),
       valor: Number(r.valor).toFixed(2)
     }));
     exportarParaPDF(dados, colunas, 'Relatório Financeiro', 'historico_financeiro');
   };
 
   useEffect(() => {
-    const token = localStorage.getItem('@sonatta:token');
     if (token) {
-      fetch(`${API_URL}/api/escola`, {
-        headers: { 'Authorization': `Bearer ${token}` }
-      })
+      fetch(`${API_URL}/api/escola`, { headers: { 'Authorization': `Bearer ${token}` } })
       .then(r => r.json())
-      .then(data => {
-        if (data.asaas_api_key) setAsaasConfigurado(true);
-      })
+      .then(data => { if (data.asaas_api_key) setAsaasConfigurado(true); })
       .catch(err => console.error('Erro ao verificar Asaas:', err));
     }
-  }, []);
+  }, [token]);
 
-  const carregarFinanceiroProfessores = async () => {
-    const token = localStorage.getItem('@sonatta:token');
-    if (!token) return;
-    setCarregandoProfessores(true);
-    try {
-      const resProfs = await fetch(`${API_URL}/api/professores`, {
-        method: 'GET',
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
+  // 👨‍🏫 Carregar Financeiro Professores
+  const { data: professoresFinanceiro = [], isLoading: carregandoProfessores } = useQuery({
+    queryKey: ['financeiro_professores', { mesFiltro, anoFiltro }],
+    queryFn: async () => {
+      const resProfs = await fetch(`${API_URL}/api/professores`, { headers: { 'Authorization': `Bearer ${token}` } });
       if (!resProfs.ok) throw new Error();
       const profs = await resProfs.json();
       
       const promessas = profs.map(async (prof) => {
-        const resFin = await fetch(`${API_URL}/api/professores/${prof.id}/financeiro?mes=${mesFiltro}&ano=${anoFiltro}`, {
-          method: 'GET',
-          headers: { 'Authorization': `Bearer ${token}` }
-        });
-        if (resFin.ok) {
-          return await resFin.json();
-        }
-        return null;
+        const resFin = await fetch(`${API_URL}/api/professores/${prof.id}/financeiro?mes=${mesFiltro}&ano=${anoFiltro}`, { headers: { 'Authorization': `Bearer ${token}` } });
+        return resFin.ok ? await resFin.json() : null;
       });
       const resultados = await Promise.all(promessas);
-      setProfessoresFinanceiro(resultados.filter(r => r !== null));
-    } finally {
-      setCarregandoProfessores(false);
-    }
-  };
+      return resultados.filter(r => r !== null);
+    },
+    enabled: !!token
+  });
 
   const abrirModalRepasse = (profData) => {
     setProfessorSelecionado(profData);
@@ -227,57 +198,43 @@ export default function Financeiro() {
     setModalRepasseAberto(true);
   };
 
-  const registrarPagamentoRepasse = async () => {
-    if (!professorSelecionado) return;
-    setSalvandoRepasse(true);
-    const token = localStorage.getItem('@sonatta:token');
-    try {
-      const prof = professorSelecionado.professor;
-      const valor = professorSelecionado.tipo_remuneracao === 'comissao'
-        ? professorSelecionado.repasse_pendente_valor
-        : professorSelecionado.total_a_pagar;
-
-      const resposta = await fetch(`${API_URL}/api/professores/${prof.id}/repasse/pagar`, {
+  // 💳 Registrar Pagamento Repasse (Mutation)
+  const mutacaoRepasse = useMutation({
+    mutationFn: async ({ profId, payload }) => {
+      const resposta = await fetch(`${API_URL}/api/professores/${profId}/repasse/pagar`, {
         method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({
-          mes: mesFiltro,
-          ano: anoFiltro,
-          forma_pagamento: formaPagamentoRepasse,
-          observacao: observacaoRepasse,
-          valor
-        })
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify(payload)
       });
+      if (!resposta.ok) throw new Error((await resposta.json()).erro || 'Erro ao registrar pagamento.');
+    },
+    onSuccess: () => {
+      setModalRepasseAberto(false);
+      setProfessorSelecionado(null);
+      queryClient.invalidateQueries({ queryKey: ['financeiro_professores'] });
+      queryClient.invalidateQueries({ queryKey: ['financeiro'] });
+    },
+    onError: (err) => alert(err.message)
+  });
 
-      if (resposta.ok) {
-        setModalRepasseAberto(false);
-        setProfessorSelecionado(null);
-        carregarFinanceiroProfessores();
-        canalComunicacao.postMessage('atualizar_dados');
-      } else {
-        const err = await resposta.json();
-        alert(err.erro || 'Erro ao registrar pagamento.');
+  const registrarPagamentoRepasse = () => {
+    if (!professorSelecionado) return;
+    const prof = professorSelecionado.professor;
+    const valor = professorSelecionado.tipo_remuneracao === 'comissao'
+      ? professorSelecionado.repasse_pendente_valor
+      : professorSelecionado.total_a_pagar;
+
+    mutacaoRepasse.mutate({
+      profId: prof.id,
+      payload: {
+        mes: mesFiltro,
+        ano: anoFiltro,
+        forma_pagamento: formaPagamentoRepasse,
+        observacao: observacaoRepasse,
+        valor
       }
-    } catch (erro) {
-      alert('Erro de conexão ao registrar pagamento.');
-    } finally {
-      setSalvandoRepasse(false);
-    }
+    });
   };
-
-  useEffect(() => {
-    const delayDebounce = setTimeout(() => {
-      carregarFinanceiro();
-      carregarAlunos();
-      carregarFinanceiroProfessores();
-    }, 400);
-    return () => clearTimeout(delayDebounce);
-  }, [mesFiltro, anoFiltro, busca, filtroTipo, filtroStatus, dataInicio, dataFim, modoFiltroData]);
-
-
 
   // Resetar páginas ao trocar de aba ou mês
   useEffect(() => {
@@ -285,130 +242,85 @@ export default function Financeiro() {
     setPaginaTransacoes(1);
   }, [abaSelecionada, mesFiltro, anoFiltro]);
 
-  useEffect(() => {
-    // Escuta mensagens de outras páginas
-    const escutarCanal = (evento) => {
-      const msg = evento.data;
-      if (msg === 'atualizar_dados' || msg.tipo === 'aula-criada' || msg.tipo === 'aula-removida') {
-        carregarFinanceiro();
-        carregarAlunos();
-        carregarFinanceiroProfessores();
-      }
-    };
-
-    // Escuta quando a aba de financeiro fica ativa
-    const escutarSincronizacao = (evento) => {
-      if (evento.data.tipo === 'muda_aba' && evento.data.aba === 'financeiro') {
-        carregarFinanceiro();
-        carregarAlunos();
-        carregarFinanceiroProfessores();
-      }
-    };
-
-    canalComunicacao.addEventListener('message', escutarCanal);
-    canalSincronizacao.addEventListener('message', escutarSincronizacao);
-
-    return () => {
-      canalComunicacao.removeEventListener('message', escutarCanal);
-      canalSincronizacao.removeEventListener('message', escutarSincronizacao);
-    };
-  }, []);
-
   // 💰 Alternar status de mensalidade de um aluno
-  const alternarStatusMensalidade = async (alunoId, alunoNome, statusAtual) => {
-    const token = localStorage.getItem('@sonatta:token');
-    const novoStatus = statusAtual === 'Pago' ? 'Pendente' : 'Pago';
-    const dataPgto = novoStatus === 'Pago' ? (isMesAtual ? new Date().toISOString().split('T')[0] : `${anoFiltro}-${String(mesFiltro).padStart(2, '0')}-10`) : null;
-    
-    try {
+  const mutacaoStatusMensalidade = useMutation({
+    mutationFn: async ({ alunoId, novoStatus }) => {
+      const dataPgto = novoStatus === 'Pago' ? (isMesAtual ? new Date().toISOString().split('T')[0] : `${anoFiltro}-${String(mesFiltro).padStart(2, '0')}-10`) : null;
       const resposta = await fetch(`${API_URL}/api/financeiro/aluno-${alunoId}/status`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
         body: JSON.stringify({ status: novoStatus, mes: mesFiltro, ano: anoFiltro })
       });
-      if (resposta.ok) {
-        setAlunos(prev => prev.map(a => 
-          a.id === alunoId ? { ...a, status_mensalidade: novoStatus, data_pagamento_mensalidade: dataPgto } : a
-        ));
-        
-        // Atualiza transações localmente para a UI reagir instantaneamente
-        if (!isMesAtual) {
-          if (novoStatus === 'Pago') {
-            setTransacoes(prev => [
-              { aluno_id: alunoId, tipo: 'Receita', descricao: 'Mensalidade', status: 'Pago', data: dataPgto },
-              ...prev
-            ]);
-          } else {
-            setTransacoes(prev => prev.filter(t => !(t.aluno_id === alunoId && t.tipo === 'Receita' && t.descricao.toLowerCase().includes('mensalidade'))));
-          }
-        }
-        
-        carregarFinanceiro(); // Atualiza a tabela com os IDs reais do banco
-        canalComunicacao.postMessage('atualizar_dados');
-      } else {
-        const erroData = await resposta.json();
-        alert(`Erro ao atualizar status: ${erroData.erro || 'Erro desconhecido'}`);
-      }
-    } catch (erro) { console.error(erro); }
+      if (!resposta.ok) throw new Error('Erro ao alterar status da mensalidade.');
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['alunos_financeiro'] }),
+    onError: (err) => console.error(err)
+  });
+
+  const alternarStatusMensalidade = (alunoId, alunoNome, statusAtual) => {
+    const novoStatus = statusAtual === 'Pago' ? 'Pendente' : 'Pago';
+    mutacaoStatusMensalidade.mutate({ alunoId, novoStatus });
   };
 
-  const alternarStatusLancamento = async (id, statusAtual) => {
-    const token = localStorage.getItem('@sonatta:token');
-    const novoStatus = statusAtual === 'Pago' ? 'Pendente' : 'Pago';
-    try {
+  const mutacaoStatusLancamento = useMutation({
+    mutationFn: async ({ id, novoStatus }) => {
       const resposta = await fetch(`${API_URL}/api/financeiro/${id}/status`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
         body: JSON.stringify({ status: novoStatus })
       });
-      if (resposta.ok) {
-        setTransacoes(prev => prev.map(t => (t.id === id ? { ...t, status: novoStatus } : t)));
-        canalComunicacao.postMessage('atualizar_dados');
-      }
-    } catch (erro) { console.error(erro); }
+      if (!resposta.ok) throw new Error('Erro ao alterar status do lançamento.');
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['financeiro'] }),
+    onError: (err) => console.error(err)
+  });
+
+  const alternarStatusLancamento = (id, statusAtual) => {
+    const novoStatus = statusAtual === 'Pago' ? 'Pendente' : 'Pago';
+    mutacaoStatusLancamento.mutate({ id, novoStatus });
   };
 
-  const gerarCobrancaAsaas = async (id, tipoLancamento) => {
-    const token = localStorage.getItem('@sonatta:token');
-    try {
+  const mutacaoAsaas = useMutation({
+    mutationFn: async (id) => {
       const resposta = await fetch(`${API_URL}/api/financeiro/${id}/gerar-asaas`, {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${token}` }
       });
-      const data = await resposta.json();
-        if (resposta.ok) {
-        alert('Cobrança gerada com sucesso!');
-        carregarFinanceiro();
-        carregarAlunos();
-      } else {
-        alert(`Erro ao gerar cobrança: ${data.erro}`);
+      if (!resposta.ok) {
+        const data = await resposta.json();
+        throw new Error(data.erro || 'Erro ao gerar cobrança.');
       }
-    } catch (erro) {
-      console.error(erro);
-      alert('Erro de conexão ao gerar cobrança no Asaas.');
-    }
-  };
+    },
+    onSuccess: () => {
+      alert('Cobrança gerada com sucesso!');
+      queryClient.invalidateQueries({ queryKey: ['financeiro'] });
+      queryClient.invalidateQueries({ queryKey: ['alunos_financeiro'] });
+    },
+    onError: (err) => alert(`Erro ao gerar cobrança: ${err.message}`)
+  });
 
-  const gerarMensalidadeManual = async (alunoId) => {
-    const token = localStorage.getItem('@sonatta:token');
-    try {
+  const gerarCobrancaAsaas = (id) => mutacaoAsaas.mutate(id);
+
+  const mutacaoGerarMensalidade = useMutation({
+    mutationFn: async (alunoId) => {
       const resposta = await fetch(`${API_URL}/api/financeiro/aluno-${alunoId}/gerar-mensalidade`, {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${token}` }
       });
-      const data = await resposta.json();
-      if (resposta.ok) {
-        alert('Mensalidade gerada com sucesso! O aluno já pode ver no portal.');
-        carregarFinanceiro();
-        carregarAlunos();
-      } else {
-        alert(`Erro ao gerar mensalidade: ${data.erro}`);
+      if (!resposta.ok) {
+        const data = await resposta.json();
+        throw new Error(data.erro || 'Erro ao gerar mensalidade.');
       }
-    } catch (erro) {
-      console.error(erro);
-      alert('Erro de conexão ao gerar mensalidade.');
-    }
-  };
+    },
+    onSuccess: () => {
+      alert('Mensalidade gerada com sucesso! O aluno já pode ver no portal.');
+      queryClient.invalidateQueries({ queryKey: ['financeiro'] });
+      queryClient.invalidateQueries({ queryKey: ['alunos_financeiro'] });
+    },
+    onError: (err) => alert(`Erro ao gerar mensalidade: ${err.message}`)
+  });
+
+  const gerarMensalidadeManual = (alunoId) => mutacaoGerarMensalidade.mutate(alunoId);
 
   const fecharModal = () => {
     setModalAberto(false);
@@ -423,74 +335,50 @@ export default function Financeiro() {
     });
   };
 
-  const handleNovoLancamento = async (e) => {
+  const mutacaoSalvarLancamento = useMutation({
+    mutationFn: async (payload) => {
+      const url = editandoId ? `${API_URL}/api/financeiro/${editandoId}` : `${API_URL}/api/financeiro`;
+      const method = editandoId ? 'PUT' : 'POST';
+      const resposta = await fetch(url, {
+        method,
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify(payload)
+      });
+      if (!resposta.ok) throw new Error('Erro ao processar o lançamento. Verifique os dados.');
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['financeiro'] });
+      fecharModal();
+    },
+    onError: (err) => setErro(err.message)
+  });
+
+  const handleNovoLancamento = (e) => {
     e.preventDefault();
-    setSubmetendo(true);
     setErro('');
-    const token = localStorage.getItem('@sonatta:token');
-    try {
-      const payload = {
-        ...formData,
-        valor: parseFloat(formData.valor)
-      };
-
-      if (editandoId) {
-        // Editar lançamento existente
-        const resposta = await fetch(`${API_URL}/api/financeiro/${editandoId}`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-          body: JSON.stringify(payload)
-        });
-
-        if (resposta.ok) {
-          carregarFinanceiro();
-          fecharModal();
-          canalComunicacao.postMessage('atualizar_dados');
-        }
-      } else {
-        // Criar novo lançamento
-        const resposta = await fetch(`${API_URL}/api/financeiro`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-          body: JSON.stringify(payload)
-        });
-
-        if (resposta.ok) {
-          carregarFinanceiro();
-          fecharModal();
-          canalComunicacao.postMessage('atualizar_dados');
-        }
-      }
-    } catch (err) {
-      setErro('Erro ao processar o lançamento. Verifique os dados.');
-    } finally {
-      setSubmetendo(false);
-    }
+    const payload = { ...formData, valor: parseFloat(formData.valor) };
+    mutacaoSalvarLancamento.mutate(payload);
   };
 
+  const mutacaoDeletarLancamento = useMutation({
+    mutationFn: async (id) => {
+      const resposta = await fetch(`${API_URL}/api/financeiro/${id}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (!resposta.ok) throw new Error('Erro ao excluir lançamento.');
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['financeiro'] });
+      alert('Lançamento excluído com sucesso!');
+    },
+    onError: (err) => alert(err.message)
+  });
+
   // Deletar lançamento
-  const handleDeletarLancamento = async (id, descricao) => {
-    const token = localStorage.getItem('@sonatta:token');
-    if (!token) return alert("Sessão expirada.");
-
+  const handleDeletarLancamento = (id, descricao) => {
     if (window.confirm(`Tem certeza que deseja remover o lançamento "${descricao}"?`)) {
-      try {
-        const resposta = await fetch(`${API_URL}/api/financeiro/${id}`, {
-          method: 'DELETE',
-          headers: { 'Authorization': `Bearer ${token}` }
-        });
-
-        if (resposta.ok) {
-          setTransacoes(prev => prev.filter(t => t.id !== id));
-          canalComunicacao.postMessage('atualizar_dados');
-          alert('Lançamento excluído com sucesso!');
-        } else {
-          alert('Erro ao excluir lançamento.');
-        }
-      } catch (erro) {
-        console.error('Erro ao deletar lançamento:', erro);
-        alert('Erro de conexão ao deletar.');
-      }
+      mutacaoDeletarLancamento.mutate(id);
     }
   };
 

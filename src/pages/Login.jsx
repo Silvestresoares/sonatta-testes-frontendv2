@@ -3,10 +3,8 @@ import React, { useState, useEffect } from 'react';
 import EsqueciSenha from './EsqueciSenha';
 import RedefinirSenha from './RedefinirSenha';
 
-// Detecta a URL da internet ou usa o localhost se estiver testando no computador
-const _envApi = import.meta.env.VITE_API_URL;
-const _defaultLocal = 'http://localhost:3005';
-const API_URL = (typeof window !== 'undefined' && window.location && window.location.hostname.includes('localhost')) ? _defaultLocal : (_envApi || _defaultLocal);
+// Depende apenas de variáveis de ambiente configuradas no build/Docker
+const API_URL = import.meta.env.VITE_API_URL || '';
 
 export default function Login({ aoLogar }) {
   // 🔌 Controla se exibe o login/cadastro padrão ou as telas novas de recuperação
@@ -49,7 +47,8 @@ export default function Login({ aoLogar }) {
 
       if (resposta.ok) {
         const usuarioLogado = dados.usuario || {};
-        localStorage.setItem('@sonatta:token', dados.token);
+        // O token JWT agora é retido exclusivamente pelo navegador (HttpOnly Cookie)
+        // localStorage.setItem('@sonatta:token', dados.token); // <-- Removido para prevenir XSS
         localStorage.setItem('@sonatta:usuario_nome', usuarioLogado.nome || 'Usuário');
         localStorage.setItem('@sonatta:tipo_usuario', usuarioLogado.tipo_usuario || 'admin');
         localStorage.setItem('@sonatta:professor_id', usuarioLogado.professor_id || '');

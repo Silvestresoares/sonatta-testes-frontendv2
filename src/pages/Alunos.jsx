@@ -1,17 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Eye, Edit, Trash2, History, Upload, PlusCircle, Search, FileText } from 'lucide-react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { TableSkeleton } from '../components/Skeleton';
 import HistoricoAlunoModal from '../components/HistoricoAlunoModal';
 import { exportarParaCSV, exportarParaPDF } from '../utils/exportar';
-// Detecta a URL da internet ou usa o localhost se estiver testando no computador
-// Deixe vazio em produção para usar o proxy do vercel.json, ou use a env se preferir
+
 const _envApi = import.meta.env.VITE_API_URL;
 const _defaultLocal = 'http://localhost:3005';
 const API_URL = (typeof window !== 'undefined' && window.location && window.location.hostname.includes('localhost')) ? _defaultLocal : (_envApi || _defaultLocal);
-
-// Cria o canal de comunicação interna do navegador
-const canalComunicacao = new BroadcastChannel('sonatta_updates');
-const canalSincronizacao = new BroadcastChannel('sonatta_sync');
 
 const ordenarAlunosPorNome = (lista) => [...lista].sort((a, b) =>
   (a.nome || '').localeCompare(b.nome || '', 'pt-BR', { sensitivity: 'base' })
@@ -27,22 +24,19 @@ const formatarDataParaExibicao = (data) => {
 };
 
 export default function Alunos() {
+  const queryClient = useQueryClient();
+  const token = localStorage.getItem('@sonatta:token');
   const navigate = useNavigate();
-  const [alunos, setAlunos] = useState([]);
+
   const [busca, setBusca] = useState('');
   const [filtroStatus, setFiltroStatus] = useState('Todos');
   const [pagina, setPagina] = useState(1);
-  const [totalPaginas, setTotalPaginas] = useState(1);
-  const [totalAlunos, setTotalAlunos] = useState(0);
   const limite = 20;
 
   // Estados do Relatório de Movimentação
   const [abaPrincipal, setAbaPrincipal] = useState('alunos'); // 'alunos' ou 'movimentacao'
   const [dataInicioMov, setDataInicioMov] = useState('');
   const [dataFimMov, setDataFimMov] = useState('');
-  const [matriculasMov, setMatriculasMov] = useState([]);
-  const [cancelamentosMov, setCancelamentosMov] = useState([]);
-  const [carregandoMov, setCarregandoMov] = useState(false);
 
   // Controle de Edição vs Cadastro
   const [modalAberto, setModalAberto] = useState(false);
@@ -73,34 +67,26 @@ export default function Alunos() {
   const [aulasMesEntrada, setAulasMesEntrada] = useState('4');
   const [statusMensalidade, setStatusMensalidade] = useState('Pendente');
   const [professorId, setProfessorId] = useState('');
-  const [professores, setProfessores] = useState([]);
   const [responsavelId, setResponsavelId] = useState('');
-  const [responsaveis, setResponsaveis] = useState([]);
 
-  // 1. BUSCAR ALUNOS E PROFESSORES (GET)
-  const buscarHistoricoMovimentacao = async () => {
-    const token = localStorage.getItem('@sonatta:token');
-    if (!token) return;
-    setCarregandoMov(true);
-    try {
+  // React Query: Movimentações
+  const { data: dadosMov = { matriculas: [], cancelamentos: [] }, isLoading: carregandoMov } = useQuery({
+    queryKey: ['movimentacao', { dataInicioMov, dataFimMov }],
+    queryFn: async () => {
       const url = new URL(`${API_URL}/api/alunos/historico/movimentacao`);
       if (dataInicioMov) url.searchParams.append('dataInicio', dataInicioMov);
       if (dataFimMov) url.searchParams.append('dataFim', dataFimMov);
+      const res = await fetch(url, { headers: { 'Authorization': `Bearer ${token}` } });
+      if (!res.ok) throw new Error('Erro mov');
+      return res.json();
+    },
+    enabled: !!token && abaPrincipal === 'movimentacao',
+  });
+  
+  const matriculasMov = dadosMov.matriculas || [];
+  const cancelamentosMov = dadosMov.cancelamentos || [];
 
-      const resposta = await fetch(url, {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      if (resposta.ok) {
-        const dados = await resposta.json();
-        setMatriculasMov(dados.matriculas || []);
-        setCancelamentosMov(dados.cancelamentos || []);
-      }
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setCarregandoMov(false);
-    }
-  };
+  const buscarHistoricoMovimentacao = () => queryClient.invalidateQueries({ queryKey: ['movimentacao'] });
 
   const exportarMovimentacaoPDF = () => {
     const colunasMatriculas = [
@@ -147,11 +133,10 @@ export default function Alunos() {
     if (cancelamentosMov.length > 0) exportarParaCSV(cancelamentosMov, colunasCancelamentos, 'cancelamentos_csv');
   };
 
-  const carregarAlunos = async () => {
-    const token = localStorage.getItem('@sonatta:token');
-    if (!token) return;
-
-    try {
+  // React Query: Busca de Alunos
+  const { data: dadosAlunos, isLoading: carregandoAlunos } = useQuery({
+    queryKey: ['alunos', { pagina, filtroStatus, busca }],
+    queryFn: async () => {
       const url = new URL(`${API_URL}/api/alunos`);
       url.searchParams.append('paginated', 'true');
       url.searchParams.append('page', pagina);
@@ -159,116 +144,72 @@ export default function Alunos() {
       url.searchParams.append('busca', busca);
       url.searchParams.append('status', filtroStatus);
 
-      const resposta = await fetch(url, {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
+      const res = await fetch(url, { headers: { 'Authorization': `Bearer ${token}` } });
+      if (res.status === 401 || res.status === 403) {
+        localStorage.removeItem('@sonatta:token'); window.location.href = '/login';
+      }
+      if (!res.ok) throw new Error('Erro ao buscar alunos');
+      return res.json();
+    },
+    enabled: !!token,
+  });
+
+  const alunosOrdenados = dadosAlunos?.data ? dadosAlunos.data : (Array.isArray(dadosAlunos) ? ordenarAlunosPorNome(dadosAlunos) : []);
+  const totalPaginas = dadosAlunos?.totalPages || 1;
+  const totalAlunos = dadosAlunos?.total || (Array.isArray(dadosAlunos) ? dadosAlunos.length : 0);
+
+  // React Query: Professores e Responsáveis
+  const { data: professores = [] } = useQuery({
+    queryKey: ['professores'],
+    queryFn: async () => {
+      const res = await fetch(`${API_URL}/api/professores`, { headers: { 'Authorization': `Bearer ${token}` } });
+      if (!res.ok) throw new Error('Erro prof');
+      const dados = await res.json();
+      return Array.isArray(dados) ? dados.filter(p => p.status === 'Ativo') : [];
+    },
+    enabled: !!token
+  });
+
+  const { data: responsaveis = [] } = useQuery({
+    queryKey: ['responsaveis'],
+    queryFn: async () => {
+      const res = await fetch(`${API_URL}/api/responsaveis`, { headers: { 'Authorization': `Bearer ${token}` } });
+      if (!res.ok) throw new Error('Erro resp');
+      return res.json();
+    },
+    enabled: !!token
+  });
+
+  const mutacaoStatus = useMutation({
+    mutationFn: async (payload) => {
+      const resposta = await fetch(`${API_URL}/api/alunos/${payload.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify(payload)
       });
-
-      if (resposta.status === 401 || resposta.status === 403) {
-        localStorage.removeItem('@sonatta:token');
-        window.location.href = '/login';
-      } else if (resposta.ok) {
-        const dados = await resposta.json();
-        if (dados.data) {
-          setAlunos(dados.data);
-          setTotalPaginas(dados.totalPages);
-          setTotalAlunos(dados.total);
-        } else {
-          setAlunos(Array.isArray(dados) ? ordenarAlunosPorNome(dados) : []);
-          setTotalPaginas(1);
-          setTotalAlunos(dados.length || 0);
-        }
-      }
-    } catch (erro) {
-      console.error("Erro ao buscar alunos:", erro);
-    }
-  };
-
-  const carregarProfessores = async () => {
-    const token = localStorage.getItem('@sonatta:token');
-    if (!token) return;
-
-    try {
-      const resposta = await fetch(`${API_URL}/api/professores`, {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
+      if (!resposta.ok) throw new Error(await resposta.text());
+    },
+    onMutate: async (payload) => {
+      await queryClient.cancelQueries({ queryKey: ['alunos'] });
+      const previous = queryClient.getQueryData(['alunos', { pagina, filtroStatus, busca }]);
+      queryClient.setQueryData(['alunos', { pagina, filtroStatus, busca }], old => {
+        if (!old || !old.data) return old;
+        return { ...old, data: old.data.map(a => a.id === payload.id ? { ...a, status: payload.status } : a) };
       });
+      return { previous };
+    },
+    onError: (err, variables, context) => {
+      alert(`Erro ao alterar status: ${err.message}`);
+      queryClient.setQueryData(['alunos', { pagina, filtroStatus, busca }], context.previous);
+    },
+    onSettled: () => queryClient.invalidateQueries({ queryKey: ['alunos'] })
+  });
 
-      if (resposta.ok) {
-        const dados = await resposta.json();
-        setProfessores(Array.isArray(dados) ? dados.filter(p => p.status === 'Ativo') : []);
-      }
-    } catch (erro) {
-      console.error("Erro ao buscar professores:", erro);
-    }
-  };
-
-  const carregarResponsaveis = async () => {
-    const token = localStorage.getItem('@sonatta:token');
-    if (!token) return;
-    try {
-      const resposta = await fetch(`${API_URL}/api/responsaveis`, { headers: { 'Authorization': `Bearer ${token}` } });
-      if (resposta.ok) {
-        const dados = await resposta.json();
-        setResponsaveis(dados || []);
-      }
-    } catch (erro) {
-      console.error("Erro ao buscar responsáveis:", erro);
-    }
-  };
-
-  useEffect(() => {
-    carregarAlunos();
-  }, [pagina, filtroStatus, busca]); // Recarrega ao mudar paginação ou filtros
-
-  useEffect(() => {
-    if (abaPrincipal === 'movimentacao') {
-      buscarHistoricoMovimentacao();
-    }
-  }, [abaPrincipal]);
-
-  useEffect(() => {
-    carregarProfessores();
-    carregarResponsaveis();
-
-    // Escuta mensagens de outras páginas
-    const escutarCanal = (evento) => {
-      if (evento.data === 'atualizar_dados') {
-        carregarAlunos();
-        carregarProfessores();
-        carregarResponsaveis();
-      }
-    };
-
-    // Escuta quando a aba de alunos fica ativa
-    const escutarSincronizacao = (evento) => {
-      if (evento.data.tipo === 'muda_aba' && evento.data.aba === 'alunos') {
-        carregarAlunos();
-        carregarProfessores();
-        carregarResponsaveis();
-      }
-    };
-
-    canalComunicacao.addEventListener('message', escutarCanal);
-    canalSincronizacao.addEventListener('message', escutarSincronizacao);
-
-    return () => {
-      canalComunicacao.removeEventListener('message', escutarCanal);
-      canalSincronizacao.removeEventListener('message', escutarSincronizacao);
-    };
-  }, []);
-
-  const handleAlternarStatus = async (e, aluno) => {
+  const handleAlternarStatus = (e, aluno) => {
     e.stopPropagation();
-    const token = localStorage.getItem('@sonatta:token');
     if (!token) return alert("Sessão expirada.");
 
     const novoStatus = aluno.status === 'Ativo' ? 'Inativo' : 'Ativo';
-
     const payload = {
       ...aluno,
       status: novoStatus,
@@ -288,51 +229,37 @@ export default function Alunos() {
       estado: aluno.estado || '',
       cep: aluno.cep || ''
     };
-
-    try {
-      const resposta = await fetch(`${API_URL}/api/alunos/${aluno.id}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify(payload)
-      });
-
-      if (resposta.ok) {
-        // Atualiza a lista local corretamente
-        setAlunos(prev => prev.map(a => a.id === aluno.id ? { ...a, status: novoStatus } : a));
-        canalComunicacao.postMessage('atualizar_dados');
-      } else {
-        const erroTexto = await resposta.text();
-        alert(`Erro ao alterar status: ${erroTexto}`);
-      }
-    } catch (erro) {
-      console.error("Erro ao alterar status:", erro);
-      alert("Não foi possível conectar ao servidor.");
-    }
+    mutacaoStatus.mutate(payload);
   };
 
-  // 3. SALVAR / EDITAR ALUNO (POST / PUT)
-  const handleSalvarAluno = async (e) => {
-    e.preventDefault();
-    // Removido bloqueio de nome obrigatório no frontend
+  const mutacaoSalvar = useMutation({
+    mutationFn: async (dadosAluno) => {
+      let URL = idSendoEditado ? `${API_URL}/api/alunos/${idSendoEditado}` : `${API_URL}/api/alunos`;
+      let metodo = idSendoEditado ? 'PUT' : 'POST';
+      const resposta = await fetch(URL, {
+        method: metodo,
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify(dadosAluno)
+      });
+      if (!resposta.ok) throw new Error(await resposta.text());
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['alunos'] });
+      fecharModal();
+    },
+    onError: (err) => alert(`Erro do servidor ao salvar: ${err.message}`)
+  });
 
-    const token = localStorage.getItem('@sonatta:token');
+  // 3. SALVAR / EDITAR ALUNO (POST / PUT)
+  const handleSalvarAluno = (e) => {
+    e.preventDefault();
     if (!token) return alert("Sessão expirada. Faça login novamente.");
+    if (!nome.trim()) return alert("O nome do aluno é obrigatório.");
 
     const dadosAluno = {
-      nome: nome,
-      instrumento: instrumento,
-      status: status,
-      cpf: cpf || '',
-      email: email || '',
-      telefone: telefone || '',
-      data_matricula: dataMatricula || '',
-      primeira_aula: primeiraAula || '',
-      dia_aula: diaAula,
-      horario: horario || '',
-      mensalidade: mensalidade ? Number(mensalidade) : 0,
+      nome, instrumento, status, cpf: cpf || '', email: email || '', telefone: telefone || '',
+      data_matricula: dataMatricula || '', primeira_aula: primeiraAula || '', dia_aula: diaAula,
+      horario: horario || '', mensalidade: mensalidade ? Number(mensalidade) : 0,
       quantidade_aulas: quantidadeAulas ? parseInt(quantidadeAulas) : 4,
       aulas_mes_entrada: aulasMesEntrada ? parseInt(aulasMesEntrada) : 4,
       status_mensalidade: statusMensalidade,
@@ -341,71 +268,26 @@ export default function Alunos() {
       endereco, cidade, estado, cep
     };
 
-    try {
-      let URL = `${API_URL}/api/alunos`;
-      let metodo = 'POST';
-      const token = localStorage.getItem('@sonatta:token');
-
-      if (!nome.trim()) {
-        return alert("O nome do aluno é obrigatório.");
-      }
-
-      if (idSendoEditado) {
-        URL = `${API_URL}/api/alunos/${idSendoEditado}`;
-        metodo = 'PUT';
-      }
-
-      const respuesta = await fetch(URL, {
-        method: metodo,
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify(dadosAluno)
-      });
-
-      if (respuesta.ok) {
-        carregarAlunos();
-        // 📢 Notifica todas as páginas sobre a atualização
-        setTimeout(() => canalComunicacao.postMessage('atualizar_dados'), 500);
-        fecharModal();
-      } else {
-        const erroTexto = await respuesta.text();
-        alert(`Erro do servidor ao salvar: ${erroTexto}`);
-      }
-    } catch (erro) {
-      console.error("Erro de rede ao salvar dados:", erro);
-      alert("Não foi possível conectar ao servidor backend.");
-    }
+    mutacaoSalvar.mutate(dadosAluno);
   };
 
+  const mutacaoExcluir = useMutation({
+    mutationFn: async (id) => {
+      const res = await fetch(`${API_URL}/api/alunos/${id}`, { method: 'DELETE', headers: { 'Authorization': `Bearer ${token}` } });
+      if (!res.ok) throw new Error('Erro ao excluir');
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['alunos'] });
+      alert("Aluno excluído com sucesso!");
+    },
+    onError: () => alert("Erro ao tentar excluir.")
+  });
+
   // 4. EXCLUIR ALUNO (DELETE)
-  const handleDeletarAluno = async (id, nomeAluno) => {
-    const token = localStorage.getItem('@sonatta:token');
+  const handleDeletarAluno = (id, nomeAluno) => {
     if (!token) return alert("Sessão expirada.");
-
     if (window.confirm(`Tem certeza que deseja remover permanentemente o aluno "${nomeAluno}"?`)) {
-      try {
-        const resposta = await fetch(`${API_URL}/api/alunos/${id}`, {
-          method: 'DELETE',
-          headers: {
-            'Authorization': `Bearer ${token}`
-          }
-        });
-
-        if (resposta.ok) {
-          // Filtra e remove da tela imediatamente
-          setAlunos(prev => prev.filter(aluno => aluno.id !== id));
-          // 📢 Notifica todas as páginas sobre a exclusão
-          canalComunicacao.postMessage('atualizar_dados');
-          alert("Aluno excluído com sucesso!");
-        } else {
-          alert("Erro ao excluir aluno do banco.");
-        }
-      } catch (error) {
-        console.error("Erro na requisição de exclusão:", error);
-        alert("Erro de conexão ao tentar deletar.");
-      }
+      mutacaoExcluir.mutate(id);
     }
   };
 
@@ -478,8 +360,7 @@ export default function Alunos() {
     }
   };
 
-  // O filtro agora é feito via API, então usamos diretamente os alunos carregados
-  const alunosOrdenados = alunos;
+
 
   // Calcular valor por aula (dividido em 4 aulas base, SEMPRE)
   const calcularValorPorAula = () => {
@@ -578,6 +459,9 @@ export default function Alunos() {
           </div>
 
           {/* Tabela */}
+          {carregandoAlunos ? (
+            <TableSkeleton />
+          ) : (
           <div className="bg-zinc-900 border border-zinc-800 rounded-xl overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full text-left text-sm border-collapse">
@@ -698,6 +582,7 @@ export default function Alunos() {
               </table>
             </div>
           </div>
+          )}
 
           {/* Controles de Paginação */}
           {totalPaginas > 1 && (

@@ -2,11 +2,12 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { UserPlus, Search, Download, Printer, X,
          Users, Edit2, Plus, Minus,
          ChevronLeft, ChevronRight, CheckCircle2, AlertCircle, CalendarClock, ShieldCheck, Eye, Edit, Trash2 } from 'lucide-react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { TableSkeleton } from '../components/Skeleton';
 
 const _envApi = import.meta.env.VITE_API_URL;
 const _defaultLocal = 'http://localhost:3005';
 const API_URL = (typeof window !== 'undefined' && window.location && window.location.hostname.includes('localhost')) ? _defaultLocal : (_envApi || _defaultLocal);
-const canalComunicacao = new BroadcastChannel('sonatta_updates');
 
 const DIAS_SEMANA = ['Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado', 'Domingo'];
 const HORARIOS = Array.from({ length: 29 }, (_, i) => {
@@ -1286,8 +1287,7 @@ function ModalVisualizacao({ professor, onClose, onEditar }) {
 
 // ─── PÁGINA PRINCIPAL ────────────────────────────────────────────────────────
 export default function Professores() {
-  const [professores, setProfessores] = useState([]);
-  const [carregando, setCarregando] = useState(true);
+  const queryClient = useQueryClient();
   const [busca, setBusca] = useState('');
   const [filtroStatus, setFiltroStatus] = useState('Todos');
   const [ordenacao, setOrdenacao] = useState('nome');
@@ -1297,40 +1297,37 @@ export default function Professores() {
 
   const token = localStorage.getItem('@sonatta:token');
 
-  const carregar = async () => {
-    setCarregando(true);
-    try {
+  const { data: professores = [], isLoading: carregando } = useQuery({
+    queryKey: ['professores'],
+    queryFn: async () => {
       const r = await fetch(`${API_URL}/api/professores`, { headers: { Authorization: `Bearer ${token}` } });
-      if (r.ok) setProfessores(await r.json());
-    } catch {}
-    setCarregando(false);
-  };
+      if (!r.ok) throw new Error('Erro ao buscar professores');
+      return r.json();
+    },
+    enabled: !!token
+  });
 
-  useEffect(() => {
-    carregar();
-    const ouvir = (e) => { if (e.data === 'atualizar_dados') carregar(); };
-    canalComunicacao.addEventListener('message', ouvir);
-    return () => canalComunicacao.removeEventListener('message', ouvir);
-  }, []);
-
-  const excluir = async (prof) => {
-    if (!window.confirm(`Tem certeza que deseja excluir o professor "${prof.nome}"?`)) return;
-
-    try {
-      const r = await fetch(`${API_URL}/api/professores/${prof.id}`, {
+  const mutacaoExcluir = useMutation({
+    mutationFn: async (profId) => {
+      const r = await fetch(`${API_URL}/api/professores/${profId}`, {
         method: 'DELETE',
         headers: { Authorization: `Bearer ${token}` }
       });
-      const data = await r.json().catch(() => ({}));
       if (!r.ok) {
-        alert(data.erro || 'Não foi possível excluir o professor.');
-        return;
+        const data = await r.json().catch(() => ({}));
+        throw new Error(data.erro || 'Não foi possível excluir o professor.');
       }
-      carregar();
-      canalComunicacao.postMessage('atualizar_dados');
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['professores'] });
       alert('Professor excluído com sucesso.');
-    } catch {
-      alert('Erro de conexão ao excluir o professor.');
+    },
+    onError: (err) => alert(err.message)
+  });
+
+  const excluir = (prof) => {
+    if (window.confirm(`Tem certeza que deseja excluir o professor "${prof.nome}"?`)) {
+      mutacaoExcluir.mutate(prof.id);
     }
   };
 
@@ -1465,6 +1462,9 @@ export default function Professores() {
       </div>
 
       {/* Tabela */}
+      {carregando ? (
+        <TableSkeleton />
+      ) : (
       <div className="bg-zinc-900 border border-zinc-800 rounded-xl overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-left text-sm border-collapse">
@@ -1480,9 +1480,7 @@ export default function Professores() {
               </tr>
             </thead>
             <tbody className="divide-y divide-zinc-800/50">
-              {carregando ? (
-                <tr><td colSpan={7} className="p-8 text-center text-zinc-500">Carregando professores...</td></tr>
-              ) : profFiltrados.length === 0 ? (
+              {profFiltrados.length === 0 ? (
                 <tr>
                   <td colSpan={7} className="text-center py-16 text-zinc-600">
                     <div className="flex flex-col items-center gap-2">
@@ -1551,6 +1549,7 @@ export default function Professores() {
           </table>
         </div>
       </div>
+      )}
 
       {/* Modais */}
       {modalAberto && (

@@ -4,9 +4,8 @@ import { KeyRound, Mail, ArrowRight } from 'lucide-react';
 import EsqueciSenhaPortal from './EsqueciSenhaPortal';
 import RedefinirSenhaPortal from './RedefinirSenhaPortal';
 
-const _envApi = import.meta.env.VITE_API_URL;
-const _defaultLocal = 'http://localhost:3005';
-const API_URL = (typeof window !== 'undefined' && window.location && window.location.hostname.includes('localhost')) ? _defaultLocal : (_envApi || _defaultLocal);
+// Depende apenas de variáveis de ambiente configuradas no build/Docker
+const API_URL = import.meta.env.VITE_API_URL || '';
 
 export default function LoginPortal() {
   const [login, setLogin] = useState('');
@@ -39,7 +38,8 @@ export default function LoginPortal() {
       const dados = await res.json();
       if (!res.ok) throw new Error(dados.erro || 'Erro ao fazer login');
 
-      localStorage.setItem('@sonatta:portal_token', dados.token);
+      // O token JWT agora é retido exclusivamente pelo navegador (HttpOnly Cookie)
+      // localStorage.setItem('@sonatta:portal_token', dados.token); // <-- Removido para segurança
       localStorage.setItem('@sonatta:portal_nome', dados.usuario.nome);
       localStorage.setItem('@sonatta:portal_tipo', dados.usuario.tipo_usuario);
       

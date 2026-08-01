@@ -1,16 +1,12 @@
-import React, { useState, useEffect } from 'react';
-import { PlusCircle, Trash2, Users, Edit } from 'lucide-react';
+import React, { useState } from 'react';
+import { PlusCircle, Trash2, Users, Edit, Loader2 } from 'lucide-react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 
-const _envApi = import.meta.env.VITE_API_URL;
-const _defaultLocal = 'http://localhost:3005';
-const API_URL = (typeof window !== 'undefined' && window.location && window.location.hostname.includes('localhost')) ? _defaultLocal : (_envApi || _defaultLocal);
+const API_URL = import.meta.env.VITE_API_URL || '';
 
 export default function CursosTurmas() {
+  const queryClient = useQueryClient();
   const [aba, setAba] = useState('cursos'); // 'cursos' ou 'turmas'
-
-  const [cursos, setCursos] = useState([]);
-  const [turmas, setTurmas] = useState([]);
-  const [professores, setProfessores] = useState([]);
 
   // Modais Cursos
   const [modalCurso, setModalCurso] = useState(false);
@@ -32,150 +28,187 @@ export default function CursosTurmas() {
   // Modal Alunos da Turma
   const [modalAlunosTurma, setModalAlunosTurma] = useState(false);
   const [turmaSelecionada, setTurmaSelecionada] = useState(null);
-  const [alunosDaTurma, setAlunosDaTurma] = useState([]);
-  const [todosAlunos, setTodosAlunos] = useState([]);
   const [alunoSelecionadoId, setAlunoSelecionadoId] = useState('');
-  const carregarCursos = async () => {
-    const token = localStorage.getItem('@sonatta:token');
-    try {
-      const res = await fetch(`${API_URL}/api/cursos`, { headers: { 'Authorization': `Bearer ${token}` } });
-      if (res.ok) setCursos(await res.json());
-    } catch (e) { console.error(e); }
-  };
 
-  const carregarTurmas = async () => {
-    const token = localStorage.getItem('@sonatta:token');
-    try {
-      const res = await fetch(`${API_URL}/api/turmas`, { headers: { 'Authorization': `Bearer ${token}` } });
-      if (res.ok) setTurmas(await res.json());
-    } catch (e) { console.error(e); }
-  };
+  // ==========================================
+  // React Query: QUERIES
+  // ==========================================
+  const { data: cursos = [], isLoading: loadingCursos } = useQuery({
+    queryKey: ['cursos'],
+    queryFn: async () => {
+      const res = await fetch(`${API_URL}/api/cursos`);
+      if (!res.ok) throw new Error('Erro ao carregar cursos');
+      return res.json();
+    }
+  });
 
-  const carregarProfessores = async () => {
-    const token = localStorage.getItem('@sonatta:token');
-    try {
-      const res = await fetch(`${API_URL}/api/professores`, { headers: { 'Authorization': `Bearer ${token}` } });
-      if (res.ok) setProfessores(await res.json());
-    } catch (e) { console.error(e); }
-  };
+  const { data: turmas = [], isLoading: loadingTurmas } = useQuery({
+    queryKey: ['turmas'],
+    queryFn: async () => {
+      const res = await fetch(`${API_URL}/api/turmas`);
+      if (!res.ok) throw new Error('Erro ao carregar turmas');
+      return res.json();
+    }
+  });
 
-  const carregarTodosAlunos = async () => {
-    const token = localStorage.getItem('@sonatta:token');
-    try {
-      const res = await fetch(`${API_URL}/api/alunos?paginated=false`, { headers: { 'Authorization': `Bearer ${token}` } });
-      if (res.ok) setTodosAlunos(await res.json());
-    } catch (e) { console.error(e); }
-  };
+  const { data: professores = [] } = useQuery({
+    queryKey: ['professores'],
+    queryFn: async () => {
+      const res = await fetch(`${API_URL}/api/professores`);
+      if (!res.ok) throw new Error('Erro ao carregar professores');
+      return res.json();
+    }
+  });
 
-  const carregarAlunosDaTurma = async (turmaId) => {
-    const token = localStorage.getItem('@sonatta:token');
-    try {
-      const res = await fetch(`${API_URL}/api/turmas/${turmaId}/alunos`, { headers: { 'Authorization': `Bearer ${token}` } });
-      if (res.ok) setAlunosDaTurma(await res.json());
-    } catch (e) { console.error(e); }
-  };
+  const { data: todosAlunos = [] } = useQuery({
+    queryKey: ['todosAlunos'],
+    queryFn: async () => {
+      const res = await fetch(`${API_URL}/api/alunos?paginated=false`);
+      if (!res.ok) throw new Error('Erro ao carregar alunos');
+      return res.json();
+    }
+  });
 
-  useEffect(() => {
-    carregarCursos();
-    carregarTurmas();
-    carregarProfessores();
-    carregarTodosAlunos();
-  }, []);
+  const { data: alunosDaTurma = [], isLoading: loadingAlunosTurma } = useQuery({
+    queryKey: ['alunosTurma', turmaSelecionada?.id],
+    queryFn: async () => {
+      if (!turmaSelecionada) return [];
+      const res = await fetch(`${API_URL}/api/turmas/${turmaSelecionada.id}/alunos`);
+      if (!res.ok) throw new Error('Erro ao carregar alunos da turma');
+      return res.json();
+    },
+    enabled: !!turmaSelecionada
+  });
 
-  const salvarCurso = async (e) => {
-    e.preventDefault();
-    const token = localStorage.getItem('@sonatta:token');
-    const url = cursoEdit ? `${API_URL}/api/cursos/${cursoEdit.id}` : `${API_URL}/api/cursos`;
-    const method = cursoEdit ? 'PUT' : 'POST';
-    
-    try {
+  // ==========================================
+  // React Query: MUTATIONS
+  // ==========================================
+  const mutationCurso = useMutation({
+    mutationFn: async (dados) => {
+      const url = dados.id ? `${API_URL}/api/cursos/${dados.id}` : `${API_URL}/api/cursos`;
+      const method = dados.id ? 'PUT' : 'POST';
       const res = await fetch(url, {
-        method, headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-        body: JSON.stringify({ nome: cursoNome, descricao: cursoDesc })
+        method, headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(dados)
       });
-      if (res.ok) {
-        setModalCurso(false);
-        carregarCursos();
-      } else alert('Erro ao salvar curso');
-    } catch (err) { console.error(err); }
+      if (!res.ok) throw new Error('Erro ao salvar curso');
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries(['cursos']);
+      setModalCurso(false);
+    }
+  });
+
+  const deleteCursoMutation = useMutation({
+    mutationFn: async (id) => {
+      const res = await fetch(`${API_URL}/api/cursos/${id}`, { method: 'DELETE' });
+      if (!res.ok) throw new Error('Erro ao excluir curso');
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries(['cursos']);
+    }
+  });
+
+  const mutationTurma = useMutation({
+    mutationFn: async (dados) => {
+      const url = dados.id ? `${API_URL}/api/turmas/${dados.id}` : `${API_URL}/api/turmas`;
+      const method = dados.id ? 'PUT' : 'POST';
+      const res = await fetch(url, {
+        method, headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(dados)
+      });
+      if (!res.ok) throw new Error('Erro ao salvar turma');
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries(['turmas']);
+      setModalTurma(false);
+    }
+  });
+
+  const deleteTurmaMutation = useMutation({
+    mutationFn: async (id) => {
+      const res = await fetch(`${API_URL}/api/turmas/${id}`, { method: 'DELETE' });
+      if (!res.ok) throw new Error('Erro ao excluir turma');
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries(['turmas']);
+    }
+  });
+
+  const matricularMutation = useMutation({
+    mutationFn: async ({ turmaId, alunoId }) => {
+      const res = await fetch(`${API_URL}/api/turmas/${turmaId}/alunos`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ aluno_id: Number(alunoId) })
+      });
+      if (!res.ok) {
+        const error = await res.json();
+        throw new Error(error.erro || 'Erro ao matricular aluno');
+      }
+      return res.json();
+    },
+    onSuccess: (data, variables) => {
+      queryClient.invalidateQueries(['alunosTurma', variables.turmaId]);
+      queryClient.invalidateQueries(['turmas']);
+      setAlunoSelecionadoId('');
+    },
+    onError: (err) => alert(err.message)
+  });
+
+  const removerAlunoMutation = useMutation({
+    mutationFn: async ({ turmaId, alunoId }) => {
+      const res = await fetch(`${API_URL}/api/turmas/${turmaId}/alunos/${alunoId}`, { method: 'DELETE' });
+      if (!res.ok) throw new Error('Erro ao remover aluno da turma');
+    },
+    onSuccess: (data, variables) => {
+      queryClient.invalidateQueries(['alunosTurma', variables.turmaId]);
+      queryClient.invalidateQueries(['turmas']);
+    }
+  });
+
+  // ==========================================
+  // HANDLERS
+  // ==========================================
+  const salvarCurso = (e) => {
+    e.preventDefault();
+    mutationCurso.mutate({
+      id: cursoEdit?.id,
+      nome: cursoNome,
+      descricao: cursoDesc
+    });
   };
 
-  const deletarCurso = async (id) => {
+  const deletarCurso = (id) => {
     if(!window.confirm('Excluir curso? (Pode afetar turmas)')) return;
-    const token = localStorage.getItem('@sonatta:token');
-    await fetch(`${API_URL}/api/cursos/${id}`, { method: 'DELETE', headers: { 'Authorization': `Bearer ${token}` } });
-    carregarCursos();
+    deleteCursoMutation.mutate(id);
   };
 
-  const salvarTurma = async (e) => {
+  const salvarTurma = (e) => {
     e.preventDefault();
-    const token = localStorage.getItem('@sonatta:token');
-    const url = turmaEdit ? `${API_URL}/api/turmas/${turmaEdit.id}` : `${API_URL}/api/turmas`;
-    const method = turmaEdit ? 'PUT' : 'POST';
-    
-    try {
-      const res = await fetch(url, {
-        method, headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-        body: JSON.stringify({ 
-          curso_id: Number(tCursoId), professor_id: tProfId ? Number(tProfId) : null,
-          nome: tNome, dia_semana: tDia, horario_inicio: tHoraIni, horario_fim: tHoraFim, capacidade: Number(tCap)
-        })
-      });
-      if (res.ok) {
-        setModalTurma(false);
-        carregarTurmas();
-      } else alert('Erro ao salvar turma');
-    } catch (err) { console.error(err); }
+    mutationTurma.mutate({
+      id: turmaEdit?.id,
+      curso_id: Number(tCursoId),
+      professor_id: tProfId ? Number(tProfId) : null,
+      nome: tNome,
+      dia_semana: tDia,
+      horario_inicio: tHoraIni,
+      horario_fim: tHoraFim,
+      capacidade: Number(tCap)
+    });
   };
 
-  const deletarTurma = async (id) => {
+  const deletarTurma = (id) => {
     if(!window.confirm('Excluir turma? (Alunos serão desvinculados)')) return;
-    const token = localStorage.getItem('@sonatta:token');
-    await fetch(`${API_URL}/api/turmas/${id}`, { method: 'DELETE', headers: { 'Authorization': `Bearer ${token}` } });
-    carregarTurmas();
+    deleteTurmaMutation.mutate(id);
   };
 
   const abrirModalAlunos = (turma) => {
     setTurmaSelecionada(turma);
-    carregarAlunosDaTurma(turma.id);
     setAlunoSelecionadoId('');
     setModalAlunosTurma(true);
-  };
-
-  const matricularAluno = async (e) => {
-    e.preventDefault();
-    if (!alunoSelecionadoId) return;
-    const token = localStorage.getItem('@sonatta:token');
-    try {
-      const res = await fetch(`${API_URL}/api/turmas/${turmaSelecionada.id}/alunos`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-        body: JSON.stringify({ aluno_id: Number(alunoSelecionadoId) })
-      });
-      if (res.ok) {
-        carregarAlunosDaTurma(turmaSelecionada.id);
-        carregarTurmas(); // para atualizar count
-        setAlunoSelecionadoId('');
-      } else {
-        const error = await res.json();
-        alert(error.erro || 'Erro ao matricular aluno');
-      }
-    } catch (err) { console.error(err); }
-  };
-
-  const removerAluno = async (alunoId) => {
-    if(!window.confirm('Remover aluno desta turma?')) return;
-    const token = localStorage.getItem('@sonatta:token');
-    try {
-      const res = await fetch(`${API_URL}/api/turmas/${turmaSelecionada.id}/alunos/${alunoId}`, {
-        method: 'DELETE',
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      if (res.ok) {
-        carregarAlunosDaTurma(turmaSelecionada.id);
-        carregarTurmas(); // para atualizar count
-      }
-    } catch (err) { console.error(err); }
   };
 
   return (
@@ -208,29 +241,33 @@ export default function CursosTurmas() {
             <PlusCircle size={18} /> Novo Curso
           </button>
           
-          <table className="w-full text-left border-collapse mt-4">
-            <thead className="bg-zinc-950/50 text-zinc-400 text-sm">
-              <tr>
-                <th className="p-4 font-medium border-b border-zinc-800">Nome do Curso</th>
-                <th className="p-4 font-medium border-b border-zinc-800">Descrição</th>
-                <th className="p-4 font-medium border-b border-zinc-800 text-center w-24">Ações</th>
-              </tr>
-            </thead>
-            <tbody className="text-sm">
-              {cursos.map(c => (
-                <tr key={c.id} className="border-b border-zinc-800/50 hover:bg-zinc-800/30">
-                  <td className="p-4 text-white">{c.nome}</td>
-                  <td className="p-4 text-zinc-400">{c.descricao || '-'}</td>
-                  <td className="p-4 text-center">
-                    <div className="flex items-center justify-center gap-2">
-                      <button onClick={() => { setCursoEdit(c); setCursoNome(c.nome); setCursoDesc(c.descricao||''); setModalCurso(true); }} className="text-blue-400 hover:text-blue-300 p-2 rounded transition-all cursor-pointer hover:bg-blue-500/10" title="Editar"><Edit size={16} /></button>
-                      <button onClick={() => deletarCurso(c.id)} className="text-rose-400 hover:text-rose-300 p-2 rounded transition-all cursor-pointer hover:bg-rose-500/10" title="Excluir"><Trash2 size={16} /></button>
-                    </div>
-                  </td>
+          {loadingCursos ? (
+            <div className="flex justify-center p-8"><Loader2 className="animate-spin text-emerald-500" /></div>
+          ) : (
+            <table className="w-full text-left border-collapse mt-4">
+              <thead className="bg-zinc-950/50 text-zinc-400 text-sm">
+                <tr>
+                  <th className="p-4 font-medium border-b border-zinc-800">Nome do Curso</th>
+                  <th className="p-4 font-medium border-b border-zinc-800">Descrição</th>
+                  <th className="p-4 font-medium border-b border-zinc-800 text-center w-24">Ações</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody className="text-sm">
+                {cursos.map(c => (
+                  <tr key={c.id} className="border-b border-zinc-800/50 hover:bg-zinc-800/30">
+                    <td className="p-4 text-white">{c.nome}</td>
+                    <td className="p-4 text-zinc-400">{c.descricao || '-'}</td>
+                    <td className="p-4 text-center">
+                      <div className="flex items-center justify-center gap-2">
+                        <button onClick={() => { setCursoEdit(c); setCursoNome(c.nome); setCursoDesc(c.descricao||''); setModalCurso(true); }} className="text-blue-400 hover:text-blue-300 p-2 rounded transition-all cursor-pointer hover:bg-blue-500/10" title="Editar"><Edit size={16} /></button>
+                        <button onClick={() => deletarCurso(c.id)} className="text-rose-400 hover:text-rose-300 p-2 rounded transition-all cursor-pointer hover:bg-rose-500/10" title="Excluir"><Trash2 size={16} /></button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
         </div>
       )}
 
@@ -240,38 +277,42 @@ export default function CursosTurmas() {
             <PlusCircle size={18} /> Nova Turma
           </button>
 
-          <table className="w-full text-left border-collapse mt-4">
-            <thead className="bg-zinc-950/50 text-zinc-400 text-sm">
-              <tr>
-                <th className="p-4 font-medium border-b border-zinc-800">Turma</th>
-                <th className="p-4 font-medium border-b border-zinc-800">Curso</th>
-                <th className="p-4 font-medium border-b border-zinc-800">Professor</th>
-                <th className="p-4 font-medium border-b border-zinc-800">Horário</th>
-                <th className="p-4 font-medium border-b border-zinc-800 text-center">Alunos</th>
-                <th className="p-4 font-medium border-b border-zinc-800 text-center w-24">Ações</th>
-              </tr>
-            </thead>
-            <tbody className="text-sm">
-              {turmas.map(t => (
-                <tr key={t.id} className="border-b border-zinc-800/50 hover:bg-zinc-800/30">
-                  <td className="p-4 text-white font-medium">{t.nome}</td>
-                  <td className="p-4 text-emerald-400">{t.curso_nome}</td>
-                  <td className="p-4 text-zinc-300">{t.professor_nome || '-'}</td>
-                  <td className="p-4 text-zinc-400">{t.dia_semana}, {t.horario_inicio} às {t.horario_fim}</td>
-                  <td className="p-4 text-center">
-                    <span className="bg-zinc-800 text-zinc-300 px-2 py-1 rounded-full text-xs">{t.alunos_matriculados} / {t.capacidade}</span>
-                  </td>
-                  <td className="p-4 text-center">
-                    <div className="flex items-center justify-center gap-2">
-                      <button onClick={() => abrirModalAlunos(t)} className="text-emerald-400 hover:text-emerald-300 p-2 rounded transition-all cursor-pointer hover:bg-emerald-500/10" title="Gerenciar Alunos"><Users size={16}/></button>
-                      <button onClick={() => { setTurmaEdit(t); setTNome(t.nome); setTCursoId(t.curso_id); setTProfId(t.professor_id||''); setTDia(t.dia_semana); setTHoraIni(t.horario_inicio); setTHoraFim(t.horario_fim); setTCap(t.capacidade); setModalTurma(true); }} className="text-blue-400 hover:text-blue-300 p-2 rounded transition-all cursor-pointer hover:bg-blue-500/10" title="Editar"><Edit size={16} /></button>
-                      <button onClick={() => deletarTurma(t.id)} className="text-rose-400 hover:text-rose-300 p-2 rounded transition-all cursor-pointer hover:bg-rose-500/10" title="Excluir"><Trash2 size={16} /></button>
-                    </div>
-                  </td>
+          {loadingTurmas ? (
+            <div className="flex justify-center p-8"><Loader2 className="animate-spin text-emerald-500" /></div>
+          ) : (
+            <table className="w-full text-left border-collapse mt-4">
+              <thead className="bg-zinc-950/50 text-zinc-400 text-sm">
+                <tr>
+                  <th className="p-4 font-medium border-b border-zinc-800">Turma</th>
+                  <th className="p-4 font-medium border-b border-zinc-800">Curso</th>
+                  <th className="p-4 font-medium border-b border-zinc-800">Professor</th>
+                  <th className="p-4 font-medium border-b border-zinc-800">Horário</th>
+                  <th className="p-4 font-medium border-b border-zinc-800 text-center">Alunos</th>
+                  <th className="p-4 font-medium border-b border-zinc-800 text-center w-24">Ações</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody className="text-sm">
+                {turmas.map(t => (
+                  <tr key={t.id} className="border-b border-zinc-800/50 hover:bg-zinc-800/30">
+                    <td className="p-4 text-white font-medium">{t.nome}</td>
+                    <td className="p-4 text-emerald-400">{t.curso_nome}</td>
+                    <td className="p-4 text-zinc-300">{t.professor_nome || '-'}</td>
+                    <td className="p-4 text-zinc-400">{t.dia_semana}, {t.horario_inicio} às {t.horario_fim}</td>
+                    <td className="p-4 text-center">
+                      <span className="bg-zinc-800 text-zinc-300 px-2 py-1 rounded-full text-xs">{t.alunos_matriculados} / {t.capacidade}</span>
+                    </td>
+                    <td className="p-4 text-center">
+                      <div className="flex items-center justify-center gap-2">
+                        <button onClick={() => abrirModalAlunos(t)} className="text-emerald-400 hover:text-emerald-300 p-2 rounded transition-all cursor-pointer hover:bg-emerald-500/10" title="Gerenciar Alunos"><Users size={16}/></button>
+                        <button onClick={() => { setTurmaEdit(t); setTNome(t.nome); setTCursoId(t.curso_id); setTProfId(t.professor_id||''); setTDia(t.dia_semana); setTHoraIni(t.horario_inicio); setTHoraFim(t.horario_fim); setTCap(t.capacidade); setModalTurma(true); }} className="text-blue-400 hover:text-blue-300 p-2 rounded transition-all cursor-pointer hover:bg-blue-500/10" title="Editar"><Edit size={16} /></button>
+                        <button onClick={() => deletarTurma(t.id)} className="text-rose-400 hover:text-rose-300 p-2 rounded transition-all cursor-pointer hover:bg-rose-500/10" title="Excluir"><Trash2 size={16} /></button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
         </div>
       )}
 
@@ -291,7 +332,9 @@ export default function CursosTurmas() {
               </div>
               <div className="flex justify-end gap-3 pt-4">
                 <button type="button" onClick={()=>setModalCurso(false)} className="px-4 py-2 text-zinc-400 hover:text-white">Cancelar</button>
-                <button type="submit" className="px-4 py-2 bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg">Salvar</button>
+                <button type="submit" disabled={mutationCurso.isPending} className="px-4 py-2 bg-emerald-500 hover:bg-emerald-600 disabled:opacity-50 text-white rounded-lg flex items-center gap-2">
+                  {mutationCurso.isPending && <Loader2 size={16} className="animate-spin" />} Salvar
+                </button>
               </div>
             </form>
           </div>
@@ -344,12 +387,15 @@ export default function CursosTurmas() {
               </div>
               <div className="flex justify-end gap-3 pt-4">
                 <button type="button" onClick={()=>setModalTurma(false)} className="px-4 py-2 text-zinc-400 hover:text-white">Cancelar</button>
-                <button type="submit" className="px-4 py-2 bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg">Salvar</button>
+                <button type="submit" disabled={mutationTurma.isPending} className="px-4 py-2 bg-emerald-500 hover:bg-emerald-600 disabled:opacity-50 text-white rounded-lg flex items-center gap-2">
+                  {mutationTurma.isPending && <Loader2 size={16} className="animate-spin" />} Salvar
+                </button>
               </div>
             </form>
           </div>
         </div>
       )}
+
       {/* MODAL ALUNOS DA TURMA */}
       {modalAlunosTurma && turmaSelecionada && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
@@ -362,7 +408,7 @@ export default function CursosTurmas() {
             </div>
             
             <div className="p-6 overflow-y-auto space-y-6">
-              <form onSubmit={matricularAluno} className="flex gap-3 items-end bg-zinc-950 p-4 rounded-lg border border-zinc-800">
+              <form onSubmit={(e) => { e.preventDefault(); matricularMutation.mutate({ turmaId: turmaSelecionada.id, alunoId: alunoSelecionadoId }); }} className="flex gap-3 items-end bg-zinc-950 p-4 rounded-lg border border-zinc-800">
                 <div className="flex-1">
                   <label className="block text-sm text-zinc-400 mb-1">Adicionar Aluno</label>
                   <select 
@@ -378,10 +424,10 @@ export default function CursosTurmas() {
                 </div>
                 <button 
                   type="submit" 
-                  disabled={!alunoSelecionadoId || (turmaSelecionada.capacidade <= alunosDaTurma.length)}
-                  className="px-4 py-2 bg-emerald-500 hover:bg-emerald-600 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-lg font-medium transition-colors"
+                  disabled={!alunoSelecionadoId || (turmaSelecionada.capacidade <= alunosDaTurma.length) || matricularMutation.isPending}
+                  className="px-4 py-2 bg-emerald-500 hover:bg-emerald-600 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-lg font-medium transition-colors flex items-center gap-2"
                 >
-                  Matricular
+                  {matricularMutation.isPending && <Loader2 size={16} className="animate-spin" />} Matricular
                 </button>
               </form>
 
@@ -393,7 +439,9 @@ export default function CursosTurmas() {
                   </span>
                 </div>
                 
-                {alunosDaTurma.length === 0 ? (
+                {loadingAlunosTurma ? (
+                  <div className="flex justify-center py-8"><Loader2 className="animate-spin text-emerald-500" /></div>
+                ) : alunosDaTurma.length === 0 ? (
                   <div className="text-center py-8 text-zinc-500 bg-zinc-950/50 rounded-lg border border-zinc-800/50">
                     Nenhum aluno matriculado nesta turma ainda.
                   </div>
@@ -406,7 +454,11 @@ export default function CursosTurmas() {
                           <p className="text-xs text-zinc-400">{aluno.email || 'Sem e-mail'} • {aluno.telefone || 'Sem telefone'}</p>
                         </div>
                         <button 
-                          onClick={() => removerAluno(aluno.id)}
+                          onClick={() => {
+                            if(window.confirm('Remover aluno desta turma?')) {
+                              removerAlunoMutation.mutate({ turmaId: turmaSelecionada.id, alunoId: aluno.id });
+                            }
+                          }}
                           className="text-rose-400 hover:text-rose-300 p-2 rounded-lg hover:bg-rose-500/10 transition-colors"
                           title="Remover Aluno"
                         >
