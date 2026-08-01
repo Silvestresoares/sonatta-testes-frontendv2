@@ -156,7 +156,7 @@ export default function AulasExperimentais() {
         return;
       }
 
-      setSucesso(idSendoEditado ? 'Contato atualizado com sucesso! ✏️' : 'Novo contato captado! 🎉');
+      setSucesso(idSendoEditado ? 'Contato atualizado com sucesso!' : 'Novo contato captado!');
       limparEdicao();
       setTimeout(() => carregarAulas(true), 1000);
     } catch (erro) {
@@ -326,7 +326,7 @@ export default function AulasExperimentais() {
       {/* Formulário Modal/Inline */}
       {mostrando_formulario && (
         <div className="mx-6 mt-6 p-6 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl shadow-sm flex-shrink-0">
-          <h2 className="text-xl font-bold text-zinc-900 dark:text-white mb-4">{idSendoEditado ? '✏️ Editar Contato' : '📝 Cadastrar Novo Lead'}</h2>
+          <h2 className="text-xl font-bold text-zinc-900 dark:text-white mb-4 flex items-center gap-2">{idSendoEditado ? <><Edit2 size={24} /> Editar Contato</> : <><Plus size={24} /> Cadastrar Novo Lead</>}</h2>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               <div>

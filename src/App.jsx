@@ -89,8 +89,14 @@ function LayoutComSidebar({ children, onLogout, tipoUsuario, professorId }) {
     <div className="flex flex-col md:flex-row bg-zinc-950 text-white min-h-screen selection:bg-emerald-500 selection:text-black">
       {/* Mobile Header */}
       <div className="md:hidden flex items-center justify-between p-4 border-b border-zinc-800 bg-zinc-900 z-30">
-        <div className="text-emerald-400 text-3xl font-bold" style={{ fontFamily: "'Dancing Script', cursive" }}>
-          Sonatta
+        <div className="flex items-center">
+          {typeof window !== 'undefined' && localStorage.getItem('@sonatta:escola_logo') ? (
+            <img src={localStorage.getItem('@sonatta:escola_logo')} alt={localStorage.getItem('@sonatta:escola_nome') || 'Escola'} className="max-h-8 object-contain" />
+          ) : typeof window !== 'undefined' && localStorage.getItem('@sonatta:escola_nome') ? (
+            <div className="text-white text-xl font-bold">
+              {localStorage.getItem('@sonatta:escola_nome')}
+            </div>
+          ) : null}
         </div>
         <button onClick={() => setIsSidebarOpen(true)} className="p-2 text-zinc-400 hover:text-white rounded-md bg-zinc-800">
           <Menu size={24} />

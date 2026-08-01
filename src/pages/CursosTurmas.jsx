@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { PlusCircle, Trash2, Users } from 'lucide-react';
+import { PlusCircle, Trash2, Users, Edit } from 'lucide-react';
 
 const _envApi = import.meta.env.VITE_API_URL;
 const _defaultLocal = 'http://localhost:3005';
@@ -223,8 +223,8 @@ export default function CursosTurmas() {
                   <td className="p-4 text-zinc-400">{c.descricao || '-'}</td>
                   <td className="p-4 text-center">
                     <div className="flex items-center justify-center gap-2">
-                      <button onClick={() => { setCursoEdit(c); setCursoNome(c.nome); setCursoDesc(c.descricao||''); setModalCurso(true); }} className="text-blue-400 hover:text-blue-300 p-2 rounded transition-all cursor-pointer hover:bg-blue-500/10" title="Editar">✏️</button>
-                      <button onClick={() => deletarCurso(c.id)} className="text-rose-400 hover:text-rose-300 p-2 rounded transition-all cursor-pointer hover:bg-rose-500/10" title="Excluir">🗑️</button>
+                      <button onClick={() => { setCursoEdit(c); setCursoNome(c.nome); setCursoDesc(c.descricao||''); setModalCurso(true); }} className="text-blue-400 hover:text-blue-300 p-2 rounded transition-all cursor-pointer hover:bg-blue-500/10" title="Editar"><Edit size={16} /></button>
+                      <button onClick={() => deletarCurso(c.id)} className="text-rose-400 hover:text-rose-300 p-2 rounded transition-all cursor-pointer hover:bg-rose-500/10" title="Excluir"><Trash2 size={16} /></button>
                     </div>
                   </td>
                 </tr>
@@ -264,8 +264,8 @@ export default function CursosTurmas() {
                   <td className="p-4 text-center">
                     <div className="flex items-center justify-center gap-2">
                       <button onClick={() => abrirModalAlunos(t)} className="text-emerald-400 hover:text-emerald-300 p-2 rounded transition-all cursor-pointer hover:bg-emerald-500/10" title="Gerenciar Alunos"><Users size={16}/></button>
-                      <button onClick={() => { setTurmaEdit(t); setTNome(t.nome); setTCursoId(t.curso_id); setTProfId(t.professor_id||''); setTDia(t.dia_semana); setTHoraIni(t.horario_inicio); setTHoraFim(t.horario_fim); setTCap(t.capacidade); setModalTurma(true); }} className="text-blue-400 hover:text-blue-300 p-2 rounded transition-all cursor-pointer hover:bg-blue-500/10" title="Editar">✏️</button>
-                      <button onClick={() => deletarTurma(t.id)} className="text-rose-400 hover:text-rose-300 p-2 rounded transition-all cursor-pointer hover:bg-rose-500/10" title="Excluir">🗑️</button>
+                      <button onClick={() => { setTurmaEdit(t); setTNome(t.nome); setTCursoId(t.curso_id); setTProfId(t.professor_id||''); setTDia(t.dia_semana); setTHoraIni(t.horario_inicio); setTHoraFim(t.horario_fim); setTCap(t.capacidade); setModalTurma(true); }} className="text-blue-400 hover:text-blue-300 p-2 rounded transition-all cursor-pointer hover:bg-blue-500/10" title="Editar"><Edit size={16} /></button>
+                      <button onClick={() => deletarTurma(t.id)} className="text-rose-400 hover:text-rose-300 p-2 rounded transition-all cursor-pointer hover:bg-rose-500/10" title="Excluir"><Trash2 size={16} /></button>
                     </div>
                   </td>
                 </tr>

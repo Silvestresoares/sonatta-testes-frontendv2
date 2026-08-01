@@ -158,7 +158,7 @@ export default function Sidebar({ onLogout, tipoUsuario, professorId, isOpen, on
 
                 <NavLink to="/materiais" className={linkStyle} onClick={onClose}>
                   <Folder size={20} />
-                  Materiais
+                  Arquivos
                 </NavLink>
               </>
             ) : (
@@ -229,7 +229,7 @@ export default function Sidebar({ onLogout, tipoUsuario, professorId, isOpen, on
 
                 <NavLink to="/materiais" className={linkStyle} onClick={onClose}>
                   <Folder size={20} />
-                  Materiais
+                  Arquivos
                 </NavLink>
 
                 <NavLink to="/configuracoes" className={linkStyle} onClick={onClose}>

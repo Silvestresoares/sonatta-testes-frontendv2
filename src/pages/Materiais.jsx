@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Upload, FileText, Trash2, Search, X } from 'lucide-react';
+import { Upload, FileText, Trash2, Search, X, Headphones, FileAudio, FileImage, Download } from 'lucide-react';
 
 const _envApi = import.meta.env.VITE_API_URL;
 const _defaultLocal = 'http://localhost:3005';
@@ -139,6 +139,14 @@ export default function Materiais() {
     return date.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' });
   };
 
+  const getFileIcon = (tipo) => {
+    if (!tipo) return <FileText size={18} className="text-emerald-400" />;
+    if (tipo.includes('audio')) return <Headphones size={18} className="text-purple-400" />;
+    if (tipo.includes('image')) return <FileImage size={18} className="text-blue-400" />;
+    if (tipo.includes('pdf')) return <FileText size={18} className="text-rose-400" />;
+    return <FileText size={18} className="text-emerald-400" />;
+  };
+
   const materiaisFiltrados = materiais.filter(m =>
     m.nome.toLowerCase().includes(termoBusca.toLowerCase()) ||
     m.aluno_nome?.toLowerCase().includes(termoBusca.toLowerCase())
@@ -155,7 +163,7 @@ export default function Materiais() {
             <FileText className="text-emerald-400" size={32} />
             Repositório de Arquivos
           </h1>
-          <p className="text-zinc-400 mt-1">Envie materiais didáticos e partituras para seus alunos.</p>
+          <p className="text-zinc-400 mt-1">Envie materiais didáticos, partituras e backing tracks para seus alunos.</p>
         </div>
       </div>
 
@@ -205,9 +213,11 @@ export default function Materiais() {
                     type="file"
                     ref={fileInputRef}
                     onChange={handleFileChange}
+                    accept=".pdf, .jpg, .jpeg, .png, .mp3, .wav, .m4a"
                     className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-sm text-zinc-400 file:mr-4 file:py-1 file:px-3 file:rounded-md file:border-0 file:text-xs file:font-semibold file:bg-emerald-500/20 file:text-emerald-400 hover:file:bg-emerald-500/30 transition-colors cursor-pointer"
                     required
                   />
+                  <p className="text-[10px] text-zinc-500 mt-1">Formatos suportados: PDF, JPG, PNG, MP3, WAV, M4A.</p>
                 </div>
               </div>
 
@@ -278,10 +288,21 @@ export default function Materiais() {
                       <tr key={m.id} className="hover:bg-zinc-800/20 transition-colors">
                         <td className="px-6 py-4">
                           <div className="font-medium text-white mb-1 flex items-center gap-2">
-                            <FileText size={16} className="text-emerald-400" />
+                            {getFileIcon(m.tipo)}
                             {m.nome}
                           </div>
                           {m.descricao && <div className="text-xs text-zinc-500 truncate max-w-xs">{m.descricao}</div>}
+                          {m.tipo && m.tipo.includes('audio') && (
+                            <div className="mt-2">
+                              <audio 
+                                controls 
+                                className="h-8 max-w-xs w-full filter drop-shadow-md rounded outline-none" 
+                                src={m.caminho_arquivo.startsWith('http') ? m.caminho_arquivo : `${API_URL}/uploads/${m.caminho_arquivo}`}
+                              >
+                                O seu navegador não suporta áudio.
+                              </audio>
+                            </div>
+                          )}
                         </td>
                         <td className="px-6 py-4">
                           <span className="bg-zinc-800 px-2 py-1 rounded text-xs text-zinc-300">
@@ -297,17 +318,17 @@ export default function Materiais() {
                               href={m.caminho_arquivo.startsWith('http') ? m.caminho_arquivo : `${API_URL}/uploads/${m.caminho_arquivo}`}
                               target="_blank"
                               rel="noreferrer"
-                              className="text-emerald-400 hover:text-emerald-300 p-2 rounded transition-all cursor-pointer hover:bg-emerald-500/10"
+                              className="text-sky-400 hover:text-sky-300 p-2 rounded transition-all cursor-pointer hover:bg-sky-500/10"
                               title="Baixar/Visualizar"
                             >
-                              📥
+                              <Download size={18} />
                             </a>
                             <button
                               onClick={() => handleExcluir(m.id)}
                               className="text-rose-400 hover:text-rose-300 p-2 rounded transition-all cursor-pointer hover:bg-rose-500/10"
                               title="Excluir Definitivamente"
                             >
-                              🗑️
+                              <Trash2 size={18} />
                             </button>
                           </div>
                         </td>

@@ -1,5 +1,5 @@
-import React from 'react';
-import { Clock, User, Music, AlertCircle, CheckCircle2, XCircle, Tag, Clipboard, Users } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Clock, User, Clipboard, Music, ShieldAlert, CheckCircle, Info, Edit, Trash2, Users, AlertCircle, CheckCircle2, XCircle, Tag } from 'lucide-react';
 
 export default function AulasTimeline({ aulas = [], onAbrirRegistro = null, onEditAula = null, onDeleteAula = null, showActions = true }) {
   if (!aulas || aulas.length === 0) {
@@ -158,12 +158,12 @@ export default function AulasTimeline({ aulas = [], onAbrirRegistro = null, onEd
                       onClick={(e) => { e.stopPropagation(); onEditAula && onEditAula(aula); }}
                       className="text-blue-400 hover:text-blue-300 p-2 rounded transition-all cursor-pointer hover:bg-blue-500/10 active:scale-90"
                       title="Editar"
-                    >✏️</button>
+                    ><Edit size={16} /></button>
                     <button
                       onClick={(e) => { e.stopPropagation(); onDeleteAula && onDeleteAula(aula); }}
                       className="text-rose-400 hover:text-rose-300 p-2 rounded transition-all cursor-pointer hover:bg-rose-500/10 active:scale-90"
                       title="Excluir"
-                    >🗑️</button>
+                    ><Trash2 size={16} /></button>
                   </>
                 )}
               </div>

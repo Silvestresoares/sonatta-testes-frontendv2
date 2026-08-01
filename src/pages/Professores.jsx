@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { UserPlus, Search, Download, Printer, X,
          Users, Edit2, Plus, Minus,
-         ChevronLeft, ChevronRight } from 'lucide-react';
+         ChevronLeft, ChevronRight, CheckCircle2, AlertCircle, CalendarClock, ShieldCheck, Eye, Edit, Trash2 } from 'lucide-react';
 
 const _envApi = import.meta.env.VITE_API_URL;
 const _defaultLocal = 'http://localhost:3005';
@@ -858,7 +858,7 @@ function ModalProfessor({ professor, onClose, onSalvo, token, todosAlunos }) {
             <Avatar url={form.foto_url} nome={form.nome} size={10} />
             <div>
               <h2 className="text-base font-bold text-white">
-                {editando ? `✏️ Editar — ${professor.nome}` : '✨ Novo Professor'}
+                <span className="flex items-center gap-2">{editando ? <><Edit size={24} /> Editar — {professor.nome}</> : '✨ Novo Professor'}</span>
               </h2>
               <p className="text-xs text-zinc-500">Preencha os dados do professor</p>
             </div>
@@ -1527,21 +1527,21 @@ export default function Professores() {
                         className="text-emerald-400 hover:text-emerald-300 p-2 rounded transition-all cursor-pointer hover:bg-emerald-500/10"
                         title="Visualizar ficha"
                       >
-                        👁️
+                        <Eye size={18} />
                       </button>
                       <button
                         onClick={() => abrirEdicao(prof)}
                         className="text-blue-400 hover:text-blue-300 p-2 rounded transition-all cursor-pointer hover:bg-blue-500/10"
                         title="Editar"
                       >
-                        ✏️
+                        <Edit size={18} />
                       </button>
                       <button
                         onClick={() => excluir(prof)}
                         className="text-rose-400 hover:text-rose-300 p-2 rounded transition-all cursor-pointer hover:bg-rose-500/10"
                         title="Excluir"
                       >
-                        🗑️
+                        <Trash2 size={18} />
                       </button>
                     </div>
                   </td>
