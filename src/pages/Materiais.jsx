@@ -294,7 +294,7 @@ export default function Materiais() {
                         <td className="px-6 py-4 text-center">
                           <div className="flex items-center justify-center gap-2">
                             <a
-                              href={`${API_URL}/uploads/${m.caminho_arquivo}`}
+                              href={m.caminho_arquivo.startsWith('http') ? m.caminho_arquivo : `${API_URL}/uploads/${m.caminho_arquivo}`}
                               target="_blank"
                               rel="noreferrer"
                               className="text-emerald-400 hover:text-emerald-300 p-2 rounded transition-all cursor-pointer hover:bg-emerald-500/10"

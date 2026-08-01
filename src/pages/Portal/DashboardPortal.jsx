@@ -480,7 +480,7 @@ export default function DashboardPortal() {
 
                         <div className="flex-shrink-0">
                           <a
-                            href={`${API_URL}/uploads/${item.caminho_arquivo}`}
+                            href={item.caminho_arquivo.startsWith('http') ? item.caminho_arquivo : `${API_URL}/uploads/${item.caminho_arquivo}`}
                             target="_blank"
                             rel="noreferrer"
                             className="flex items-center gap-2 text-sm font-medium text-white bg-teal-600 hover:bg-teal-500 px-4 py-2 rounded-lg transition-colors"
