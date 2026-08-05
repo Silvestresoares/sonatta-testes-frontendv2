@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
-import { LogOut, PlusCircle, Repeat, RotateCcw, Lightbulb, X, Folder, Settings, CreditCard } from 'lucide-react';
+import { LogOut, PlusCircle, Repeat, RotateCcw, Lightbulb, X, Folder, Settings, CreditCard, Search, CheckSquare } from 'lucide-react';
 import { FaGraduationCap, FaUserGraduate, FaCalendarAlt, FaMoneyBillWave } from 'react-icons/fa';
-import { ChartBarIcon, UsersIcon, UserGroupIcon, AcademicCapIcon, BookOpenIcon, CalendarIcon, BanknotesIcon } from '@heroicons/react/24/outline';
+import { ChartBarIcon, UsersIcon, UserGroupIcon, AcademicCapIcon, BookOpenIcon, CalendarIcon, BanknotesIcon, Cog6ToothIcon, IdentificationIcon, MapPinIcon, ShoppingCartIcon } from '@heroicons/react/24/outline';
 import AgendamentoAulaModal from './AgendamentoAulaModal';
 
 export default function Sidebar({ onLogout, tipoUsuario, professorId, isOpen, onClose, isSuperAdmin }) {
@@ -28,6 +28,13 @@ export default function Sidebar({ onLogout, tipoUsuario, professorId, isOpen, on
   // Estados para o Modal de Agendamento de Aula Extra
   const [isAgendamentoModalAberto, setIsAgendamentoModalAberto] = useState(false);
   const [tipoSelecionado, setTipoSelecionado] = useState('aula_extra');
+
+  // Estados para Trocar Senha
+  const [isSenhaModalAberto, setIsSenhaModalAberto] = useState(false);
+  const [senhaAtual, setSenhaAtual] = useState('');
+  const [novaSenha, setNovaSenha] = useState('');
+  const [confirmarNovaSenha, setConfirmarNovaSenha] = useState('');
+  const [senhaMensagem, setSenhaMensagem] = useState('');
 
 
   const handleAbrirModal = (tipo) => {
@@ -156,6 +163,15 @@ export default function Sidebar({ onLogout, tipoUsuario, professorId, isOpen, on
                   )}
                 </NavLink>
 
+                <NavLink to="/eventos" className={linkStyle} onClick={onClose}>
+                  {({ isActive }) => (
+                    <>
+                      <CheckSquare className={`w-5 h-5 ${isActive ? 'text-white' : 'text-teal-500'}`} />
+                      Eventos & Audições
+                    </>
+                  )}
+                </NavLink>
+
                 <NavLink to="/materiais" className={linkStyle} onClick={onClose}>
                   <Folder size={20} />
                   Arquivos
@@ -169,6 +185,15 @@ export default function Sidebar({ onLogout, tipoUsuario, professorId, isOpen, on
                     <>
                       <ChartBarIcon className={`w-5 h-5 ${isActive ? 'text-white' : 'text-blue-500'}`} />
                       Geral
+                    </>
+                  )}
+                </NavLink>
+
+                <NavLink to="/relatorios" className={linkStyle} onClick={onClose}>
+                  {({ isActive }) => (
+                    <>
+                      <ChartBarIcon className={`w-5 h-5 ${isActive ? 'text-white' : 'text-blue-500'}`} />
+                      Relatórios (BI)
                     </>
                   )}
                 </NavLink>
@@ -209,6 +234,24 @@ export default function Sidebar({ onLogout, tipoUsuario, professorId, isOpen, on
                   )}
                 </NavLink>
 
+                <NavLink to="/salas" className={linkStyle} onClick={onClose}>
+                  {({ isActive }) => (
+                    <>
+                      <MapPinIcon className={`w-5 h-5 ${isActive ? 'text-white' : 'text-rose-500'}`} />
+                      Salas Físicas
+                    </>
+                  )}
+                </NavLink>
+
+                <NavLink to="/locacao-salas" className={linkStyle} onClick={onClose}>
+                  {({ isActive }) => (
+                    <>
+                      <svg className={`w-5 h-5 ${isActive ? 'text-white' : 'text-rose-500'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" /></svg>
+                      Locação de Salas
+                    </>
+                  )}
+                </NavLink>
+
                 <NavLink to="/agenda" className={linkStyle} onClick={onClose}>
                   {({ isActive }) => (
                     <>
@@ -227,6 +270,24 @@ export default function Sidebar({ onLogout, tipoUsuario, professorId, isOpen, on
                   )}
                 </NavLink>
 
+                <NavLink to="/lojinha" className={linkStyle} onClick={onClose}>
+                  {({ isActive }) => (
+                    <>
+                      <ShoppingCartIcon className={`w-5 h-5 ${isActive ? 'text-white' : 'text-amber-500'}`} />
+                      Lojinha (PDV)
+                    </>
+                  )}
+                </NavLink>
+
+                <NavLink to="/eventos" className={linkStyle} onClick={onClose}>
+                  {({ isActive }) => (
+                    <>
+                      <CheckSquare className={`w-5 h-5 ${isActive ? 'text-white' : 'text-teal-500'}`} />
+                      Eventos & Audições
+                    </>
+                  )}
+                </NavLink>
+
                 <NavLink to="/materiais" className={linkStyle} onClick={onClose}>
                   <Folder size={20} />
                   Arquivos
@@ -235,6 +296,11 @@ export default function Sidebar({ onLogout, tipoUsuario, professorId, isOpen, on
                 <NavLink to="/configuracoes" className={linkStyle} onClick={onClose}>
                   <Settings size={20} />
                   Configurações
+                </NavLink>
+
+                <NavLink to="/feriados" className={linkStyle} onClick={onClose}>
+                  <CalendarIcon className="w-5 h-5" />
+                  Feriados
                 </NavLink>
 
                 <NavLink to="/minha-assinatura" className={linkStyle} onClick={onClose}>
@@ -265,6 +331,16 @@ export default function Sidebar({ onLogout, tipoUsuario, professorId, isOpen, on
 
         {/* Botão Sair */}
         <div className="border-t border-zinc-200 dark:border-zinc-800 pt-4 space-y-2">
+          {ehProfessor && (
+            <button
+              onClick={() => setIsSenhaModalAberto(true)}
+              className="w-full px-4 py-2.5 bg-zinc-800/50 hover:bg-zinc-800 border border-zinc-700/50 text-zinc-300 hover:text-white rounded-lg font-medium transition-all text-sm flex items-center justify-center gap-2 mb-2"
+            >
+              <Settings size={16} />
+              Trocar Senha
+            </button>
+          )}
+          
           <button
             onClick={onLogout}
             className="w-full px-4 py-2.5 bg-red-500/10 hover:bg-red-500/20 border border-red-500/30 text-red-400 hover:text-red-300 rounded-lg font-medium transition-all text-sm flex items-center justify-center gap-2"
@@ -290,6 +366,70 @@ export default function Sidebar({ onLogout, tipoUsuario, professorId, isOpen, on
           tipoPadrao={tipoSelecionado}
           onSaveSuccess={() => canalComunicacao.postMessage('atualizar_dados')}
         />
+      )}
+
+      {/* Modal Trocar Senha */}
+      {isSenhaModalAberto && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+          <div className="bg-zinc-900 border border-zinc-800 rounded-2xl w-full max-w-sm overflow-hidden shadow-2xl">
+            <div className="flex justify-between items-center p-4 border-b border-zinc-800">
+              <h2 className="text-lg font-bold text-white flex items-center gap-2">
+                <Settings size={20} className="text-emerald-500" />
+                Trocar Senha
+              </h2>
+              <button onClick={() => setIsSenhaModalAberto(false)} className="text-zinc-400 hover:text-white transition-colors">
+                <X size={24} />
+              </button>
+            </div>
+            
+            <form onSubmit={handleTrocarSenha} className="p-6 space-y-4">
+              {senhaMensagem && (
+                <div className={`p-3 rounded-lg text-sm font-medium ${senhaMensagem.includes('sucesso') ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-red-500/10 text-red-400 border border-red-500/20'}`}>
+                  {senhaMensagem}
+                </div>
+              )}
+              <div>
+                <label className="block text-xs font-medium text-zinc-400 mb-1">Senha Atual</label>
+                <input
+                  type="password"
+                  value={senhaAtual}
+                  onChange={(e) => setSenhaAtual(e.target.value)}
+                  required
+                  placeholder="Sua senha atual"
+                  className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-emerald-500"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-zinc-400 mb-1">Nova Senha</label>
+                <input
+                  type="password"
+                  value={novaSenha}
+                  onChange={(e) => setNovaSenha(e.target.value)}
+                  required
+                  placeholder="Nova senha"
+                  className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-emerald-500"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-zinc-400 mb-1">Confirmar Nova Senha</label>
+                <input
+                  type="password"
+                  value={confirmarNovaSenha}
+                  onChange={(e) => setConfirmarNovaSenha(e.target.value)}
+                  required
+                  placeholder="Repita a nova senha"
+                  className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-emerald-500"
+                />
+              </div>
+              <button 
+                type="submit" 
+                className="w-full bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-medium py-2 px-4 rounded-lg transition-colors mt-2"
+              >
+                Atualizar Senha
+              </button>
+            </form>
+          </div>
+        </div>
       )}
     </>
   );

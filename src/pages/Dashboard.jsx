@@ -15,7 +15,7 @@ import {
   Legend,
   Cell
 } from 'recharts';
-import { TrendingUp, Activity, PieChart as PieChartIcon, X, Users, TrendingDown, Wallet, GraduationCap } from 'lucide-react';
+import { TrendingUp, Activity, PieChart as PieChartIcon, X, Users, TrendingDown, Wallet, GraduationCap, ShoppingCart, FileText, Key } from 'lucide-react';
 
 import { API_URL } from '../utils/api';
 const canalComunicacao = new BroadcastChannel('sonatta_updates');
@@ -237,8 +237,35 @@ export default function Dashboard() {
             <TrendingUp size={24} />
           </div>
           <div>
-            <span className="text-xs font-semibold uppercase text-zinc-400 block mb-1">Entradas (Mês)</span>
-            <span className="text-2xl font-bold text-emerald-400">R$ {Number(metricas.receitasMes).toFixed(2)}</span>
+            <span className="text-xs font-semibold uppercase text-zinc-400 block mb-1">Mensalidades</span>
+            <span className="text-2xl font-bold text-emerald-400">R$ {Number(metricas.receitasMensalidades || 0).toFixed(2)}</span>
+          </div>
+        </div>
+        <div className="bg-transparent p-5 rounded-xl flex items-center gap-4 transition-all hover:bg-white/5">
+          <div className="bg-amber-500/20 p-3 rounded-lg text-amber-400 shrink-0">
+            <ShoppingCart size={24} />
+          </div>
+          <div>
+            <span className="text-xs font-semibold uppercase text-zinc-400 block mb-1">Vendas Lojinha</span>
+            <span className="text-2xl font-bold text-amber-400">R$ {Number(metricas.receitasLojinha || 0).toFixed(2)}</span>
+          </div>
+        </div>
+        <div className="bg-transparent p-5 rounded-xl flex items-center gap-4 transition-all hover:bg-white/5">
+          <div className="bg-sky-500/20 p-3 rounded-lg text-sky-400 shrink-0">
+            <FileText size={24} />
+          </div>
+          <div>
+            <span className="text-xs font-semibold uppercase text-zinc-400 block mb-1">Lançam. Manuais</span>
+            <span className="text-2xl font-bold text-sky-400">R$ {Number(metricas.receitasManuais || 0).toFixed(2)}</span>
+          </div>
+        </div>
+        <div className="bg-transparent p-5 rounded-xl flex items-center gap-4 transition-all hover:bg-white/5">
+          <div className="bg-fuchsia-500/20 p-3 rounded-lg text-fuchsia-400 shrink-0">
+            <Key size={24} />
+          </div>
+          <div>
+            <span className="text-xs font-semibold uppercase text-zinc-400 block mb-1">Locação de Salas</span>
+            <span className="text-2xl font-bold text-fuchsia-400">R$ {Number(metricas.receitasLocacao || 0).toFixed(2)}</span>
           </div>
         </div>
         <div className="bg-transparent p-5 rounded-xl flex items-center gap-4 transition-all hover:bg-white/5">

@@ -14,7 +14,7 @@ export default function Financeiro() {
   const [buscaProfessores, setBuscaProfessores] = useState('');
   const [statusMensalidadeFiltro, setStatusMensalidadeFiltro] = useState('Todos');
   const [abaSelecionada, setAbaSelecionada] = useState('mensalidades'); // 'mensalidades', 'extrato', 'lancamentos' ou 'professores'
-  const [filtroOrigem, setFiltroOrigem] = useState('Todos'); // 'Todos', 'Mensalidades', 'Professores', 'Gerais'
+  const [filtroOrigem, setFiltroOrigem] = useState('Todos'); // 'Todos', 'Mensalidades', 'Professores', 'Gerais', 'Locacao'
   const [filtroTipo, setFiltroTipo] = useState('Todos');
   const [filtroStatus, setFiltroStatus] = useState('Todos');
   const [dataInicio, setDataInicio] = useState('');
@@ -77,7 +77,7 @@ export default function Financeiro() {
     data: '',
     status: 'Pago'
   });
-  
+
   // Estados para edição
   const [editandoId, setEditandoId] = useState(null);
 
@@ -181,11 +181,11 @@ export default function Financeiro() {
       fetch(`${API_URL}/api/escola`, {
         headers: { 'Authorization': `Bearer ${token}` }
       })
-      .then(r => r.json())
-      .then(data => {
-        if (data.asaas_api_key) setAsaasConfigurado(true);
-      })
-      .catch(err => console.error('Erro ao verificar Asaas:', err));
+        .then(r => r.json())
+        .then(data => {
+          if (data.asaas_api_key) setAsaasConfigurado(true);
+        })
+        .catch(err => console.error('Erro ao verificar Asaas:', err));
     }
   }, []);
 
@@ -200,7 +200,7 @@ export default function Financeiro() {
       });
       if (!resProfs.ok) throw new Error();
       const profs = await resProfs.json();
-      
+
       const promessas = profs.map(async (prof) => {
         const resFin = await fetch(`${API_URL}/api/professores/${prof.id}/financeiro?mes=${mesFiltro}&ano=${anoFiltro}`, {
           method: 'GET',
@@ -317,7 +317,7 @@ export default function Financeiro() {
     const token = localStorage.getItem('@sonatta:token');
     const novoStatus = statusAtual === 'Pago' ? 'Pendente' : 'Pago';
     const dataPgto = novoStatus === 'Pago' ? (isMesAtual ? new Date().toISOString().split('T')[0] : `${anoFiltro}-${String(mesFiltro).padStart(2, '0')}-10`) : null;
-    
+
     try {
       const resposta = await fetch(`${API_URL}/api/financeiro/aluno-${alunoId}/status`, {
         method: 'PUT',
@@ -325,10 +325,10 @@ export default function Financeiro() {
         body: JSON.stringify({ status: novoStatus, mes: mesFiltro, ano: anoFiltro })
       });
       if (resposta.ok) {
-        setAlunos(prev => prev.map(a => 
+        setAlunos(prev => prev.map(a =>
           a.id === alunoId ? { ...a, status_mensalidade: novoStatus, data_pagamento_mensalidade: dataPgto } : a
         ));
-        
+
         // Atualiza transações localmente para a UI reagir instantaneamente
         if (!isMesAtual) {
           if (novoStatus === 'Pago') {
@@ -340,7 +340,7 @@ export default function Financeiro() {
             setTransacoes(prev => prev.filter(t => !(t.aluno_id === alunoId && t.tipo === 'Receita' && t.descricao.toLowerCase().includes('mensalidade'))));
           }
         }
-        
+
         carregarFinanceiro(); // Atualiza a tabela com os IDs reais do banco
         canalComunicacao.postMessage('atualizar_dados');
       } else {
@@ -374,7 +374,7 @@ export default function Financeiro() {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       const data = await resposta.json();
-        if (resposta.ok) {
+      if (resposta.ok) {
         alert('Cobrança gerada com sucesso!');
         carregarFinanceiro();
         carregarAlunos();
@@ -534,7 +534,7 @@ export default function Financeiro() {
   // Se for isMesFuturo, receitasOutros e despesasOutros permanecem 0, o que é o comportamento desejado.
 
   const razaoReceitaDespesa = despesasOutros > 0 ? (receitasOutros / despesasOutros).toFixed(2) : 0;
-  
+
   const saldoTotal = receitasOutros + mensalidadesPagas - despesasOutros;
 
   // Filtragem Local de Alunos
@@ -557,17 +557,24 @@ export default function Financeiro() {
 
   const transacoesExtratoFiltradas = useMemo(() => {
     return transacoes.filter(t => {
-      if (filtroOrigem === 'Mensalidades') return t.aluno_id != null;
+      const isLojinha = t.descricao.toLowerCase().includes('venda lojinha:');
+      const isLocacao = t.descricao.toLowerCase().includes('locação de sala:');
+      if (filtroOrigem === 'Mensalidades') return t.aluno_id != null && !isLojinha && !isLocacao;
+      if (filtroOrigem === 'Lojinha') return isLojinha;
+      if (filtroOrigem === 'Locacao') return isLocacao;
       if (filtroOrigem === 'Professores') return t.aluno_id == null && (t.descricao.toLowerCase().includes('professor') || t.descricao.toLowerCase().includes('repasse'));
-      if (filtroOrigem === 'Gerais') return t.aluno_id == null && !(t.descricao.toLowerCase().includes('professor') || t.descricao.toLowerCase().includes('repasse'));
+      if (filtroOrigem === 'Gerais') return t.aluno_id == null && !(t.descricao.toLowerCase().includes('professor') || t.descricao.toLowerCase().includes('repasse')) && !isLojinha && !isLocacao;
       return true; // 'Todos'
     });
   }, [transacoes, filtroOrigem]);
 
   const transacoesLancamentosFiltradas = useMemo(() => {
     // Na aba de lançamentos manuais, não mostramos as mensalidades
-    // Mas incluimos as aulas extras (que possuem aluno_id)
-    return transacoes.filter(t => t.aluno_id == null || (t.descricao && t.descricao.toLowerCase().includes('aula extra')));
+    // Mas incluimos as aulas extras e as vendas da lojinha (que podem possuir aluno_id)
+    return transacoes.filter(t =>
+      t.aluno_id == null ||
+      (t.descricao && (t.descricao.toLowerCase().includes('aula extra') || t.descricao.toLowerCase().includes('venda lojinha:')))
+    );
   }, [transacoes]);
 
   const extratoPaginado = transacoesExtratoFiltradas.slice((paginaTransacoes - 1) * limite, paginaTransacoes * limite);
@@ -584,17 +591,17 @@ export default function Financeiro() {
           <h1 className="text-2xl font-bold tracking-tight">💰 Fluxo Financeiro</h1>
           <p className="text-sm text-zinc-400">Gerencie mensalidades e outros lançamentos.</p>
         </div>
-        
+
         <div className="flex flex-wrap items-center gap-3">
-          <button 
+          <button
             onClick={() => setModalHistoricoAberto(true)}
             className="bg-purple-500/10 hover:bg-purple-500/20 text-purple-400 border border-purple-500/30 hover:border-purple-500/50 px-4 py-2.5 rounded-lg text-sm cursor-pointer font-medium shadow-lg flex items-center gap-2 transition-all"
           >
             <Receipt size={16} />
             Histórico financeiro
           </button>
-          <button 
-            onClick={() => { setAbaSelecionada('lancamentos'); setModalAberto(true); }} 
+          <button
+            onClick={() => { setAbaSelecionada('lancamentos'); setModalAberto(true); }}
             className="bg-emerald-600 hover:bg-emerald-700 px-4 py-2.5 rounded-lg text-sm cursor-pointer font-medium shadow-lg shadow-emerald-900/20 flex items-center gap-2"
           >
             <Plus size={16} />
@@ -604,874 +611,866 @@ export default function Financeiro() {
       </div>
 
       <div className="flex bg-zinc-900 border border-zinc-800 rounded-lg mb-6 p-1">
-            <button
-              onClick={() => setAbaSelecionada('mensalidades')}
-              className={`flex-1 py-3 rounded font-medium transition-all ${
-                abaSelecionada === 'mensalidades'
-                  ? 'bg-sky-600 text-white'
-                  : 'text-zinc-400 hover:text-white'
-              }`}
-            >
-              📚 Mensalidades ({alunos.length})
-            </button>
+        <button
+          onClick={() => setAbaSelecionada('mensalidades')}
+          className={`flex-1 py-3 rounded font-medium transition-all ${abaSelecionada === 'mensalidades'
+            ? 'bg-sky-600 text-white'
+            : 'text-zinc-400 hover:text-white'
+            }`}
+        >
+          📚 Mensalidades ({alunos.length})
+        </button>
 
-            <button
-              onClick={() => setAbaSelecionada('lancamentos')}
-              className={`flex-1 py-3 rounded font-medium transition-all ${
-                abaSelecionada === 'lancamentos'
-                  ? 'bg-sky-600 text-white'
-                  : 'text-zinc-400 hover:text-white'
-              }`}
-            >
-              📋 Lançamentos Manuais
-            </button>
-            <button
-              onClick={() => setAbaSelecionada('professores')}
-              className={`flex-1 py-3 rounded font-medium transition-all ${
-                abaSelecionada === 'professores'
-                  ? 'bg-sky-600 text-white'
-                  : 'text-zinc-400 hover:text-white'
-              }`}
-            >
-              👨‍🏫 Professores ({professoresFinanceiro.length})
-            </button>
-          </div>
+        <button
+          onClick={() => setAbaSelecionada('lancamentos')}
+          className={`flex-1 py-3 rounded font-medium transition-all ${abaSelecionada === 'lancamentos'
+            ? 'bg-sky-600 text-white'
+            : 'text-zinc-400 hover:text-white'
+            }`}
+        >
+          📋 Outros Lançamentos
+        </button>
+        <button
+          onClick={() => setAbaSelecionada('professores')}
+          className={`flex-1 py-3 rounded font-medium transition-all ${abaSelecionada === 'professores'
+            ? 'bg-sky-600 text-white'
+            : 'text-zinc-400 hover:text-white'
+            }`}
+        >
+          👨‍🏫 Professores ({professoresFinanceiro.length})
+        </button>
+      </div>
 
 
-          {/* Conteúdo da Aba: MENSALIDADES */}
-          {abaSelecionada === 'mensalidades' && (
-            <div className="bg-zinc-900 border border-zinc-800 rounded-xl overflow-hidden">
-              {/* Filtros de Mensalidades */}
-              <div className="p-4 border-b border-zinc-800 bg-zinc-900/50 flex flex-col gap-4">
-                <div className="flex flex-col sm:flex-row gap-3">
-                  <div className="flex-1">
-                    <label className="text-xs uppercase text-zinc-500 mb-1 block">Buscar por nome</label>
+      {/* Conteúdo da Aba: MENSALIDADES */}
+      {abaSelecionada === 'mensalidades' && (
+        <div className="bg-zinc-900 border border-zinc-800 rounded-xl overflow-hidden">
+          {/* Filtros de Mensalidades */}
+          <div className="p-4 border-b border-zinc-800 bg-zinc-900/50 flex flex-col gap-4">
+            <div className="flex flex-col sm:flex-row gap-3">
+              <div className="flex-1">
+                <label className="text-xs uppercase text-zinc-500 mb-1 block">Buscar por nome</label>
+                <input
+                  type="text"
+                  placeholder="🔍 Buscar aluno por nome..."
+                  value={buscaAlunos}
+                  onChange={(e) => {
+                    setBuscaAlunos(e.target.value);
+                    setPaginaAlunos(1);
+                  }}
+                  className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-emerald-500"
+                />
+              </div>
+              <div className="w-full sm:w-48">
+                <label className="text-xs uppercase text-zinc-500 mb-1 block">Status</label>
+                <select
+                  value={statusMensalidadeFiltro}
+                  onChange={(e) => {
+                    setStatusMensalidadeFiltro(e.target.value);
+                    setPaginaAlunos(1);
+                  }}
+                  className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-emerald-500"
+                >
+                  <option value="Todos">Todos os Status</option>
+                  <option value="Pago">Pago</option>
+                  <option value="Pendente">Pendente</option>
+                </select>
+              </div>
+            </div>
+
+            {/* Linha 2: Filtros de Data */}
+            <div className="flex flex-col lg:flex-row lg:items-end gap-3 pt-3 border-t border-zinc-800/50">
+              <div className="w-full lg:w-48">
+                <label className="text-xs uppercase text-zinc-500 mb-1 block">Filtrar por data</label>
+                <select
+                  value={modoFiltroData}
+                  onChange={(e) => setModoFiltroData(e.target.value)}
+                  className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-emerald-500"
+                >
+                  <option value="mes">Mês Específico</option>
+                  <option value="periodo">Período Personalizado</option>
+                </select>
+              </div>
+
+              {modoFiltroData === 'mes' ? (
+                <>
+                  <div className="w-full lg:w-40">
+                    <label className="text-xs uppercase text-zinc-500 mb-1 block">Mês</label>
+                    <select
+                      value={mesFiltro}
+                      onChange={(e) => setMesFiltro(Number(e.target.value))}
+                      className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-emerald-500"
+                    >
+                      {meses.map((m, i) => (
+                        <option key={m} value={i + 1}>{m}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="w-full lg:w-32">
+                    <label className="text-xs uppercase text-zinc-500 mb-1 block">Ano</label>
+                    <select
+                      value={anoFiltro}
+                      onChange={(e) => setAnoFiltro(Number(e.target.value))}
+                      className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-emerald-500"
+                    >
+                      {anos.map(a => (
+                        <option key={a} value={a}>{a}</option>
+                      ))}
+                    </select>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="w-full lg:w-40">
+                    <label className="text-xs uppercase text-zinc-500 mb-1 block">De</label>
                     <input
-                      type="text"
-                      placeholder="🔍 Buscar aluno por nome..."
-                      value={buscaAlunos}
-                      onChange={(e) => {
-                        setBuscaAlunos(e.target.value);
-                        setPaginaAlunos(1);
-                      }}
+                      type="date"
+                      value={dataInicio}
+                      onChange={(e) => setDataInicio(e.target.value)}
                       className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-emerald-500"
                     />
                   </div>
-                  <div className="w-full sm:w-48">
-                    <label className="text-xs uppercase text-zinc-500 mb-1 block">Status</label>
-                    <select
-                      value={statusMensalidadeFiltro}
-                      onChange={(e) => {
-                        setStatusMensalidadeFiltro(e.target.value);
-                        setPaginaAlunos(1);
-                      }}
+                  <div className="w-full lg:w-40">
+                    <label className="text-xs uppercase text-zinc-500 mb-1 block">Até</label>
+                    <input
+                      type="date"
+                      value={dataFim}
+                      onChange={(e) => setDataFim(e.target.value)}
                       className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-emerald-500"
-                    >
-                      <option value="Todos">Todos os Status</option>
-                      <option value="Pago">Pago</option>
-                      <option value="Pendente">Pendente</option>
-                    </select>
+                    />
                   </div>
-                </div>
-
-                {/* Linha 2: Filtros de Data */}
-                <div className="flex flex-col lg:flex-row lg:items-end gap-3 pt-3 border-t border-zinc-800/50">
-                  <div className="w-full lg:w-48">
-                    <label className="text-xs uppercase text-zinc-500 mb-1 block">Filtrar por data</label>
-                    <select
-                      value={modoFiltroData}
-                      onChange={(e) => setModoFiltroData(e.target.value)}
-                      className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-emerald-500"
-                    >
-                      <option value="mes">Mês Específico</option>
-                      <option value="periodo">Período Personalizado</option>
-                    </select>
-                  </div>
-
-                  {modoFiltroData === 'mes' ? (
-                    <>
-                      <div className="w-full lg:w-40">
-                        <label className="text-xs uppercase text-zinc-500 mb-1 block">Mês</label>
-                        <select
-                          value={mesFiltro}
-                          onChange={(e) => setMesFiltro(Number(e.target.value))}
-                          className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-emerald-500"
-                        >
-                          {meses.map((m, i) => (
-                            <option key={m} value={i + 1}>{m}</option>
-                          ))}
-                        </select>
-                      </div>
-                      <div className="w-full lg:w-32">
-                        <label className="text-xs uppercase text-zinc-500 mb-1 block">Ano</label>
-                        <select
-                          value={anoFiltro}
-                          onChange={(e) => setAnoFiltro(Number(e.target.value))}
-                          className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-emerald-500"
-                        >
-                          {anos.map(a => (
-                            <option key={a} value={a}>{a}</option>
-                          ))}
-                        </select>
-                      </div>
-                    </>
-                  ) : (
-                    <>
-                      <div className="w-full lg:w-40">
-                        <label className="text-xs uppercase text-zinc-500 mb-1 block">De</label>
-                        <input
-                          type="date"
-                          value={dataInicio}
-                          onChange={(e) => setDataInicio(e.target.value)}
-                          className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-emerald-500"
-                        />
-                      </div>
-                      <div className="w-full lg:w-40">
-                        <label className="text-xs uppercase text-zinc-500 mb-1 block">Até</label>
-                        <input
-                          type="date"
-                          value={dataFim}
-                          onChange={(e) => setDataFim(e.target.value)}
-                          className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-emerald-500"
-                        />
-                      </div>
-                    </>
-                  )}
-                </div>
-              </div>
-
-              {alunosFiltrados.length > 0 ? (
-                <div className="overflow-x-auto">
-                  <table role="table" aria-label="Tabela de dados" className="w-full text-sm">
-                    <thead>
-                      <tr className="border-b border-zinc-800 bg-zinc-950">
-                        <th className="text-left p-4 font-semibold">👤 Aluno</th>
-                        <th className="text-left p-4 font-semibold">🎵 Instrumento</th>
-                        <th className="text-right p-4 font-semibold">💰 Mensalidade</th>
-                        <th className="text-center p-4 font-semibold">Data Pagto</th>
-                        <th className="text-center p-4 font-semibold">Status</th>
-                        <th className="text-center p-4 font-semibold">Ação</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {alunosPaginados.map((aluno) => {
-                        let statusRender = aluno.status_mensalidade;
-                        let dataPgtoRender = aluno.data_pagamento_mensalidade;
-                        
-                        if (!isMesAtual) {
-                          const transacaoMes = transacoes.find(t => 
-                            t.aluno_id === aluno.id && 
-                            t.tipo === 'Receita' && 
-                            t.descricao.toLowerCase().includes('mensalidade')
-                          );
-                          statusRender = transacaoMes ? transacaoMes.status : 'Pendente';
-                          dataPgtoRender = transacaoMes ? transacaoMes.data : null;
-                        }
-                        
-                        return (
-                        <tr key={aluno.id} className="border-b border-zinc-800/50 hover:bg-zinc-800/20">
-                          <td className="p-4 text-zinc-200">{aluno.nome}</td>
-                          <td className="p-4 text-zinc-400">{aluno.instrumento || '—'}</td>
-                          <td className="p-4 text-right text-sky-400 font-semibold">
-                            R$ {Number(aluno.valor_calculado || 0).toFixed(2)}
-                          </td>
-                          <td className="p-4 text-center text-zinc-400 text-xs">
-                            {statusRender === 'Pago' && dataPgtoRender ? formatarData(dataPgtoRender) : '-'}
-                          </td>
-                          <td className="p-4 text-center">
-                            <span className={`text-xs font-bold px-2.5 py-1 rounded-full ${
-                              statusRender === 'Pago'
-                                ? 'bg-emerald-900/50 text-emerald-300'
-                                : 'bg-amber-900/50 text-amber-300'
-                            }`}>
-                              {statusRender === 'Pago' ? '✓ Pago' : '⏳ Pendente'}
-                            </span>
-                          </td>
-                          <td className="p-4 text-center">
-                            <div className="flex items-center justify-center gap-2">
-                              <button 
-                                onClick={() => alternarStatusMensalidade(aluno.id, aluno.nome, statusRender || 'Pendente')}
-                                title={statusRender === 'Pago' ? "Marcar como Pendente" : "Marcar como Pago Manualmente"}
-                                className={`px-3 py-1.5 text-xs font-medium rounded transition-all cursor-pointer ${
-                                  statusRender === 'Pago'
-                                    ? 'bg-amber-600/30 text-amber-300 hover:bg-amber-600/50'
-                                    : 'bg-emerald-600/30 text-emerald-300 hover:bg-emerald-600/50'
-                                }`}
-                              >
-                                {statusRender === 'Pago' ? 'Desfazer Pago' : 'Marcar Pago'}
-                              </button>
-                              {statusRender !== 'Pago' && (
-                                asaasConfigurado ? (
-                                  <button 
-                                    onClick={() => gerarCobrancaAsaas(`aluno-${aluno.id}`, 'mensalidade')}
-                                    className="bg-blue-600 hover:bg-blue-700 px-3 py-1.5 text-xs font-medium rounded text-white transition-all shadow-lg cursor-pointer"
-                                  >
-                                    Gerar Asaas
-                                  </button>
-                                ) : (
-                                  <button 
-                                    onClick={() => gerarMensalidadeManual(aluno.id)}
-                                    className="bg-zinc-700 hover:bg-zinc-600 px-3 py-1.5 text-xs font-medium rounded text-white transition-all shadow-lg cursor-pointer"
-                                    title="Gerar mensalidade pendente manualmente para o aluno ver no portal"
-                                  >
-                                    Gerar Mensalidade
-                                  </button>
-                                )
-                              )}
-                            </div>
-                          </td>
-                        </tr>
-                      )})}
-                    </tbody>
-                  </table>
-                </div>
-              ) : (
-                <div className="p-12 text-center text-zinc-500">
-                  <p className="text-lg">📭 Nenhum aluno ativo com mensalidade registrada.</p>
-                </div>
-              )}
-
-              {/* Controles de Paginação - Alunos */}
-              {totalPaginasAlunos > 1 && (
-                <div className="flex justify-between items-center bg-zinc-950 border-t border-zinc-800 p-4">
-                  <div className="text-xs text-zinc-500">
-                    Página <span className="font-bold text-white">{paginaAlunos}</span> de <span className="font-bold text-white">{totalPaginasAlunos}</span>
-                  </div>
-                  <div className="flex gap-2">
-                    <button 
-                      onClick={() => setPaginaAlunos(p => Math.max(p - 1, 1))}
-                      disabled={paginaAlunos === 1}
-                      className="px-3 py-1 bg-zinc-900 border border-zinc-700 rounded text-xs hover:bg-zinc-800 disabled:opacity-50"
-                    >
-                      Anterior
-                    </button>
-                    <button 
-                      onClick={() => setPaginaAlunos(p => Math.min(p + 1, totalPaginasAlunos))}
-                      disabled={paginaAlunos === totalPaginasAlunos}
-                      className="px-3 py-1 bg-zinc-900 border border-zinc-700 rounded text-xs hover:bg-zinc-800 disabled:opacity-50"
-                    >
-                      Próxima
-                    </button>
-                  </div>
-                </div>
+                </>
               )}
             </div>
-          )}
+          </div>
 
-          {/* MODAL DO HISTÓRICO / EXTRATO GERAL */}
-          {modalHistoricoAberto && (
-            <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-              <div className="bg-zinc-900 border border-zinc-800 rounded-2xl w-full max-w-6xl max-h-[90vh] overflow-hidden shadow-2xl flex flex-col">
-                <div className="p-4 border-b border-zinc-800 flex justify-between items-center bg-zinc-950/40 shrink-0">
-                  <h2 className="text-lg font-bold flex items-center gap-2">
-                    <Receipt size={20} className="text-purple-400" />
-                    Histórico Financeiro
-                  </h2>
-                  <button onClick={() => setModalHistoricoAberto(false)} className="text-zinc-500 hover:text-white text-xl cursor-pointer transition-colors">✕</button>
-                </div>
-                <div className="overflow-y-auto flex-1 p-4 bg-zinc-900">
-                  <div className="bg-zinc-900 border border-zinc-800 rounded-xl overflow-hidden mb-8">
-              {/* Filtros do Extrato */}
-              <div className="p-4 border-b border-zinc-800 bg-zinc-900/50">
-                <div className="flex flex-col gap-4">
-                  {/* Linha 1: Filtros de Texto, Origem, Tipo e Status */}
-                  <div className="flex flex-col lg:flex-row gap-3">
-                    <div className="flex-1">
-                      <label className="text-xs uppercase text-zinc-500 mb-1 block">Buscar por descrição</label>
-                      <input
-                        value={busca}
-                        onChange={(e) => setBusca(e.target.value)}
-                        placeholder="Ex.: mensalidade, aula, salário"
-                        className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-emerald-500"
-                      />
-                    </div>
-                    <div className="w-full lg:w-48">
-                      <label className="text-xs uppercase text-zinc-500 mb-1 block">Origem</label>
-                      <select
-                        value={filtroOrigem}
-                        onChange={(e) => {
-                          setFiltroOrigem(e.target.value);
-                          setPaginaTransacoes(1);
-                        }}
-                        className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-emerald-500"
-                      >
-                        <option value="Todos">Todas as Origens</option>
-                        <option value="Mensalidades">Mensalidades (Alunos)</option>
-                        <option value="Professores">Repasses (Professores)</option>
-                        <option value="Gerais">Lançamentos Manuais</option>
-                      </select>
-                    </div>
-                    <div className="w-full lg:w-40">
-                      <label className="text-xs uppercase text-zinc-500 mb-1 block">Tipo</label>
-                      <select
-                        value={filtroTipo}
-                        onChange={(e) => setFiltroTipo(e.target.value)}
-                        className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-emerald-500"
-                      >
-                        <option value="Todos">Todos</option>
-                        <option value="Receita">Receita</option>
-                        <option value="Despesa">Despesa</option>
-                      </select>
-                    </div>
-                    <div className="w-full lg:w-40">
-                      <label className="text-xs uppercase text-zinc-500 mb-1 block">Status</label>
-                      <select
-                        value={filtroStatus}
-                        onChange={(e) => setFiltroStatus(e.target.value)}
-                        className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-emerald-500"
-                      >
-                        <option value="Todos">Todos</option>
-                        <option value="Pago">Pago</option>
-                        <option value="Pendente">Pendente</option>
-                      </select>
-                    </div>
-                  </div>
+          {alunosFiltrados.length > 0 ? (
+            <div className="overflow-x-auto">
+              <table role="table" aria-label="Tabela de dados" className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-zinc-800 bg-zinc-950">
+                    <th className="text-left p-4 font-semibold">👤 Aluno</th>
+                    <th className="text-left p-4 font-semibold">🎵 Instrumento</th>
+                    <th className="text-right p-4 font-semibold">💰 Mensalidade</th>
+                    <th className="text-center p-4 font-semibold">Data Pagto</th>
+                    <th className="text-center p-4 font-semibold">Status</th>
+                    <th className="text-center p-4 font-semibold">Ação</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {alunosPaginados.map((aluno) => {
+                    let statusRender = aluno.status_mensalidade;
+                    let dataPgtoRender = aluno.data_pagamento_mensalidade;
 
-                  {/* Linha 2: Filtros de Data */}
-                  <div className="flex flex-col lg:flex-row lg:items-end gap-3 pt-3 border-t border-zinc-800/50">
-                    <div className="w-full lg:w-48">
-                      <label className="text-xs uppercase text-zinc-500 mb-1 block">Filtrar por data</label>
-                      <select
-                        value={modoFiltroData}
-                        onChange={(e) => setModoFiltroData(e.target.value)}
-                        className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-emerald-500"
-                      >
-                        <option value="mes">Mês Específico</option>
-                        <option value="periodo">Período Personalizado</option>
-                      </select>
-                    </div>
+                    if (!isMesAtual) {
+                      const transacaoMes = transacoes.find(t =>
+                        t.aluno_id === aluno.id &&
+                        t.tipo === 'Receita' &&
+                        t.descricao.toLowerCase().includes('mensalidade')
+                      );
+                      statusRender = transacaoMes ? transacaoMes.status : 'Pendente';
+                      dataPgtoRender = transacaoMes ? transacaoMes.data : null;
+                    }
 
-                    {modoFiltroData === 'mes' ? (
-                      <>
-                        <div className="w-full lg:w-40">
-                          <label className="text-xs uppercase text-zinc-500 mb-1 block">Mês</label>
-                          <select
-                            value={mesFiltro}
-                            onChange={(e) => setMesFiltro(Number(e.target.value))}
-                            className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-emerald-500"
-                          >
-                            {meses.map((m, i) => (
-                              <option key={m} value={i + 1}>{m}</option>
-                            ))}
-                          </select>
-                        </div>
-                        <div className="w-full lg:w-32">
-                          <label className="text-xs uppercase text-zinc-500 mb-1 block">Ano</label>
-                          <select
-                            value={anoFiltro}
-                            onChange={(e) => setAnoFiltro(Number(e.target.value))}
-                            className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-emerald-500"
-                          >
-                            {anos.map(a => (
-                              <option key={a} value={a}>{a}</option>
-                            ))}
-                          </select>
-                        </div>
-                      </>
-                    ) : (
-                      <>
-                        <div className="w-full lg:w-40">
-                          <label className="text-xs uppercase text-zinc-500 mb-1 block">De</label>
-                          <input
-                            type="date"
-                            value={dataInicio}
-                            onChange={(e) => setDataInicio(e.target.value)}
-                            className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-emerald-500"
-                          />
-                        </div>
-                        <div className="w-full lg:w-40">
-                          <label className="text-xs uppercase text-zinc-500 mb-1 block">Até</label>
-                          <input
-                            type="date"
-                            value={dataFim}
-                            onChange={(e) => setDataFim(e.target.value)}
-                            className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-emerald-500"
-                          />
-                        </div>
-                      </>
-                    )}
-                  </div>
-                </div>
-              </div>
-
-              {/* Cards Flutuantes de Balanço Integrados (Apenas se tiver histórico) */}
-              {(isMesAtual || (isMesPassado && transacoes.length > 0)) && (
-                <div className="p-4 bg-zinc-950/40 border-b border-zinc-800">
-                  <h3 className="text-xs font-bold uppercase text-zinc-500 mb-3 ml-1 tracking-wider">Resumo Deste Filtro</h3>
-                  <div className="flex flex-wrap gap-4">
-                    <div className="flex-1 min-w-[200px] bg-zinc-900 border border-zinc-800 p-4 rounded-xl shadow-2xl relative overflow-hidden group hover:border-emerald-500/30 transition-colors">
-                      <div className="absolute top-0 right-0 w-24 h-24 bg-emerald-500/5 rounded-bl-full -mr-4 -mt-4 transition-transform group-hover:scale-110"></div>
-                      <span className="text-xs text-zinc-500 uppercase font-semibold">Receitas Totais</span>
-                      <p className="text-2xl font-bold text-emerald-400 mt-1">R$ {Number(resumoFinanceiro.receitas || 0).toFixed(2)}</p>
-                    </div>
-                    
-                    <div className="flex-1 min-w-[200px] bg-zinc-900 border border-zinc-800 p-4 rounded-xl shadow-2xl relative overflow-hidden group hover:border-rose-500/30 transition-colors">
-                      <div className="absolute top-0 right-0 w-24 h-24 bg-rose-500/5 rounded-bl-full -mr-4 -mt-4 transition-transform group-hover:scale-110"></div>
-                      <span className="text-xs text-zinc-500 uppercase font-semibold">Despesas Totais</span>
-                      <p className="text-2xl font-bold text-rose-400 mt-1">R$ {Number(resumoFinanceiro.despesas || 0).toFixed(2)}</p>
-                    </div>
-                    
-                    <div className="flex-1 min-w-[200px] bg-zinc-900 border border-zinc-800 p-4 rounded-xl shadow-2xl relative overflow-hidden group hover:border-sky-500/30 transition-colors">
-                      <div className="absolute top-0 right-0 w-24 h-24 bg-sky-500/5 rounded-bl-full -mr-4 -mt-4 transition-transform group-hover:scale-110"></div>
-                      <span className="text-xs text-zinc-500 uppercase font-semibold">Saldo Final</span>
-                      <p className={`text-2xl font-bold mt-1 ${Number(resumoFinanceiro.saldo || 0) >= 0 ? 'text-sky-400' : 'text-rose-400'}`}>
-                        R$ {Number(resumoFinanceiro.saldo || 0).toFixed(2)}
-                      </p>
-                    </div>
-
-                    <div className="flex-1 min-w-[150px] bg-zinc-900 border border-zinc-800 p-4 rounded-xl shadow-xl flex flex-col justify-center items-center relative overflow-hidden">
-                      <span className="text-[10px] text-zinc-500 uppercase font-bold text-center">Nº de Lançamentos</span>
-                      <p className="text-3xl font-light text-zinc-300 mt-1">{resumoFinanceiro.total_lancamentos || 0}</p>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              <div className="flex justify-end gap-2 p-4 border-b border-zinc-800 bg-zinc-950">
-                <button onClick={exportarFinanceiroPDF} className="bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold py-2 px-4 rounded transition-colors shadow-lg">📄 EXPORTAR PDF</button>
-                <button onClick={exportarFinanceiroCSV} className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold py-2 px-4 rounded transition-colors shadow-lg">📊 EXPORTAR EXCEL</button>
-              </div>
-              {transacoesExtratoFiltradas.length > 0 ? (
-                <div className="overflow-x-auto">
-                  <table role="table" aria-label="Tabela de dados" className="w-full text-sm">
-                    <thead>
-                      <tr className="border-b border-zinc-800 bg-zinc-950">
-                        <th className="text-left p-4 font-semibold">Descrição</th>
-                        <th className="text-center p-4 font-semibold">Tipo</th>
-                        <th className="text-right p-4 font-semibold">Valor</th>
-                        <th className="text-center p-4 font-semibold">Data</th>
-                        <th className="text-center p-4 font-semibold">Status</th>
-                        <th className="text-center p-4 font-semibold">Ação</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {extratoPaginado.map((t) => (
-                        <tr key={t.id} className="border-b border-zinc-800/50 hover:bg-zinc-800/20">
-                          <td className="p-4 text-zinc-200">
-                            {t.descricao}
-                            {t.aluno_id && <span className="ml-2 text-[10px] bg-sky-900/50 text-sky-400 px-2 py-0.5 rounded-full">Mensalidade</span>}
-                            {!t.aluno_id && (t.descricao.toLowerCase().includes('professor') || t.descricao.toLowerCase().includes('repasse')) && (
-                              <span className="ml-2 text-[10px] bg-purple-900/50 text-purple-400 px-2 py-0.5 rounded-full">Professor</span>
-                            )}
-                          </td>
-                          <td className="p-4 text-center">
-                            <span className={`text-xs font-bold px-2 py-1 rounded ${
-                              t.tipo === 'Receita' ? 'bg-emerald-900/50 text-emerald-300' : 'bg-rose-900/50 text-rose-300'
+                    return (
+                      <tr key={aluno.id} className="border-b border-zinc-800/50 hover:bg-zinc-800/20">
+                        <td className="p-4 text-zinc-200">{aluno.nome}</td>
+                        <td className="p-4 text-zinc-400">{aluno.instrumento || '—'}</td>
+                        <td className="p-4 text-right text-sky-400 font-semibold">
+                          R$ {Number(aluno.valor_calculado || 0).toFixed(2)}
+                        </td>
+                        <td className="p-4 text-center text-zinc-400 text-xs">
+                          {statusRender === 'Pago' && dataPgtoRender ? formatarData(dataPgtoRender) : '-'}
+                        </td>
+                        <td className="p-4 text-center">
+                          <span className={`text-xs font-bold px-2.5 py-1 rounded-full ${statusRender === 'Pago'
+                            ? 'bg-emerald-900/50 text-emerald-300'
+                            : 'bg-amber-900/50 text-amber-300'
                             }`}>
-                              {t.tipo}
-                            </span>
-                          </td>
-                          <td className={`p-4 text-right font-semibold ${t.tipo === 'Receita' ? 'text-emerald-400' : 'text-rose-400'}`}>
-                            R$ {Number(t.valor || 0).toFixed(2)}
-                          </td>
-                          <td className="p-4 text-center text-zinc-400 text-xs">{formatarData(t.data)}</td>
-                          <td className="p-4 text-center">
-                            <span className={`text-xs font-bold px-2.5 py-1 rounded-full ${
-                              t.status === 'Pago'
-                                ? 'bg-emerald-900/50 text-emerald-300'
-                                : 'bg-amber-900/50 text-amber-300'
-                            }`}>
-                              {t.status === 'Pago' ? '✓ Pago' : '⏳ Pendente'}
-                            </span>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              ) : (
-                <div className="p-12 text-center text-zinc-500">
-                  <p className="text-lg">📭 Nenhum lançamento encontrado neste período.</p>
-                </div>
-              )}
-
-              {/* Controles de Paginação - Extrato */}
-              {totalPaginasExtrato > 1 && (
-                <div className="flex justify-between items-center bg-zinc-950 border-t border-zinc-800 p-4">
-                  <div className="text-xs text-zinc-500">
-                    Página <span className="font-bold text-white">{paginaTransacoes}</span> de <span className="font-bold text-white">{totalPaginasExtrato}</span>
-                  </div>
-                  <div className="flex gap-2">
-                    <button 
-                      onClick={() => setPaginaTransacoes(p => Math.max(p - 1, 1))}
-                      disabled={paginaTransacoes === 1}
-                      className="px-3 py-1 bg-zinc-900 border border-zinc-700 rounded text-xs hover:bg-zinc-800 disabled:opacity-50"
-                    >
-                      Anterior
-                    </button>
-                    <button 
-                      onClick={() => setPaginaTransacoes(p => Math.min(p + 1, totalPaginasExtrato))}
-                      disabled={paginaTransacoes === totalPaginasExtrato}
-                      className="px-3 py-1 bg-zinc-900 border border-zinc-700 rounded text-xs hover:bg-zinc-800 disabled:opacity-50"
-                    >
-                      Próxima
-                    </button>
-                  </div>
-                </div>
-              )}
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Conteúdo da Aba: LANÇAMENTOS MANUAIS */}
-          {abaSelecionada === 'lancamentos' && (
-            <div className="bg-zinc-900 border border-zinc-800 rounded-xl overflow-hidden">
-              
-              {/* Filtros de Lançamentos */}
-              <div className="p-4 border-b border-zinc-800 bg-zinc-900/50">
-                <div className="flex flex-col gap-4">
-                  {/* Linha 1: Filtros de Texto, Tipo e Status */}
-                  <div className="flex flex-col lg:flex-row gap-3">
-                    <div className="flex-1">
-                      <label className="text-xs uppercase text-zinc-500 mb-1 block">Buscar por descrição</label>
-                      <input
-                        value={busca}
-                        onChange={(e) => setBusca(e.target.value)}
-                        placeholder="Ex.: conta de luz, internet, etc"
-                        className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-emerald-500"
-                      />
-                    </div>
-                    <div className="w-full lg:w-48">
-                      <label className="text-xs uppercase text-zinc-500 mb-1 block">Tipo</label>
-                      <select
-                        value={filtroTipo}
-                        onChange={(e) => setFiltroTipo(e.target.value)}
-                        className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-emerald-500"
-                      >
-                        <option value="Todos">Todos</option>
-                        <option value="Receita">Receita</option>
-                        <option value="Despesa">Despesa</option>
-                      </select>
-                    </div>
-                    <div className="w-full lg:w-48">
-                      <label className="text-xs uppercase text-zinc-500 mb-1 block">Status</label>
-                      <select
-                        value={filtroStatus}
-                        onChange={(e) => setFiltroStatus(e.target.value)}
-                        className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-emerald-500"
-                      >
-                        <option value="Todos">Todos</option>
-                        <option value="Pago">Pago</option>
-                        <option value="Pendente">Pendente</option>
-                      </select>
-                    </div>
-                  </div>
-
-                  {/* Linha 2: Filtros de Data */}
-                  <div className="flex flex-col lg:flex-row lg:items-end gap-3 pt-3 border-t border-zinc-800/50">
-                    <div className="w-full lg:w-48">
-                      <label className="text-xs uppercase text-zinc-500 mb-1 block">Filtrar por data</label>
-                      <select
-                        value={modoFiltroData}
-                        onChange={(e) => setModoFiltroData(e.target.value)}
-                        className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-emerald-500"
-                      >
-                        <option value="mes">Mês Específico</option>
-                        <option value="periodo">Período Personalizado</option>
-                      </select>
-                    </div>
-
-                    {modoFiltroData === 'mes' ? (
-                      <>
-                        <div className="w-full lg:w-40">
-                          <label className="text-xs uppercase text-zinc-500 mb-1 block">Mês</label>
-                          <select
-                            value={mesFiltro}
-                            onChange={(e) => setMesFiltro(Number(e.target.value))}
-                            className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-emerald-500"
-                          >
-                            {meses.map((m, i) => (
-                              <option key={m} value={i + 1}>{m}</option>
-                            ))}
-                          </select>
-                        </div>
-                        <div className="w-full lg:w-32">
-                          <label className="text-xs uppercase text-zinc-500 mb-1 block">Ano</label>
-                          <select
-                            value={anoFiltro}
-                            onChange={(e) => setAnoFiltro(Number(e.target.value))}
-                            className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-emerald-500"
-                          >
-                            {anos.map(a => (
-                              <option key={a} value={a}>{a}</option>
-                            ))}
-                          </select>
-                        </div>
-                      </>
-                    ) : (
-                      <>
-                        <div className="w-full lg:w-40">
-                          <label className="text-xs uppercase text-zinc-500 mb-1 block">De</label>
-                          <input
-                            type="date"
-                            value={dataInicio}
-                            onChange={(e) => setDataInicio(e.target.value)}
-                            className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-emerald-500"
-                          />
-                        </div>
-                        <div className="w-full lg:w-40">
-                          <label className="text-xs uppercase text-zinc-500 mb-1 block">Até</label>
-                          <input
-                            type="date"
-                            value={dataFim}
-                            onChange={(e) => setDataFim(e.target.value)}
-                            className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-emerald-500"
-                          />
-                        </div>
-                      </>
-                    )}
-                  </div>
-                </div>
-              </div>
-
-              {transacoesLancamentosFiltradas.length > 0 ? (
-                <div className="overflow-x-auto">
-                  <table role="table" aria-label="Tabela de dados" className="w-full text-sm">
-                    <thead>
-                      <tr className="border-b border-zinc-800 bg-zinc-950">
-                        <th className="text-left p-4 font-semibold">Descrição</th>
-                        <th className="text-center p-4 font-semibold">Tipo</th>
-                        <th className="text-right p-4 font-semibold">Valor</th>
-                        <th className="text-center p-4 font-semibold">Data</th>
-                        <th className="text-center p-4 font-semibold">Status</th>
-                        <th className="text-center p-4 font-semibold">Ação</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {lancamentosPaginados.map((t) => (
-                        <tr key={t.id} className="border-b border-zinc-800/50 hover:bg-zinc-800/20">
-                          <td className="p-4 text-zinc-200">{t.descricao}</td>
-                          <td className="p-4 text-center">
-                            <span className={`text-xs font-bold px-2 py-1 rounded ${
-                              t.tipo === 'Receita' ? 'bg-emerald-900/50 text-emerald-300' : 'bg-rose-900/50 text-rose-300'
-                            }`}>
-                              {t.tipo}
-                            </span>
-                          </td>
-                          <td className={`p-4 text-right font-semibold ${t.tipo === 'Receita' ? 'text-emerald-400' : 'text-rose-400'}`}>
-                            R$ {Number(t.valor || 0).toFixed(2)}
-                          </td>
-                          <td className="p-4 text-center text-zinc-400 text-xs">{formatarData(t.data)}</td>
-                          <td className="p-4 text-center">
-                            <span className={`text-xs font-bold px-2.5 py-1 rounded-full ${
-                              t.status === 'Pago'
-                                ? 'bg-emerald-900/50 text-emerald-300'
-                                : 'bg-amber-900/50 text-amber-300'
-                            }`}>
-                              {t.status === 'Pago' ? '✓ Pago' : '⏳ Pendente'}
-                            </span>
-                          </td>
-                          <td className="p-4 text-center">
-                            <div className="flex items-center justify-center gap-2">
-                              <button
-                                onClick={() => handleEditarLancamento(t)}
-                                className="text-blue-400 hover:text-blue-300 p-2 rounded transition-all cursor-pointer hover:bg-blue-500/10"
-                                title="Editar Lançamento"
-                              >
-                                <Edit size={16} />
-                              </button>
-                              <button
-                                onClick={() => alternarStatusLancamento(t.id, t.status)}
-                                className={`px-3 py-1.5 text-xs font-medium rounded transition-all cursor-pointer ${
-                                  t.status === 'Pago'
-                                    ? 'bg-amber-600/30 text-amber-300 hover:bg-amber-600/50'
-                                    : 'bg-emerald-600/30 text-emerald-300 hover:bg-emerald-600/50'
+                            {statusRender === 'Pago' ? '✓ Pago' : '⏳ Pendente'}
+                          </span>
+                        </td>
+                        <td className="p-4 text-center">
+                          <div className="flex items-center justify-center gap-2">
+                            <button
+                              onClick={() => alternarStatusMensalidade(aluno.id, aluno.nome, statusRender || 'Pendente')}
+                              title={statusRender === 'Pago' ? "Marcar como Pendente" : "Marcar como Pago Manualmente"}
+                              className={`px-3 py-1.5 text-xs font-medium rounded transition-all cursor-pointer ${statusRender === 'Pago'
+                                ? 'bg-amber-600/30 text-amber-300 hover:bg-amber-600/50'
+                                : 'bg-emerald-600/30 text-emerald-300 hover:bg-emerald-600/50'
                                 }`}
-                              >
-                                {t.status === 'Pago' ? 'Marcar Pendente' : 'Marcar Pago'}
-                              </button>
-                              {asaasConfigurado && t.tipo === 'Receita' && t.status !== 'Pago' && (
+                            >
+                              {statusRender === 'Pago' ? 'Desfazer Pago' : 'Marcar Pago'}
+                            </button>
+                            {statusRender !== 'Pago' && (
+                              asaasConfigurado ? (
                                 <button
-                                  onClick={() => gerarCobrancaAsaas(t.id, 'lancamento')}
-                                  className="bg-blue-600 hover:bg-blue-700 px-3 py-1.5 text-xs font-medium rounded text-white transition-all shadow-lg ml-2"
+                                  onClick={() => gerarCobrancaAsaas(`aluno-${aluno.id}`, 'mensalidade')}
+                                  className="bg-blue-600 hover:bg-blue-700 px-3 py-1.5 text-xs font-medium rounded text-white transition-all shadow-lg cursor-pointer"
                                 >
                                   Gerar Asaas
                                 </button>
-                              )}
-                              <button
-                                onClick={(e) => { e.stopPropagation(); handleDeletarLancamento(t.id, t.descricao); }}
-                                className="text-rose-400 hover:text-rose-300 p-2 rounded transition-all cursor-pointer hover:bg-rose-500/10"
-                                title="Excluir Lançamento"
-                              >
-                                <Trash2 size={16} />
-                              </button>
-                            </div>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              ) : (
-                <div className="p-12 text-center text-zinc-500">
-                  <p className="text-lg">📭 Nenhum outro lançamento registrado.</p>
-                </div>
-              )}
-
-              {/* Controles de Paginação - Lançamentos Manuais */}
-              {totalPaginasLancamentos > 1 && (
-                <div className="flex justify-between items-center bg-zinc-950 border-t border-zinc-800 p-4">
-                  <div className="text-xs text-zinc-500">
-                    Página <span className="font-bold text-white">{paginaTransacoes}</span> de <span className="font-bold text-white">{totalPaginasLancamentos}</span>
-                  </div>
-                  <div className="flex gap-2">
-                    <button 
-                      onClick={() => setPaginaTransacoes(p => Math.max(p - 1, 1))}
-                      disabled={paginaTransacoes === 1}
-                      className="px-3 py-1 bg-zinc-900 border border-zinc-700 rounded text-xs hover:bg-zinc-800 disabled:opacity-50"
-                    >
-                      Anterior
-                    </button>
-                    <button 
-                      onClick={() => setPaginaTransacoes(p => Math.min(p + 1, totalPaginasLancamentos))}
-                      disabled={paginaTransacoes === totalPaginasLancamentos}
-                      className="px-3 py-1 bg-zinc-900 border border-zinc-700 rounded text-xs hover:bg-zinc-800 disabled:opacity-50"
-                    >
-                      Próxima
-                    </button>
-                  </div>
-                </div>
-              )}
+                              ) : (
+                                <button
+                                  onClick={() => gerarMensalidadeManual(aluno.id)}
+                                  className="bg-zinc-700 hover:bg-zinc-600 px-3 py-1.5 text-xs font-medium rounded text-white transition-all shadow-lg cursor-pointer"
+                                  title="Gerar mensalidade pendente manualmente para o aluno ver no portal"
+                                >
+                                  Gerar Mensalidade
+                                </button>
+                              )
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <div className="p-12 text-center text-zinc-500">
+              <p className="text-lg">📭 Nenhum aluno ativo com mensalidade registrada.</p>
             </div>
           )}
 
-          {/* Conteúdo da Aba: PROFESSORES */}
-          {abaSelecionada === 'professores' && (
-            <div className="bg-zinc-900 border border-zinc-800 rounded-xl overflow-hidden">
-              
-              {/* Filtros de Professores */}
-              <div className="p-4 border-b border-zinc-800 bg-zinc-900/50 flex flex-col lg:flex-row gap-4 items-end">
-                <div className="flex-1 w-full">
-                  <label className="text-xs uppercase text-zinc-500 mb-1 block">Buscar Professor</label>
+          {/* Controles de Paginação - Alunos */}
+          {totalPaginasAlunos > 1 && (
+            <div className="flex justify-between items-center bg-zinc-950 border-t border-zinc-800 p-4">
+              <div className="text-xs text-zinc-500">
+                Página <span className="font-bold text-white">{paginaAlunos}</span> de <span className="font-bold text-white">{totalPaginasAlunos}</span>
+              </div>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setPaginaAlunos(p => Math.max(p - 1, 1))}
+                  disabled={paginaAlunos === 1}
+                  className="px-3 py-1 bg-zinc-900 border border-zinc-700 rounded text-xs hover:bg-zinc-800 disabled:opacity-50"
+                >
+                  Anterior
+                </button>
+                <button
+                  onClick={() => setPaginaAlunos(p => Math.min(p + 1, totalPaginasAlunos))}
+                  disabled={paginaAlunos === totalPaginasAlunos}
+                  className="px-3 py-1 bg-zinc-900 border border-zinc-700 rounded text-xs hover:bg-zinc-800 disabled:opacity-50"
+                >
+                  Próxima
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* MODAL DO HISTÓRICO / EXTRATO GERAL */}
+      {modalHistoricoAberto && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-zinc-900 border border-zinc-800 rounded-2xl w-full max-w-6xl max-h-[90vh] overflow-hidden shadow-2xl flex flex-col">
+            <div className="p-4 border-b border-zinc-800 flex justify-between items-center bg-zinc-950/40 shrink-0">
+              <h2 className="text-lg font-bold flex items-center gap-2">
+                <Receipt size={20} className="text-purple-400" />
+                Histórico Financeiro
+              </h2>
+              <button onClick={() => setModalHistoricoAberto(false)} className="text-zinc-500 hover:text-white text-xl cursor-pointer transition-colors">✕</button>
+            </div>
+            <div className="overflow-y-auto flex-1 p-4 bg-zinc-900">
+              <div className="bg-zinc-900 border border-zinc-800 rounded-xl overflow-hidden mb-8">
+                {/* Filtros do Extrato */}
+                <div className="p-4 border-b border-zinc-800 bg-zinc-900/50">
+                  <div className="flex flex-col gap-4">
+                    {/* Linha 1: Filtros de Texto, Origem, Tipo e Status */}
+                    <div className="flex flex-col lg:flex-row gap-3">
+                      <div className="flex-1">
+                        <label className="text-xs uppercase text-zinc-500 mb-1 block">Buscar por descrição</label>
+                        <input
+                          value={busca}
+                          onChange={(e) => setBusca(e.target.value)}
+                          placeholder="Ex.: mensalidade, aula, salário"
+                          className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-emerald-500"
+                        />
+                      </div>
+                      <div className="w-full lg:w-48">
+                        <label className="text-xs uppercase text-zinc-500 mb-1 block">Origem</label>
+                        <select
+                          value={filtroOrigem}
+                          onChange={(e) => {
+                            setFiltroOrigem(e.target.value);
+                            setPaginaTransacoes(1);
+                          }}
+                          className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-emerald-500"
+                        >
+                          <option value="Todos">Todas as Origens</option>
+                          <option value="Mensalidades">Mensalidades (Alunos)</option>
+                          <option value="Professores">Repasses (Professores)</option>
+                          <option value="Lojinha">Vendas (Lojinha)</option>
+                          <option value="Locacao">Locação de Salas</option>
+                          <option value="Gerais">Outros Lançamentos</option>
+                        </select>
+                      </div>
+                      <div className="w-full lg:w-40">
+                        <label className="text-xs uppercase text-zinc-500 mb-1 block">Tipo</label>
+                        <select
+                          value={filtroTipo}
+                          onChange={(e) => setFiltroTipo(e.target.value)}
+                          className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-emerald-500"
+                        >
+                          <option value="Todos">Todos</option>
+                          <option value="Receita">Receita</option>
+                          <option value="Despesa">Despesa</option>
+                        </select>
+                      </div>
+                      <div className="w-full lg:w-40">
+                        <label className="text-xs uppercase text-zinc-500 mb-1 block">Status</label>
+                        <select
+                          value={filtroStatus}
+                          onChange={(e) => setFiltroStatus(e.target.value)}
+                          className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-emerald-500"
+                        >
+                          <option value="Todos">Todos</option>
+                          <option value="Pago">Pago</option>
+                          <option value="Pendente">Pendente</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    {/* Linha 2: Filtros de Data */}
+                    <div className="flex flex-col lg:flex-row lg:items-end gap-3 pt-3 border-t border-zinc-800/50">
+                      <div className="w-full lg:w-48">
+                        <label className="text-xs uppercase text-zinc-500 mb-1 block">Filtrar por data</label>
+                        <select
+                          value={modoFiltroData}
+                          onChange={(e) => setModoFiltroData(e.target.value)}
+                          className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-emerald-500"
+                        >
+                          <option value="mes">Mês Específico</option>
+                          <option value="periodo">Período Personalizado</option>
+                        </select>
+                      </div>
+
+                      {modoFiltroData === 'mes' ? (
+                        <>
+                          <div className="w-full lg:w-40">
+                            <label className="text-xs uppercase text-zinc-500 mb-1 block">Mês</label>
+                            <select
+                              value={mesFiltro}
+                              onChange={(e) => setMesFiltro(Number(e.target.value))}
+                              className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-emerald-500"
+                            >
+                              {meses.map((m, i) => (
+                                <option key={m} value={i + 1}>{m}</option>
+                              ))}
+                            </select>
+                          </div>
+                          <div className="w-full lg:w-32">
+                            <label className="text-xs uppercase text-zinc-500 mb-1 block">Ano</label>
+                            <select
+                              value={anoFiltro}
+                              onChange={(e) => setAnoFiltro(Number(e.target.value))}
+                              className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-emerald-500"
+                            >
+                              {anos.map(a => (
+                                <option key={a} value={a}>{a}</option>
+                              ))}
+                            </select>
+                          </div>
+                        </>
+                      ) : (
+                        <>
+                          <div className="w-full lg:w-40">
+                            <label className="text-xs uppercase text-zinc-500 mb-1 block">De</label>
+                            <input
+                              type="date"
+                              value={dataInicio}
+                              onChange={(e) => setDataInicio(e.target.value)}
+                              className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-emerald-500"
+                            />
+                          </div>
+                          <div className="w-full lg:w-40">
+                            <label className="text-xs uppercase text-zinc-500 mb-1 block">Até</label>
+                            <input
+                              type="date"
+                              value={dataFim}
+                              onChange={(e) => setDataFim(e.target.value)}
+                              className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-emerald-500"
+                            />
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Cards Flutuantes de Balanço Integrados (Apenas se tiver histórico) */}
+                {(isMesAtual || (isMesPassado && transacoes.length > 0)) && (
+                  <div className="p-4 bg-zinc-950/40 border-b border-zinc-800">
+                    <h3 className="text-xs font-bold uppercase text-zinc-500 mb-3 ml-1 tracking-wider">Resumo Deste Filtro</h3>
+                    <div className="flex flex-wrap gap-4">
+                      <div className="flex-1 min-w-[200px] bg-zinc-900 border border-zinc-800 p-4 rounded-xl shadow-2xl relative overflow-hidden group hover:border-emerald-500/30 transition-colors">
+                        <div className="absolute top-0 right-0 w-24 h-24 bg-emerald-500/5 rounded-bl-full -mr-4 -mt-4 transition-transform group-hover:scale-110"></div>
+                        <span className="text-xs text-zinc-500 uppercase font-semibold">Receitas Totais</span>
+                        <p className="text-2xl font-bold text-emerald-400 mt-1">R$ {Number(resumoFinanceiro.receitas || 0).toFixed(2)}</p>
+                      </div>
+
+                      <div className="flex-1 min-w-[200px] bg-zinc-900 border border-zinc-800 p-4 rounded-xl shadow-2xl relative overflow-hidden group hover:border-rose-500/30 transition-colors">
+                        <div className="absolute top-0 right-0 w-24 h-24 bg-rose-500/5 rounded-bl-full -mr-4 -mt-4 transition-transform group-hover:scale-110"></div>
+                        <span className="text-xs text-zinc-500 uppercase font-semibold">Despesas Totais</span>
+                        <p className="text-2xl font-bold text-rose-400 mt-1">R$ {Number(resumoFinanceiro.despesas || 0).toFixed(2)}</p>
+                      </div>
+
+                      <div className="flex-1 min-w-[200px] bg-zinc-900 border border-zinc-800 p-4 rounded-xl shadow-2xl relative overflow-hidden group hover:border-sky-500/30 transition-colors">
+                        <div className="absolute top-0 right-0 w-24 h-24 bg-sky-500/5 rounded-bl-full -mr-4 -mt-4 transition-transform group-hover:scale-110"></div>
+                        <span className="text-xs text-zinc-500 uppercase font-semibold">Saldo Final</span>
+                        <p className={`text-2xl font-bold mt-1 ${Number(resumoFinanceiro.saldo || 0) >= 0 ? 'text-sky-400' : 'text-rose-400'}`}>
+                          R$ {Number(resumoFinanceiro.saldo || 0).toFixed(2)}
+                        </p>
+                      </div>
+
+                      <div className="flex-1 min-w-[150px] bg-zinc-900 border border-zinc-800 p-4 rounded-xl shadow-xl flex flex-col justify-center items-center relative overflow-hidden">
+                        <span className="text-[10px] text-zinc-500 uppercase font-bold text-center">Nº de Lançamentos</span>
+                        <p className="text-3xl font-light text-zinc-300 mt-1">{resumoFinanceiro.total_lancamentos || 0}</p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                <div className="flex justify-end gap-2 p-4 border-b border-zinc-800 bg-zinc-950">
+                  <button onClick={exportarFinanceiroPDF} className="bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold py-2 px-4 rounded transition-colors shadow-lg">📄 EXPORTAR PDF</button>
+                  <button onClick={exportarFinanceiroCSV} className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold py-2 px-4 rounded transition-colors shadow-lg">📊 EXPORTAR EXCEL</button>
+                </div>
+                {transacoesExtratoFiltradas.length > 0 ? (
+                  <div className="overflow-x-auto">
+                    <table role="table" aria-label="Tabela de dados" className="w-full text-sm">
+                      <thead>
+                        <tr className="border-b border-zinc-800 bg-zinc-950">
+                          <th className="text-left p-4 font-semibold">Descrição</th>
+                          <th className="text-center p-4 font-semibold">Tipo</th>
+                          <th className="text-right p-4 font-semibold">Valor</th>
+                          <th className="text-center p-4 font-semibold">Data</th>
+                          <th className="text-center p-4 font-semibold">Status</th>
+                          <th className="text-center p-4 font-semibold">Ação</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {extratoPaginado.map((t) => (
+                          <tr key={t.id} className="border-b border-zinc-800/50 hover:bg-zinc-800/20">
+                            <td className="p-4 text-zinc-200">
+                              {t.descricao}
+                              {t.aluno_id && <span className="ml-2 text-[10px] bg-sky-900/50 text-sky-400 px-2 py-0.5 rounded-full">Mensalidade</span>}
+                              {!t.aluno_id && (t.descricao.toLowerCase().includes('professor') || t.descricao.toLowerCase().includes('repasse')) && (
+                                <span className="ml-2 text-[10px] bg-purple-900/50 text-purple-400 px-2 py-0.5 rounded-full">Professor</span>
+                              )}
+                            </td>
+                            <td className="p-4 text-center">
+                              <span className={`text-xs font-bold px-2 py-1 rounded ${t.tipo === 'Receita' ? 'bg-emerald-900/50 text-emerald-300' : 'bg-rose-900/50 text-rose-300'
+                                }`}>
+                                {t.tipo}
+                              </span>
+                            </td>
+                            <td className={`p-4 text-right font-semibold ${t.tipo === 'Receita' ? 'text-emerald-400' : 'text-rose-400'}`}>
+                              R$ {Number(t.valor || 0).toFixed(2)}
+                            </td>
+                            <td className="p-4 text-center text-zinc-400 text-xs">{formatarData(t.data)}</td>
+                            <td className="p-4 text-center">
+                              <span className={`text-xs font-bold px-2.5 py-1 rounded-full ${t.status === 'Pago'
+                                ? 'bg-emerald-900/50 text-emerald-300'
+                                : 'bg-amber-900/50 text-amber-300'
+                                }`}>
+                                {t.status === 'Pago' ? '✓ Pago' : '⏳ Pendente'}
+                              </span>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                ) : (
+                  <div className="p-12 text-center text-zinc-500">
+                    <p className="text-lg">📭 Nenhum lançamento encontrado neste período.</p>
+                  </div>
+                )}
+
+                {/* Controles de Paginação - Extrato */}
+                {totalPaginasExtrato > 1 && (
+                  <div className="flex justify-between items-center bg-zinc-950 border-t border-zinc-800 p-4">
+                    <div className="text-xs text-zinc-500">
+                      Página <span className="font-bold text-white">{paginaTransacoes}</span> de <span className="font-bold text-white">{totalPaginasExtrato}</span>
+                    </div>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => setPaginaTransacoes(p => Math.max(p - 1, 1))}
+                        disabled={paginaTransacoes === 1}
+                        className="px-3 py-1 bg-zinc-900 border border-zinc-700 rounded text-xs hover:bg-zinc-800 disabled:opacity-50"
+                      >
+                        Anterior
+                      </button>
+                      <button
+                        onClick={() => setPaginaTransacoes(p => Math.min(p + 1, totalPaginasExtrato))}
+                        disabled={paginaTransacoes === totalPaginasExtrato}
+                        className="px-3 py-1 bg-zinc-900 border border-zinc-700 rounded text-xs hover:bg-zinc-800 disabled:opacity-50"
+                      >
+                        Próxima
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Conteúdo da Aba: LANÇAMENTOS MANUAIS */}
+      {abaSelecionada === 'lancamentos' && (
+        <div className="bg-zinc-900 border border-zinc-800 rounded-xl overflow-hidden">
+
+          {/* Filtros de Lançamentos */}
+          <div className="p-4 border-b border-zinc-800 bg-zinc-900/50">
+            <div className="flex flex-col gap-4">
+              {/* Linha 1: Filtros de Texto, Tipo e Status */}
+              <div className="flex flex-col lg:flex-row gap-3">
+                <div className="flex-1">
+                  <label className="text-xs uppercase text-zinc-500 mb-1 block">Buscar por descrição</label>
                   <input
-                    type="text"
-                    placeholder="Nome do professor..."
-                    value={buscaProfessores}
-                    onChange={(e) => setBuscaProfessores(e.target.value)}
+                    value={busca}
+                    onChange={(e) => setBusca(e.target.value)}
+                    placeholder="Ex.: conta de luz, internet, etc"
                     className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-emerald-500"
                   />
                 </div>
-                <div className="w-full lg:w-40">
-                  <label className="text-xs uppercase text-zinc-500 mb-1 block">Mês Referência</label>
+                <div className="w-full lg:w-48">
+                  <label className="text-xs uppercase text-zinc-500 mb-1 block">Tipo</label>
                   <select
-                    value={mesFiltro}
-                    onChange={(e) => setMesFiltro(Number(e.target.value))}
+                    value={filtroTipo}
+                    onChange={(e) => setFiltroTipo(e.target.value)}
                     className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-emerald-500"
                   >
-                    {meses.map((m, i) => (
-                      <option key={m} value={i + 1}>{m}</option>
-                    ))}
+                    <option value="Todos">Todos</option>
+                    <option value="Receita">Receita</option>
+                    <option value="Despesa">Despesa</option>
                   </select>
                 </div>
-                <div className="w-full lg:w-32">
-                  <label className="text-xs uppercase text-zinc-500 mb-1 block">Ano</label>
+                <div className="w-full lg:w-48">
+                  <label className="text-xs uppercase text-zinc-500 mb-1 block">Status</label>
                   <select
-                    value={anoFiltro}
-                    onChange={(e) => setAnoFiltro(Number(e.target.value))}
+                    value={filtroStatus}
+                    onChange={(e) => setFiltroStatus(e.target.value)}
                     className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-emerald-500"
                   >
-                    {anos.map(a => (
-                      <option key={a} value={a}>{a}</option>
-                    ))}
+                    <option value="Todos">Todos</option>
+                    <option value="Pago">Pago</option>
+                    <option value="Pendente">Pendente</option>
                   </select>
                 </div>
               </div>
 
-              {carregandoProfessores ? (
-                <div className="p-12 text-center text-zinc-500">
-                  <p className="text-lg">🔄 Carregando dados dos professores...</p>
+              {/* Linha 2: Filtros de Data */}
+              <div className="flex flex-col lg:flex-row lg:items-end gap-3 pt-3 border-t border-zinc-800/50">
+                <div className="w-full lg:w-48">
+                  <label className="text-xs uppercase text-zinc-500 mb-1 block">Filtrar por data</label>
+                  <select
+                    value={modoFiltroData}
+                    onChange={(e) => setModoFiltroData(e.target.value)}
+                    className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-emerald-500"
+                  >
+                    <option value="mes">Mês Específico</option>
+                    <option value="periodo">Período Personalizado</option>
+                  </select>
                 </div>
-              ) : professoresFiltrados.length > 0 ? (
-                <div className="overflow-x-auto">
-                  <table role="table" aria-label="Tabela de dados" className="w-full text-sm">
-                    <thead>
-                      <tr className="border-b border-zinc-800 bg-zinc-950">
-                        <th className="text-left p-4 font-semibold">👤 Professor</th>
-                        <th className="text-left p-4 font-semibold">🎵 Instrumento</th>
-                        <th className="text-right p-4 font-semibold">Valor Base</th>
-                        <th className="text-center p-4 font-semibold">Alunos</th>
-                        <th className="text-center p-4 font-semibold">Aulas Ministradas</th>
-                        <th className="text-right p-4 font-semibold">Valor a Pagar</th>
-                        <th className="text-center p-4 font-semibold">Status</th>
-                        <th className="text-center p-4 font-semibold">Ação</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {professoresFiltrados.map((profData) => {
-                        const prof = profData.professor;
-                        const totalPagar = Number(profData.total_a_pagar || 0);
-                        const status = profData.repasse_status || 'pendente';
-                        return (
-                          <tr key={prof.id} className="border-b border-zinc-800/50 hover:bg-zinc-800/20">
-                            <td className="p-4 text-zinc-200 font-medium">
-                              {prof.nome}
-                              {profData.pagamento_detalhes && (
-                                <div className="text-[10px] text-zinc-500 font-normal mt-0.5">
-                                  Obs: {profData.pagamento_detalhes.observacao || 'Sem obs.'}
-                                </div>
-                              )}
-                            </td>
-                            <td className="p-4 text-zinc-400">{prof.instrumento_principal || '—'}</td>
-                            <td className="p-4 text-right text-zinc-400 text-xs">
-                              {prof.tipo_remuneracao === 'mensalista' && (
-                                <div>Fixo: R$ {Number(profData.valor_mensal || 0).toFixed(2)}</div>
-                              )}
-                              {prof.tipo_remuneracao === 'horista' && (
-                                <div>Hora: R$ {Number(profData.valor_hora || 0).toFixed(2)}</div>
-                              )}
-                              {prof.tipo_remuneracao === 'comissao' && (
-                                <div>Comissão: {Number(profData.porcentagem_professor || 0)}%</div>
-                              )}
-                            </td>
-                            <td className="p-4 text-center text-zinc-300">{profData.total_alunos}</td>
-                            <td className="p-4 text-center text-zinc-300">{profData.total_aulas}</td>
-                            <td className="p-4 text-right text-emerald-400 font-bold font-mono">
-                              R$ {totalPagar.toFixed(2)}
-                            </td>
-                            <td className="p-4 text-center">
-                              <span className={`text-xs font-bold px-2.5 py-1 rounded-full border ${
-                                status === 'pago'
-                                  ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
-                                  : status === 'parcial'
-                                  ? 'bg-amber-500/10 text-amber-400 border-amber-500/20'
-                                  : 'bg-zinc-800 text-zinc-400 border-zinc-700/30'
-                              }`}>
-                                {status === 'pago' ? 'Pago' : status === 'parcial' ? 'Parcial' : 'Pendente'}
-                              </span>
-                            </td>
-                            <td className="p-4 text-center">
-                              {status !== 'pago' ? (
-                                <button
-                                  type="button"
-                                  onClick={() => abrirModalRepasse(profData)}
-                                  className="bg-emerald-600/30 text-emerald-300 hover:bg-emerald-600/50 px-3 py-1.5 text-xs font-medium rounded transition-all cursor-pointer"
-                                >
-                                  Pagar Repasse
-                                </button>
-                              ) : (
-                                <span className="text-[10px] text-zinc-500">
-                                  {profData.pagamento_detalhes?.forma || 'Pago'}
-                                  {profData.pagamento_detalhes?.data && (
-                                    <span> · {new Date(profData.pagamento_detalhes.data).toLocaleDateString('pt-BR')}</span>
-                                  )}
-                                </span>
-                              )}
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                </div>
-              ) : (
-                <div className="p-12 text-center text-zinc-500">
-                  <p className="text-lg">📭 Nenhum professor registrado ou ativo.</p>
-                </div>
-              )}
+
+                {modoFiltroData === 'mes' ? (
+                  <>
+                    <div className="w-full lg:w-40">
+                      <label className="text-xs uppercase text-zinc-500 mb-1 block">Mês</label>
+                      <select
+                        value={mesFiltro}
+                        onChange={(e) => setMesFiltro(Number(e.target.value))}
+                        className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-emerald-500"
+                      >
+                        {meses.map((m, i) => (
+                          <option key={m} value={i + 1}>{m}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="w-full lg:w-32">
+                      <label className="text-xs uppercase text-zinc-500 mb-1 block">Ano</label>
+                      <select
+                        value={anoFiltro}
+                        onChange={(e) => setAnoFiltro(Number(e.target.value))}
+                        className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-emerald-500"
+                      >
+                        {anos.map(a => (
+                          <option key={a} value={a}>{a}</option>
+                        ))}
+                      </select>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div className="w-full lg:w-40">
+                      <label className="text-xs uppercase text-zinc-500 mb-1 block">De</label>
+                      <input
+                        type="date"
+                        value={dataInicio}
+                        onChange={(e) => setDataInicio(e.target.value)}
+                        className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-emerald-500"
+                      />
+                    </div>
+                    <div className="w-full lg:w-40">
+                      <label className="text-xs uppercase text-zinc-500 mb-1 block">Até</label>
+                      <input
+                        type="date"
+                        value={dataFim}
+                        onChange={(e) => setDataFim(e.target.value)}
+                        className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-emerald-500"
+                      />
+                    </div>
+                  </>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {transacoesLancamentosFiltradas.length > 0 ? (
+            <div className="overflow-x-auto">
+              <table role="table" aria-label="Tabela de dados" className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-zinc-800 bg-zinc-950">
+                    <th className="text-left p-4 font-semibold">Descrição</th>
+                    <th className="text-center p-4 font-semibold">Tipo</th>
+                    <th className="text-right p-4 font-semibold">Valor</th>
+                    <th className="text-center p-4 font-semibold">Data</th>
+                    <th className="text-center p-4 font-semibold">Status</th>
+                    <th className="text-center p-4 font-semibold">Ação</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {lancamentosPaginados.map((t) => (
+                    <tr key={t.id} className="border-b border-zinc-800/50 hover:bg-zinc-800/20">
+                      <td className="p-4 text-zinc-200">{t.descricao}</td>
+                      <td className="p-4 text-center">
+                        <span className={`text-xs font-bold px-2 py-1 rounded ${t.tipo === 'Receita' ? 'bg-emerald-900/50 text-emerald-300' : 'bg-rose-900/50 text-rose-300'
+                          }`}>
+                          {t.tipo}
+                        </span>
+                      </td>
+                      <td className={`p-4 text-right font-semibold ${t.tipo === 'Receita' ? 'text-emerald-400' : 'text-rose-400'}`}>
+                        R$ {Number(t.valor || 0).toFixed(2)}
+                      </td>
+                      <td className="p-4 text-center text-zinc-400 text-xs">{formatarData(t.data)}</td>
+                      <td className="p-4 text-center">
+                        <span className={`text-xs font-bold px-2.5 py-1 rounded-full ${t.status === 'Pago'
+                          ? 'bg-emerald-900/50 text-emerald-300'
+                          : 'bg-amber-900/50 text-amber-300'
+                          }`}>
+                          {t.status === 'Pago' ? '✓ Pago' : '⏳ Pendente'}
+                        </span>
+                      </td>
+                      <td className="p-4 text-center">
+                        <div className="flex items-center justify-center gap-2">
+                          <button
+                            onClick={() => handleEditarLancamento(t)}
+                            className="text-blue-400 hover:text-blue-300 p-2 rounded transition-all cursor-pointer hover:bg-blue-500/10"
+                            title="Editar Lançamento"
+                          >
+                            <Edit size={16} />
+                          </button>
+                          <button
+                            onClick={() => alternarStatusLancamento(t.id, t.status)}
+                            className={`px-3 py-1.5 text-xs font-medium rounded transition-all cursor-pointer ${t.status === 'Pago'
+                              ? 'bg-amber-600/30 text-amber-300 hover:bg-amber-600/50'
+                              : 'bg-emerald-600/30 text-emerald-300 hover:bg-emerald-600/50'
+                              }`}
+                          >
+                            {t.status === 'Pago' ? 'Marcar Pendente' : 'Marcar Pago'}
+                          </button>
+                          {asaasConfigurado && t.tipo === 'Receita' && t.status !== 'Pago' && (
+                            <button
+                              onClick={() => gerarCobrancaAsaas(t.id, 'lancamento')}
+                              className="bg-blue-600 hover:bg-blue-700 px-3 py-1.5 text-xs font-medium rounded text-white transition-all shadow-lg ml-2"
+                            >
+                              Gerar Asaas
+                            </button>
+                          )}
+                          <button
+                            onClick={(e) => { e.stopPropagation(); handleDeletarLancamento(t.id, t.descricao); }}
+                            className="text-rose-400 hover:text-rose-300 p-2 rounded transition-all cursor-pointer hover:bg-rose-500/10"
+                            title="Excluir Lançamento"
+                          >
+                            <Trash2 size={16} />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <div className="p-12 text-center text-zinc-500">
+              <p className="text-lg">📭 Nenhum outro lançamento registrado.</p>
             </div>
           )}
+
+          {/* Controles de Paginação - Lançamentos Manuais */}
+          {totalPaginasLancamentos > 1 && (
+            <div className="flex justify-between items-center bg-zinc-950 border-t border-zinc-800 p-4">
+              <div className="text-xs text-zinc-500">
+                Página <span className="font-bold text-white">{paginaTransacoes}</span> de <span className="font-bold text-white">{totalPaginasLancamentos}</span>
+              </div>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setPaginaTransacoes(p => Math.max(p - 1, 1))}
+                  disabled={paginaTransacoes === 1}
+                  className="px-3 py-1 bg-zinc-900 border border-zinc-700 rounded text-xs hover:bg-zinc-800 disabled:opacity-50"
+                >
+                  Anterior
+                </button>
+                <button
+                  onClick={() => setPaginaTransacoes(p => Math.min(p + 1, totalPaginasLancamentos))}
+                  disabled={paginaTransacoes === totalPaginasLancamentos}
+                  className="px-3 py-1 bg-zinc-900 border border-zinc-700 rounded text-xs hover:bg-zinc-800 disabled:opacity-50"
+                >
+                  Próxima
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Conteúdo da Aba: PROFESSORES */}
+      {abaSelecionada === 'professores' && (
+        <div className="bg-zinc-900 border border-zinc-800 rounded-xl overflow-hidden">
+
+          {/* Filtros de Professores */}
+          <div className="p-4 border-b border-zinc-800 bg-zinc-900/50 flex flex-col lg:flex-row gap-4 items-end">
+            <div className="flex-1 w-full">
+              <label className="text-xs uppercase text-zinc-500 mb-1 block">Buscar Professor</label>
+              <input
+                type="text"
+                placeholder="Nome do professor..."
+                value={buscaProfessores}
+                onChange={(e) => setBuscaProfessores(e.target.value)}
+                className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-emerald-500"
+              />
+            </div>
+            <div className="w-full lg:w-40">
+              <label className="text-xs uppercase text-zinc-500 mb-1 block">Mês Referência</label>
+              <select
+                value={mesFiltro}
+                onChange={(e) => setMesFiltro(Number(e.target.value))}
+                className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-emerald-500"
+              >
+                {meses.map((m, i) => (
+                  <option key={m} value={i + 1}>{m}</option>
+                ))}
+              </select>
+            </div>
+            <div className="w-full lg:w-32">
+              <label className="text-xs uppercase text-zinc-500 mb-1 block">Ano</label>
+              <select
+                value={anoFiltro}
+                onChange={(e) => setAnoFiltro(Number(e.target.value))}
+                className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-emerald-500"
+              >
+                {anos.map(a => (
+                  <option key={a} value={a}>{a}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          {carregandoProfessores ? (
+            <div className="p-12 text-center text-zinc-500">
+              <p className="text-lg">🔄 Carregando dados dos professores...</p>
+            </div>
+          ) : professoresFiltrados.length > 0 ? (
+            <div className="overflow-x-auto">
+              <table role="table" aria-label="Tabela de dados" className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-zinc-800 bg-zinc-950">
+                    <th className="text-left p-4 font-semibold">👤 Professor</th>
+                    <th className="text-left p-4 font-semibold">🎵 Instrumento</th>
+                    <th className="text-right p-4 font-semibold">Valor Base</th>
+                    <th className="text-center p-4 font-semibold">Alunos</th>
+                    <th className="text-center p-4 font-semibold">Aulas Ministradas</th>
+                    <th className="text-right p-4 font-semibold">Valor a Pagar</th>
+                    <th className="text-center p-4 font-semibold">Status</th>
+                    <th className="text-center p-4 font-semibold">Ação</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {professoresFiltrados.map((profData) => {
+                    const prof = profData.professor;
+                    const totalPagar = Number(profData.total_a_pagar || 0);
+                    const status = profData.repasse_status || 'pendente';
+                    return (
+                      <tr key={prof.id} className="border-b border-zinc-800/50 hover:bg-zinc-800/20">
+                        <td className="p-4 text-zinc-200 font-medium">
+                          {prof.nome}
+                          {profData.pagamento_detalhes && (
+                            <div className="text-[10px] text-zinc-500 font-normal mt-0.5">
+                              Obs: {profData.pagamento_detalhes.observacao || 'Sem obs.'}
+                            </div>
+                          )}
+                        </td>
+                        <td className="p-4 text-zinc-400">{prof.instrumento_principal || '—'}</td>
+                        <td className="p-4 text-right text-zinc-400 text-xs">
+                          {prof.tipo_remuneracao === 'mensalista' && (
+                            <div>Fixo: R$ {Number(profData.valor_mensal || 0).toFixed(2)}</div>
+                          )}
+                          {prof.tipo_remuneracao === 'horista' && (
+                            <div>Hora: R$ {Number(profData.valor_hora || 0).toFixed(2)}</div>
+                          )}
+                          {prof.tipo_remuneracao === 'comissao' && (
+                            <div>Comissão: {Number(profData.porcentagem_professor || 0)}%</div>
+                          )}
+                        </td>
+                        <td className="p-4 text-center text-zinc-300">{profData.total_alunos}</td>
+                        <td className="p-4 text-center text-zinc-300">{profData.total_aulas}</td>
+                        <td className="p-4 text-right text-emerald-400 font-bold font-mono">
+                          R$ {totalPagar.toFixed(2)}
+                        </td>
+                        <td className="p-4 text-center">
+                          <span className={`text-xs font-bold px-2.5 py-1 rounded-full border ${status === 'pago'
+                            ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
+                            : status === 'parcial'
+                              ? 'bg-amber-500/10 text-amber-400 border-amber-500/20'
+                              : 'bg-zinc-800 text-zinc-400 border-zinc-700/30'
+                            }`}>
+                            {status === 'pago' ? 'Pago' : status === 'parcial' ? 'Parcial' : 'Pendente'}
+                          </span>
+                        </td>
+                        <td className="p-4 text-center">
+                          {status !== 'pago' ? (
+                            <button
+                              type="button"
+                              onClick={() => abrirModalRepasse(profData)}
+                              className="bg-emerald-600/30 text-emerald-300 hover:bg-emerald-600/50 px-3 py-1.5 text-xs font-medium rounded transition-all cursor-pointer"
+                            >
+                              Pagar Repasse
+                            </button>
+                          ) : (
+                            <span className="text-[10px] text-zinc-500">
+                              {profData.pagamento_detalhes?.forma || 'Pago'}
+                              {profData.pagamento_detalhes?.data && (
+                                <span> · {new Date(profData.pagamento_detalhes.data).toLocaleDateString('pt-BR')}</span>
+                              )}
+                            </span>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <div className="p-12 text-center text-zinc-500">
+              <p className="text-lg">📭 Nenhum professor registrado ou ativo.</p>
+            </div>
+          )}
+        </div>
+      )}
       {/* MODAL DE NOVO LANÇAMENTO */}
       {modalAberto && abaSelecionada === 'lancamentos' && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
@@ -1484,8 +1483,8 @@ export default function Financeiro() {
             <form onSubmit={handleNovoLancamento} className="p-6 space-y-4">
               <div>
                 <label className="block text-xs font-semibold text-zinc-400 uppercase mb-2">Descrição *</label>
-                <input 
-                  type="text" required placeholder="Ex: Aluguel da sala" value={formData.descricao} 
+                <input
+                  type="text" required placeholder="Ex: Aluguel da sala" value={formData.descricao}
                   onChange={e => setFormData({ ...formData, descricao: e.target.value })}
                   className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-sky-500 text-white"
                 />
@@ -1501,8 +1500,8 @@ export default function Financeiro() {
                 </div>
                 <div>
                   <label className="block text-xs font-semibold text-zinc-400 uppercase mb-2">Valor *</label>
-                  <input 
-                    type="number" required placeholder="0.00" step="0.01" value={formData.valor} 
+                  <input
+                    type="number" required placeholder="0.00" step="0.01" value={formData.valor}
                     onChange={e => setFormData({ ...formData, valor: e.target.value })}
                     className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-sky-500 text-white"
                   />
@@ -1512,7 +1511,7 @@ export default function Financeiro() {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-semibold text-zinc-400 uppercase mb-2">Data</label>
-                  <input 
+                  <input
                     type="date" value={formData.data} onChange={e => setFormData({ ...formData, data: e.target.value })}
                     className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-sky-500 [color-scheme:dark]"
                   />
@@ -1527,13 +1526,13 @@ export default function Financeiro() {
               </div>
 
               <div className="pt-4 border-t border-zinc-800 flex justify-end gap-3">
-                <button 
+                <button
                   type="button" onClick={fecharModal}
                   className="px-4 py-2 text-sm font-medium text-zinc-400 hover:text-white transition-all cursor-pointer"
                 >
                   Cancelar
                 </button>
-                <button 
+                <button
                   type="submit" disabled={submetendo}
                   className="bg-emerald-600 hover:bg-emerald-700 disabled:bg-emerald-800 text-white font-medium px-4 py-2 rounded-lg text-sm transition-all cursor-pointer"
                 >
@@ -1550,8 +1549,8 @@ export default function Financeiro() {
           <div className="bg-zinc-900 border border-zinc-800 rounded-2xl w-full max-w-md overflow-hidden shadow-2xl">
             <div className="p-6 border-b border-zinc-800 flex justify-between items-center bg-zinc-950/40">
               <h2 className="text-lg font-bold">💰 Registrar Pagamento de Repasse</h2>
-              <button 
-                onClick={() => { setModalRepasseAberto(false); setProfessorSelecionado(null); }} 
+              <button
+                onClick={() => { setModalRepasseAberto(false); setProfessorSelecionado(null); }}
                 className="text-zinc-500 hover:text-white text-xl cursor-pointer"
               >
                 ✕
@@ -1561,8 +1560,8 @@ export default function Financeiro() {
             <div className="p-6 space-y-4">
               <div>
                 <label className="block text-xs font-semibold text-zinc-400 uppercase mb-2">Professor</label>
-                <input 
-                  type="text" readOnly value={professorSelecionado.professor.nome} 
+                <input
+                  type="text" readOnly value={professorSelecionado.professor.nome}
                   className="w-full bg-zinc-950/50 border border-zinc-800 rounded-lg px-3 py-2 text-sm text-zinc-400 focus:outline-none"
                 />
               </div>
@@ -1581,9 +1580,9 @@ export default function Financeiro() {
 
                 <div>
                   <label className="block text-xs font-semibold text-zinc-400 uppercase mb-2">Forma de Pagamento</label>
-                  <select 
-                    value={formaPagamentoRepasse} 
-                    onChange={e => setFormaPagamentoRepasse(e.target.value)} 
+                  <select
+                    value={formaPagamentoRepasse}
+                    onChange={e => setFormaPagamentoRepasse(e.target.value)}
                     className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-sky-500 cursor-pointer"
                   >
                     <option value="Pix">Pix</option>
@@ -1607,15 +1606,15 @@ export default function Financeiro() {
               </div>
 
               <div className="pt-4 border-t border-zinc-800 flex justify-end gap-3">
-                <button 
-                  type="button" 
+                <button
+                  type="button"
                   onClick={() => { setModalRepasseAberto(false); setProfessorSelecionado(null); }}
                   className="px-4 py-2 text-sm font-medium text-zinc-400 hover:text-white transition-all cursor-pointer"
                 >
                   Cancelar
                 </button>
-                <button 
-                  type="button" 
+                <button
+                  type="button"
                   onClick={registrarPagamentoRepasse}
                   disabled={salvandoRepasse}
                   className="bg-emerald-600 hover:bg-emerald-700 disabled:bg-emerald-800 text-white font-medium px-4 py-2 rounded-lg text-sm transition-all cursor-pointer"

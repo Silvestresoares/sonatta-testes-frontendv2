@@ -23,8 +23,31 @@ export function useRegistroAula(aula, aluno, isOpen, onClose, onSave) {
     conteudo_trabalhado: '',
     tarefas_casa: '',
     anotacoes: '',
-    observacoes: ''
+    observacoes: '',
+    professor_substituto_id: ''
   });
+
+  const [professores, setProfessores] = useState([]);
+
+  useEffect(() => {
+    const fetchProfessores = async () => {
+      const token = localStorage.getItem('@sonatta:token');
+      try {
+        const res = await fetch(`${API_URL}/api/professores`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (res.ok) {
+          const data = await res.json();
+          setProfessores(data);
+        }
+      } catch (err) {
+        console.error('Erro ao buscar professores:', err);
+      }
+    };
+    if (isOpen) {
+      fetchProfessores();
+    }
+  }, [isOpen]);
 
   const [carregando, setCarregando] = useState(false);
   const [erro, setErro] = useState('');
@@ -59,7 +82,8 @@ export function useRegistroAula(aula, aluno, isOpen, onClose, onSave) {
             conteudo_trabalhado: reg.conteudo_trabalhado || '',
             tarefas_casa: reg.tarefas_casa || '',
             anotacoes: reg.anotacoes || '',
-            observacoes: reg.observacoes || ''
+            observacoes: reg.observacoes || '',
+            professor_substituto_id: reg.professor_substituto_id || ''
           }));
         } else {
           setFormData(prev => ({
@@ -67,7 +91,8 @@ export function useRegistroAula(aula, aluno, isOpen, onClose, onSave) {
             conteudo_trabalhado: '',
             tarefas_casa: '',
             anotacoes: '',
-            observacoes: ''
+            observacoes: '',
+            professor_substituto_id: ''
           }));
         }
       }
@@ -94,7 +119,8 @@ export function useRegistroAula(aula, aluno, isOpen, onClose, onSave) {
         conteudo_trabalhado: reg.conteudo_trabalhado || '',
         tarefas_casa: reg.tarefas_casa || '',
         anotacoes: reg.anotacoes || '',
-        observacoes: reg.observacoes || ''
+        observacoes: reg.observacoes || '',
+        professor_substituto_id: reg.professor_substituto_id || ''
       });
     } 
     else if (aluno && isOpen) {
@@ -110,7 +136,8 @@ export function useRegistroAula(aula, aluno, isOpen, onClose, onSave) {
         conteudo_trabalhado: '',
         tarefas_casa: '',
         anotacoes: '',
-        observacoes: ''
+        observacoes: '',
+        professor_substituto_id: ''
       });
     }
 
@@ -164,7 +191,8 @@ export function useRegistroAula(aula, aluno, isOpen, onClose, onSave) {
         conteudo_trabalhado: formData.conteudo_trabalhado || null,
         tarefas_casa: formData.tarefas_casa || null,
         anotacoes: formData.anotacoes || null,
-        observacoes: formData.observacoes || null
+        observacoes: formData.observacoes || null,
+        professor_substituto_id: formData.professor_substituto_id || null
       };
       
       const url = `${API_URL}/api/registros-aula`;
@@ -209,6 +237,7 @@ export function useRegistroAula(aula, aluno, isOpen, onClose, onSave) {
     erro,
     sucesso,
     handleChange,
-    handleSubmit
+    handleSubmit,
+    professores
   };
 }

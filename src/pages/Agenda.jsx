@@ -290,7 +290,9 @@ export default function Agenda() {
           dadosRegistro: registroPresenca || null,
           aula_id_referencia: a.id, // ID da tabela 'aulas' (extra, reposição, etc)
           professor_id: a.professor_id,
-          professor_nome: a.professor_nome
+          professor_nome: a.professor_nome,
+          sala: a.sala,
+          sala_id: a.sala_id
         };
       });
 
@@ -316,7 +318,8 @@ export default function Agenda() {
           tipo_origem: 'experimental',
           dadosRegistro: registro || null,
           professor_id: exp.professor_id || null,
-          professor_nome: exp.professor_nome || null
+          professor_nome: exp.professor_nome || null,
+          sala: exp.sala_nome || null
         };
       });
 

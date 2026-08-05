@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Calendar, DollarSign, User, CheckCircle2, AlertCircle, BookOpen, Headphones, FileAudio, FileImage, FileText, Download, Folder } from 'lucide-react';
+import { Calendar, DollarSign, User, CheckCircle2, AlertCircle, BookOpen, Headphones, FileAudio, FileImage, FileText, Download, Folder, Music, Star, Award } from 'lucide-react';
 import PortalLayout from '../../components/PortalLayout';
 import { useNavigate } from 'react-router-dom';
 import { QRCodeSVG } from 'qrcode.react';
@@ -43,6 +43,9 @@ export default function DashboardPortal() {
   const [financeiro, setFinanceiro] = useState([]);
   const [materiais, setMateriais] = useState([]);
   const [registros, setRegistros] = useState([]);
+  const [repertorio, setRepertorio] = useState([]);
+  const [avaliacoes, setAvaliacoes] = useState([]);
+  const [eventos, setEventos] = useState([]);
   const [modalRegistrosAberto, setModalRegistrosAberto] = useState(false);
   const [alunoSelecionado, setAlunoSelecionado] = useState(null);
   const [carregando, setCarregando] = useState(true);
@@ -244,6 +247,36 @@ export default function DashboardPortal() {
         setRegistros(await resRegistros.json());
       } else {
         setRegistros([]);
+      }
+
+      // Repertório
+      const resRep = await fetch(`${API_URL}/api/repertorio/aluno/${id}`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (resRep.ok) {
+        setRepertorio(await resRep.json());
+      } else {
+        setRepertorio([]);
+      }
+
+      // Avaliações
+      const resAv = await fetch(`${API_URL}/api/avaliacoes/aluno/${id}`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (resAv.ok) {
+        setAvaliacoes(await resAv.json());
+      } else {
+        setAvaliacoes([]);
+      }
+
+      // Eventos
+      const resEventos = await fetch(`${API_URL}/api/portal/eventos/${id}`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (resEventos.ok) {
+        setEventos(await resEventos.json());
+      } else {
+        setEventos([]);
       }
     } catch (err) {
       console.error(err);
@@ -637,6 +670,151 @@ export default function DashboardPortal() {
             </div>
 
           </div>
+
+            {/* Repertório Musical */}
+            <div className="bg-zinc-900/40 backdrop-blur-xl border border-white/10 rounded-2xl overflow-hidden shadow-2xl h-fit mt-6">
+              <div className="bg-fuchsia-500/10 border-b border-white/5 p-4 flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <Music className="text-fuchsia-400" size={24} />
+                  <h3 className="text-lg font-bold text-white">Repertório Musical</h3>
+                </div>
+              </div>
+
+              <div className="p-4">
+                {repertorio.length === 0 ? (
+                  <div className="text-center py-6">
+                    <div className="text-3xl mb-2">🎵</div>
+                    <p className="text-zinc-400 text-sm">Seu repertório aparecerá aqui.</p>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {repertorio.map((musica) => (
+                      <div key={musica.id} className="bg-black/20 backdrop-blur-sm border border-white/5 rounded-xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:border-white/10 transition-colors shadow-inner">
+                        <div className="flex-1">
+                          <h4 className="font-bold text-zinc-200">{musica.nome_musica}</h4>
+                          <p className="text-xs text-zinc-400">{musica.artista || 'Desconhecido'}</p>
+                          {musica.link_partitura && (
+                            <a href={musica.link_partitura} target="_blank" rel="noreferrer" className="text-blue-400 text-xs hover:underline inline-block mt-1">Acessar Partitura/Áudio</a>
+                          )}
+                        </div>
+                        <span className={`text-[10px] uppercase font-bold px-2 py-1 rounded border ${musica.status === 'Concluído' ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' : musica.status === 'Praticando' ? 'bg-amber-500/10 text-amber-400 border-amber-500/20' : 'bg-zinc-500/10 text-zinc-400 border-zinc-500/20'}`}>
+                          {musica.status}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Avaliações / Boletim */}
+            <div className="bg-zinc-900/40 backdrop-blur-xl border border-white/10 rounded-2xl overflow-hidden shadow-2xl h-fit mt-6">
+              <div className="bg-sky-500/10 border-b border-white/5 p-4 flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <Award className="text-sky-400" size={24} />
+                  <h3 className="text-lg font-bold text-white">Boletim Pedagógico</h3>
+                </div>
+              </div>
+
+              <div className="p-4">
+                {avaliacoes.length === 0 ? (
+                  <div className="text-center py-6">
+                    <div className="text-3xl mb-2">⭐</div>
+                    <p className="text-zinc-400 text-sm">Nenhum boletim lançado ainda.</p>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {avaliacoes.map((av) => (
+                      <div key={av.id} className="bg-black/20 backdrop-blur-sm border border-white/5 rounded-xl p-5 hover:border-white/10 transition-colors shadow-inner">
+                        <div className="flex justify-between items-center mb-3">
+                          <h4 className="font-bold text-white">{av.periodo}</h4>
+                          <span className="text-xs text-zinc-500">{av.professor_nome}</span>
+                        </div>
+                        <div className="grid grid-cols-2 gap-2 text-sm mb-3">
+                          {[
+                            { l: 'Técnica', v: av.nota_tecnica },
+                            { l: 'Leitura', v: av.nota_leitura },
+                            { l: 'Repertório', v: av.nota_repertorio },
+                            { l: 'Musicalidade', v: av.nota_musicalidade }
+                          ].map(item => (
+                            <div key={item.l} className="bg-zinc-950 p-2 rounded flex justify-between items-center border border-zinc-800">
+                              <span className="text-xs text-zinc-400">{item.l}</span>
+                              {av.tipo_avaliacao === 'estrelas' ? (
+                                <div className="flex">
+                                  {[1,2,3,4,5].map(star => (
+                                    <Star key={star} size={12} className={star <= item.v ? 'text-amber-400 fill-amber-400' : 'text-zinc-600'} />
+                                  ))}
+                                </div>
+                              ) : (
+                                <span className="font-bold text-sky-400">{Number(item.v).toFixed(1)}</span>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                        {av.comentario_geral && (
+                          <div className="bg-sky-500/5 border border-sky-500/10 p-3 rounded text-sm text-zinc-300 italic">
+                            "{av.comentario_geral}"
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Eventos & Audições */}
+            <div className="bg-zinc-900/40 backdrop-blur-xl border border-white/10 rounded-2xl overflow-hidden shadow-2xl h-fit mt-6">
+              <div className="bg-fuchsia-500/10 border-b border-white/5 p-4 flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <Star className="text-fuchsia-400" size={24} />
+                  <h3 className="text-lg font-bold text-white">Próximos Eventos</h3>
+                </div>
+              </div>
+
+              <div className="p-4">
+                {eventos.length === 0 ? (
+                  <div className="text-center py-6">
+                    <div className="text-3xl mb-2">🎭</div>
+                    <p className="text-zinc-400 text-sm">Nenhum evento agendado para você.</p>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {eventos.map((ev) => {
+                      const dataFormatada = ev.data_evento ? new Date(ev.data_evento).toLocaleDateString('pt-BR') : '';
+                      return (
+                        <div key={ev.id} className="bg-black/20 backdrop-blur-sm border border-white/5 rounded-xl p-5 hover:border-white/10 transition-colors shadow-inner">
+                          <div className="flex justify-between items-start mb-3">
+                            <div>
+                              <h4 className="font-bold text-white text-lg">{ev.titulo}</h4>
+                              <div className="flex flex-wrap items-center gap-3 mt-1 text-xs text-zinc-400">
+                                <span className="flex items-center gap-1"><Calendar size={12} className="text-fuchsia-400"/> {dataFormatada} às {ev.horario}</span>
+                                {ev.local && <span>• {ev.local}</span>}
+                              </div>
+                            </div>
+                            <span className="text-[10px] font-bold px-2 py-1 rounded bg-fuchsia-500/10 text-fuchsia-400 uppercase tracking-wider">{ev.status}</span>
+                          </div>
+                          
+                          <div className="bg-zinc-950 p-3 rounded-lg border border-zinc-800 space-y-2 mt-4">
+                            <p className="text-xs text-zinc-500 uppercase tracking-wider font-bold mb-1">Sua Apresentação</p>
+                            <div className="flex flex-col gap-1 text-sm text-zinc-300">
+                              {ev.musica ? <span><strong className="text-zinc-500 font-normal">Música:</strong> {ev.musica}</span> : null}
+                              {ev.instrumento ? <span><strong className="text-zinc-500 font-normal">Instrumento:</strong> {ev.instrumento}</span> : null}
+                              {ev.ordem_apresentacao > 0 ? <span><strong className="text-zinc-500 font-normal">Sua entrada:</strong> Nº {ev.ordem_apresentacao}</span> : null}
+                            </div>
+                          </div>
+                          
+                          {ev.descricao && (
+                            <p className="text-xs text-zinc-400 mt-3 italic">"{ev.descricao}"</p>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            </div>
+
         </div>
       </div>
 

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Calendar, Clock, User, Phone, Music, ChevronRight, ChevronLeft, Edit2, Trash2, MessageCircle } from 'lucide-react';
+import { Plus, Calendar, Clock, User, Phone, Music, ChevronRight, ChevronLeft, Edit2, Trash2, MessageCircle, MapPin, Search, Archive, ArchiveRestore, UserPlus, Megaphone, AlignLeft } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { KanbanSkeleton } from '../components/Skeleton';
 
@@ -23,22 +23,30 @@ export default function AulasExperimentais() {
   const [erro, setErro] = useState('');
   const [sucesso, setSucesso] = useState('');
 
+  const [busca, setBusca] = useState('');
+  const [mostrarArquivados, setMostrarArquivados] = useState(false);
+
   const [formData, setFormData] = useState({
-    nome_aluno: '', telefone: '', instrumento: '', data_aula: '', horario_aula: '', professor_id: '', status: 'agendada'
+    nome_aluno: '', telefone: '', instrumento: '', data_aula: '', horario_aula: '', professor_id: '', sala_id: '', status: 'agendada', origem: '', anotacoes: ''
   });
 
   // React Query: Busca com Cache Global e Polling Automático
   const { data: aulas = [], isLoading: carregandoAulas } = useQuery({
     queryKey: ['aulasExperimentais'],
     queryFn: async () => {
-      const res = await fetch(`${API_URL}/api/aulas-experimentais`, { headers: { 'Authorization': `Bearer ${token}` } });
+      const res = await fetch(`${API_URL}/api/aulas-experimentais?arquivados=${mostrarArquivados}`, { headers: { 'Authorization': `Bearer ${token}` } });
       if (!res.ok) throw new Error('Erro ao carregar aulas');
       const json = await res.json();
       return json.dados || [];
     },
     enabled: !!token,
-    refetchInterval: 10000 // Substitui o antigo setInterval, de forma segura contra memory leaks
+    refetchInterval: 10000
   });
+
+  // Re-fetch ao mudar a flag de arquivados
+  useEffect(() => {
+    queryClient.invalidateQueries({ queryKey: ['aulasExperimentais'] });
+  }, [mostrarArquivados, queryClient]);
 
   const { data: professores = [] } = useQuery({
     queryKey: ['professores'],
@@ -47,6 +55,16 @@ export default function AulasExperimentais() {
       if (!res.ok) throw new Error('Erro ao carregar professores');
       const json = await res.json();
       return Array.isArray(json) ? json : (json.dados || []);
+    },
+    enabled: !!token
+  });
+
+  const { data: salas = [] } = useQuery({
+    queryKey: ['salasFisicas'],
+    queryFn: async () => {
+      const res = await fetch(`${API_URL}/api/salas`, { headers: { 'Authorization': `Bearer ${token}` } });
+      if (!res.ok) throw new Error('Erro ao carregar salas');
+      return await res.json();
     },
     enabled: !!token
   });
@@ -131,6 +149,51 @@ export default function AulasExperimentais() {
     onError: () => setErro('Erro ao excluir lead')
   });
 
+  const mutacaoArquivar = useMutation({
+    mutationFn: async ({ id, arquivado }) => {
+      const res = await fetch(`${API_URL}/api/aulas-experimentais/${id}/arquivar`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify({ arquivado })
+      });
+      if (!res.ok) throw new Error('Erro ao arquivar');
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['aulasExperimentais'] });
+    },
+    onError: () => setErro('Erro ao mudar status de arquivamento')
+  });
+
+  const mutacaoConverter = useMutation({
+    mutationFn: async (id) => {
+      const res = await fetch(`${API_URL}/api/aulas-experimentais/${id}/converter`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (!res.ok) throw new Error('Erro ao converter lead');
+      return res.json();
+    },
+    onSuccess: (data) => {
+      setSucesso('🎉 Lead convertido em Aluno Oficial com sucesso!');
+      queryClient.invalidateQueries({ queryKey: ['aulasExperimentais'] });
+      // Idealmente, redirecionar ou apenas avisar
+    },
+    onError: () => setErro('Erro ao converter lead em aluno')
+  });
+
+  const mutacaoAnotacao = useMutation({
+    mutationFn: async (aulaModificada) => {
+      const res = await fetch(`${API_URL}/api/aulas-experimentais/${aulaModificada.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify(aulaModificada)
+      });
+      if (!res.ok) throw new Error('Erro ao salvar anotação');
+      return res.json();
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['aulasExperimentais'] })
+  });
+
   useEffect(() => {
     if (erro || sucesso) {
       const timer = setTimeout(() => {
@@ -169,15 +232,16 @@ export default function AulasExperimentais() {
     setIdSendoEditado(aula.id);
     setFormData({
       nome_aluno: aula.nome_aluno, telefone: aula.telefone, instrumento: aula.instrumento || '',
-      data_aula: aula.data_aula || '', horario_aula: aula.horario_aula || '',
-      professor_id: aula.professor_id || '', status: aula.status || 'novo_contato'
+      data_aula: aula.data_aula ? aula.data_aula.split('T')[0] : '', horario_aula: aula.horario_aula || '',
+      professor_id: aula.professor_id || '', sala_id: aula.sala_id || '', status: aula.status || 'novo_contato',
+      origem: aula.origem || '', anotacoes: aula.anotacoes || ''
     });
     setMostrando_formulario(true);
   };
 
   const limparEdicao = () => {
     setIdSendoEditado(null);
-    setFormData({ nome_aluno: '', telefone: '', instrumento: '', data_aula: '', horario_aula: '', professor_id: '', status: 'agendada' });
+    setFormData({ nome_aluno: '', telefone: '', instrumento: '', data_aula: '', horario_aula: '', professor_id: '', sala_id: '', status: 'agendada', origem: '', anotacoes: '' });
     setMostrando_formulario(false);
   };
 
@@ -199,13 +263,34 @@ export default function AulasExperimentais() {
   return (
     <div className="w-full h-full bg-slate-50 dark:bg-zinc-950 text-zinc-900 dark:text-white flex flex-col">
       <div className="bg-white dark:bg-gradient-to-r dark:from-zinc-900 dark:to-zinc-800 border-b border-zinc-200 dark:border-zinc-800 p-6 flex-shrink-0">
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-4">
           <div>
             <h1 className="text-3xl font-bold text-zinc-900 dark:text-white mb-2">🚀 CRM & Funil de Vendas</h1>
             <p className="text-zinc-400">Gerencie contatos e aulas experimentais (Refatorado com React Query)</p>
           </div>
           <button onClick={() => setMostrando_formulario(!mostrando_formulario)} className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg font-medium transition-all">
             <Plus size={20} /> Novo Lead
+          </button>
+        </div>
+        
+        {/* Barra de Ferramentas: Busca e Filtros */}
+        <div className="flex flex-col sm:flex-row gap-4 items-center bg-zinc-50 dark:bg-zinc-900/50 p-3 rounded-lg border border-zinc-200 dark:border-zinc-800">
+          <div className="relative flex-1 w-full">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400" size={18} />
+            <input 
+              type="text" 
+              placeholder="Buscar lead por nome, telefone ou instrumento..." 
+              value={busca}
+              onChange={(e) => setBusca(e.target.value)}
+              className="w-full pl-10 pr-4 py-2 bg-white dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-700 rounded-lg outline-none focus:border-emerald-500 transition-colors"
+            />
+          </div>
+          <button 
+            onClick={() => setMostrarArquivados(!mostrarArquivados)} 
+            className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors border ${mostrarArquivados ? 'bg-amber-500/10 text-amber-500 border-amber-500/30' : 'bg-white dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300 border-zinc-200 dark:border-zinc-700 hover:border-zinc-400'}`}
+          >
+            {mostrarArquivados ? <ArchiveRestore size={18} /> : <Archive size={18} />}
+            {mostrarArquivados ? 'Ocultar Arquivados' : 'Ver Arquivados'}
           </button>
         </div>
       </div>
@@ -249,6 +334,25 @@ export default function AulasExperimentais() {
                   {professores.map(p => <option key={p.id} value={p.id}>{p.nome}</option>)}
                 </select>
               </div>
+              <div>
+                <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1 flex items-center gap-2"><MapPin size={16} /> Sala Física</label>
+                <select name="sala_id" value={formData.sala_id} onChange={handleMudanca} className="w-full px-3 py-2 bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-lg outline-none">
+                  <option value="">Nenhuma específica</option>
+                  {salas.map(s => <option key={s.id} value={s.id}>{s.nome}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1 flex items-center gap-2"><Megaphone size={16} /> Origem (Source)</label>
+                <select name="origem" value={formData.origem} onChange={handleMudanca} className="w-full px-3 py-2 bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-lg outline-none">
+                  <option value="">Desconhecida</option>
+                  <option value="Instagram">Instagram</option>
+                  <option value="Facebook">Facebook</option>
+                  <option value="Google">Google / Site</option>
+                  <option value="Indicação">Indicação</option>
+                  <option value="Passou na Frente">Passou na Frente</option>
+                  <option value="Outros">Outros</option>
+                </select>
+              </div>
             </div>
             <div className="flex justify-end gap-2 pt-4">
               <button type="button" onClick={limparEdicao} className="px-4 py-2 bg-zinc-200 dark:bg-zinc-800 text-zinc-700 dark:text-white rounded-lg">Cancelar</button>
@@ -264,7 +368,15 @@ export default function AulasExperimentais() {
           <KanbanSkeleton />
         ) : (
           STATUS_STAGES.map((stage, stageIndex) => {
-            const stageAulas = aulas.filter(a => (a.status || 'novo_contato') === stage.id);
+            const stageAulas = aulas.filter(a => {
+              const matchStatus = (a.status || 'novo_contato') === stage.id;
+              const term = busca.toLowerCase();
+              const matchBusca = term === '' || 
+                (a.nome_aluno || '').toLowerCase().includes(term) || 
+                (a.telefone || '').includes(term) || 
+                (a.instrumento || '').toLowerCase().includes(term);
+              return matchStatus && matchBusca;
+            });
             return (
               <div
                 key={stage.id}
@@ -304,7 +416,7 @@ export default function AulasExperimentais() {
 
                         <div className="space-y-1.5 mb-4">
                           <a
-                            href={`https://wa.me/55${aula.telefone.replace(/\D/g, '')}`}
+                            href={`https://wa.me/55${aula.telefone.replace(/\D/g, '')}?text=${encodeURIComponent(`Olá ${aula.nome_aluno.split(' ')[0]}, tudo bem?`)}`}
                             target="_blank"
                             rel="noopener noreferrer"
                             className="flex items-center gap-2 text-xs text-emerald-600 dark:text-emerald-400 hover:text-emerald-500 transition-colors w-fit"
@@ -339,12 +451,42 @@ export default function AulasExperimentais() {
                           )}
                           {aula.instrumento && <div className="flex items-center gap-2 text-xs text-zinc-600 dark:text-zinc-400"><Music size={12} className="text-zinc-400" />{aula.instrumento}</div>}
                           {aula.professor_nome && <div className="flex items-center gap-2 text-xs text-zinc-600 dark:text-zinc-400"><User size={12} className="text-zinc-400" />{aula.professor_nome}</div>}
+                          {aula.sala_nome && <div className="flex items-center gap-2 text-xs text-zinc-600 dark:text-zinc-400"><MapPin size={12} className="text-zinc-400" />{aula.sala_nome}</div>}
+                          {aula.origem && <div className="flex items-center gap-2 text-xs text-zinc-600 dark:text-zinc-400"><Megaphone size={12} className="text-zinc-400" />{aula.origem}</div>}
+                          
+                          <div className="mt-2 p-2 bg-amber-50 dark:bg-amber-900/10 border border-amber-200/50 dark:border-amber-900/30 rounded flex flex-col group/note relative">
+                            <span className="text-[10px] font-semibold text-amber-800 dark:text-amber-200 mb-1 flex items-center gap-1 opacity-70"><AlignLeft size={10} /> Anotações:</span>
+                            <textarea
+                              defaultValue={aula.anotacoes || ''}
+                              placeholder="Adicione uma anotação aqui..."
+                              onClick={(e) => e.stopPropagation()}
+                              onBlur={(e) => {
+                                if (e.target.value !== (aula.anotacoes || '')) {
+                                  mutacaoAnotacao.mutate({ ...aula, anotacoes: e.target.value });
+                                }
+                              }}
+                              className="w-full bg-transparent text-[11px] text-amber-900 dark:text-amber-100 outline-none resize-none placeholder-amber-700/50 min-h-[40px]"
+                            />
+                            <div className="absolute top-1 right-2 opacity-0 group-hover/note:opacity-100 text-[9px] text-amber-600/70 pointer-events-none transition-opacity">Salva ao sair</div>
+                          </div>
                         </div>
 
-                        <div className="pt-2 border-t border-zinc-100 dark:border-zinc-700 flex justify-between items-center">
-                          <button onClick={() => moverPara(aula, 'tras')} disabled={stageIndex === 0} className="p-1.5 rounded bg-zinc-100 dark:bg-zinc-700/50 hover:bg-zinc-200 dark:hover:bg-zinc-600 text-zinc-600 dark:text-zinc-300 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"><ChevronLeft size={16} /></button>
-                          <span className="text-[10px] uppercase font-bold text-zinc-400">Mover</span>
-                          <button onClick={() => moverPara(aula, 'frente')} disabled={stageIndex === STATUS_STAGES.length - 1} className="p-1.5 rounded bg-zinc-100 dark:bg-zinc-700/50 hover:bg-zinc-200 dark:hover:bg-zinc-600 text-zinc-600 dark:text-zinc-300 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"><ChevronRight size={16} /></button>
+                        <div className="pt-2 mt-2 border-t border-zinc-100 dark:border-zinc-700 flex flex-col gap-2">
+                          <div className="flex justify-between items-center w-full">
+                            <button onClick={() => mutacaoArquivar.mutate({ id: aula.id, arquivado: !mostrarArquivados })} className="flex items-center gap-1 text-[10px] uppercase font-bold text-zinc-400 hover:text-amber-500 transition-colors" title={mostrarArquivados ? "Desarquivar" : "Arquivar"}>
+                              {mostrarArquivados ? <ArchiveRestore size={14} /> : <Archive size={14} />} {mostrarArquivados ? 'Desarquiv' : 'Arquivar'}
+                            </button>
+                            {(stage.id === 'realizada' || stage.id === 'matriculado') && !mostrarArquivados && (
+                              <button onClick={() => mutacaoConverter.mutate(aula.id)} className="flex items-center gap-1 text-[10px] uppercase font-bold text-emerald-600 dark:text-emerald-400 hover:text-emerald-500 transition-colors" title="Converter em Aluno Oficial">
+                                <UserPlus size={14} /> Converter
+                              </button>
+                            )}
+                          </div>
+                          <div className="flex justify-between items-center w-full">
+                            <button onClick={() => moverPara(aula, 'tras')} disabled={stageIndex === 0} className="p-1.5 rounded bg-zinc-100 dark:bg-zinc-700/50 hover:bg-zinc-200 dark:hover:bg-zinc-600 text-zinc-600 dark:text-zinc-300 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"><ChevronLeft size={16} /></button>
+                            <span className="text-[10px] uppercase font-bold text-zinc-400">Mover</span>
+                            <button onClick={() => moverPara(aula, 'frente')} disabled={stageIndex === STATUS_STAGES.length - 1} className="p-1.5 rounded bg-zinc-100 dark:bg-zinc-700/50 hover:bg-zinc-200 dark:hover:bg-zinc-600 text-zinc-600 dark:text-zinc-300 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"><ChevronRight size={16} /></button>
+                          </div>
                         </div>
                       </div>
                     ))

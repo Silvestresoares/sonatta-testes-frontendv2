@@ -122,9 +122,9 @@ export default function MeusAlunos() {
                         <button
                           onClick={() => abrirModalHistorico(aluno)}
                           className="flex items-center gap-2 bg-blue-500/10 text-blue-400 hover:bg-blue-500/20 px-3 py-1.5 rounded-lg transition-all text-xs font-semibold"
-                          title="Ver Histórico de Aulas e Registros"
+                          title="Ver Histórico, Repertório e Boletins"
                         >
-                          <FaHistory size={14} /> Histórico
+                          <FaHistory size={14} /> Ficha Pedagógica
                         </button>
                         <button
                           onClick={() => navigate('/materiais', { state: { alunoId: aluno.id } })}

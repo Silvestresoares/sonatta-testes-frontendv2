@@ -310,7 +310,12 @@ export default function LandingPage() {
                   <label className="block text-[11px] font-bold text-zinc-400 uppercase tracking-wide mb-1">Telefone (Opcional)</label>
                   <input
                     type="text" placeholder="(11) 99999-9999"
-                    value={telefoneCadastro} onChange={e => setTelefoneCadastro(e.target.value)}
+                    value={telefoneCadastro} onChange={e => {
+                      let val = e.target.value.replace(/\D/g, '');
+                      val = val.replace(/^(\d{2})(\d)/g, '($1) $2');
+                      val = val.replace(/(\d)(\d{4})$/, '$1-$2');
+                      setTelefoneCadastro(val);
+                    }}
                     className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-2.5 text-sm text-white outline-none focus:border-emerald-500 focus:ring-1 transition-all"
                   />
                 </div>
@@ -319,9 +324,18 @@ export default function LandingPage() {
                   <input
                     type="text" placeholder="Apenas números"
                     value={documentoCadastro} onChange={e => {
-                      let v = e.target.value.replace(/\D/g, '');
-                      if (v.length > 14) v = v.substring(0, 14);
-                      setDocumentoCadastro(v);
+                      let val = e.target.value.replace(/\D/g, '');
+                      if (val.length <= 11) {
+                        val = val.replace(/(\d{3})(\d)/, '$1.$2');
+                        val = val.replace(/(\d{3})(\d)/, '$1.$2');
+                        val = val.replace(/(\d{3})(\d{1,2})$/, '$1-$2');
+                      } else {
+                        val = val.replace(/^(\d{2})(\d)/, '$1.$2');
+                        val = val.replace(/^(\d{2})\.(\d{3})(\d)/, '$1.$2.$3');
+                        val = val.replace(/\.(\d{3})(\d)/, '.$1/$2');
+                        val = val.replace(/(\d{4})(\d)/, '$1-$2');
+                      }
+                      setDocumentoCadastro(val);
                     }}
                     className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-2.5 text-sm text-white outline-none focus:border-emerald-500 focus:ring-1 transition-all"
                   />

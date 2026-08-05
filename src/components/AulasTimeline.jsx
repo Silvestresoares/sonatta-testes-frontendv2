@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Clock, User, Clipboard, Music, ShieldAlert, CheckCircle, Info, Edit, Trash2, Users, AlertCircle, CheckCircle2, XCircle, Tag } from 'lucide-react';
+import { Virtuoso } from 'react-virtuoso';
 
 export default function AulasTimeline({ aulas = [], onAbrirRegistro = null, onEditAula = null, onDeleteAula = null, showActions = true }) {
   if (!aulas || aulas.length === 0) {
@@ -80,38 +81,48 @@ export default function AulasTimeline({ aulas = [], onAbrirRegistro = null, onEd
   const dataHojeISO = new Date().toLocaleDateString('en-CA');
 
   return (
-    <div className="space-y-3">
-      {aulasOrdenadas.map((aula, index) => {
-        const statusValue = aula.status || aula.status_presenca || aula.dadosRegistro?.status_presenca || 'pendente';
-        const statusConfig = getStatusConfig(statusValue);
-        
-        let showPrancheta = true;
-        if (aula.data_aula) {
-          const dataAulaStr = String(aula.data_aula).substring(0, 10);
-          if (dataAulaStr > dataHojeISO) {
-            showPrancheta = false;
-          } else if (dataAulaStr === dataHojeISO && aula.horario) {
-            const [h, m] = aula.horario.split(':').map(Number);
-            const agora = new Date();
-            const minAtualTotal = agora.getHours() * 60 + agora.getMinutes();
-            const minAulaTotal = h * 60 + (m || 0);
-            if (minAtualTotal < minAulaTotal) {
+    <div style={{ height: 'calc(100vh - 240px)' }} className="w-full">
+      <Virtuoso
+        style={{ height: '100%', width: '100%' }}
+        data={aulasOrdenadas}
+        itemContent={(index, aula) => {
+          const statusValue = aula.status || aula.status_presenca || aula.dadosRegistro?.status_presenca || 'pendente';
+          const statusConfig = getStatusConfig(statusValue);
+          
+          let showPrancheta = true;
+          if (aula.data_aula) {
+            const dataAulaStr = String(aula.data_aula).substring(0, 10);
+            if (dataAulaStr > dataHojeISO) {
               showPrancheta = false;
+            } else if (dataAulaStr === dataHojeISO && aula.horario) {
+              const [h, m] = aula.horario.split(':').map(Number);
+              const agora = new Date();
+              const minAtualTotal = agora.getHours() * 60 + agora.getMinutes();
+              const minAulaTotal = h * 60 + (m || 0);
+              if (minAtualTotal < minAulaTotal) {
+                showPrancheta = false;
+              }
             }
           }
-        }
 
-        return (
-          <div
-            key={aula.id || index}
-            className={`border-l-4 rounded-xl p-5 transition-all transform hover:scale-[1.01] hover:shadow-xl ${statusConfig.card}`}
-          >
+          return (
+            <div className="pb-3">
+              <div
+                key={aula.id || index}
+                className={`border-l-4 rounded-xl p-5 transition-all transform hover:scale-[1.01] hover:shadow-xl ${statusConfig.card}`}
+              >
           {/* Cabeçalho: Horário e Status */}
           <div className="flex items-center justify-between mb-4 gap-3">
             <div className="flex items-center gap-3">
               <div className="flex items-center gap-2">
                 <Clock size={12} className="text-emerald-400" />
                 <span className="text-xs font-black text-zinc-900 dark:text-white">{aula.horario}</span>
+                {aula.sala && (
+                  <>
+                    <span className="text-zinc-300 dark:text-zinc-700">•</span>
+                    <span className="text-xs font-semibold text-zinc-500">📍 Sala {aula.sala}</span>
+                  </>
+                )}
               </div>
               {statusValue && statusValue !== 'pendente' && (
                 <div className={`flex items-center gap-2 text-xs font-semibold ${statusConfig.badge}`}>
@@ -169,11 +180,7 @@ export default function AulasTimeline({ aulas = [], onAbrirRegistro = null, onEd
               </div>
             </div>
 
-            {aula.sala && (
-              <div className="text-xs text-zinc-400 ml-6">
-                📍 Sala {aula.sala}
-              </div>
-            )}
+
             {aula.professor_nome && (
               <div className="text-xs text-zinc-400 ml-6 mt-1 flex items-center gap-1">
                 <span>👨‍🏫 Professor:</span>
@@ -204,8 +211,10 @@ export default function AulasTimeline({ aulas = [], onAbrirRegistro = null, onEd
             </div>
           )}
         </div>
-        );
-      })}
+            </div>
+          );
+        }}
+      />
     </div>
   );
 }

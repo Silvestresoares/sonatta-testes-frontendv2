@@ -929,7 +929,18 @@ function ModalProfessor({ professor, onClose, onSalvo, token, todosAlunos }) {
                       set('telefone', val);
                     }} 
                   />
-                  <InputField label="WhatsApp" placeholder="(00) 00000-0000" value={form.whatsapp} onChange={e => set('whatsapp', e.target.value)} />
+                  <InputField 
+                    label="WhatsApp" 
+                    placeholder="(00) 00000-0000" 
+                    maxLength={15}
+                    value={form.whatsapp} 
+                    onChange={e => {
+                      let val = e.target.value.replace(/\D/g, '');
+                      val = val.replace(/^(\d{2})(\d)/g, '($1) $2');
+                      val = val.replace(/(\d)(\d{4})$/, '$1-$2');
+                      set('whatsapp', val);
+                    }} 
+                  />
                 </div>
                 <div className="grid grid-cols-1 gap-4">
                   <InputField label="Endereço" placeholder="Rua, número, complemento" value={form.endereco} onChange={e => set('endereco', e.target.value)} />

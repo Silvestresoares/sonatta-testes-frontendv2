@@ -36,7 +36,11 @@ export default function Configuracoes() {
     titular_pix: '',
     cidade_pix: '',
     exige_assinatura_contrato: false,
-    texto_contrato_padrao: ''
+    texto_contrato_padrao: '',
+    config_pagar_5_semana: false,
+    config_descontar_falta_prof: false,
+    config_pagamento_substituto: 'valor_normal_professor',
+    config_valor_fixo_substituto: ''
   });
 
   const token = localStorage.getItem('@sonatta:token');
@@ -74,7 +78,11 @@ export default function Configuracoes() {
           titular_pix: data.titular_pix || '',
           cidade_pix: data.cidade_pix || '',
           exige_assinatura_contrato: !!data.exige_assinatura_contrato,
-          texto_contrato_padrao: data.texto_contrato_padrao || ''
+          texto_contrato_padrao: data.texto_contrato_padrao || '',
+          config_pagar_5_semana: !!data.config_pagar_5_semana,
+          config_descontar_falta_prof: !!data.config_descontar_falta_prof,
+          config_pagamento_substituto: data.config_pagamento_substituto || 'valor_normal_professor',
+          config_valor_fixo_substituto: data.config_valor_fixo_substituto || ''
         });
 
         if (data.asaas_api_key) {
@@ -688,6 +696,73 @@ export default function Configuracoes() {
                       className="flex-1 px-4 py-2 bg-zinc-950 border border-zinc-800 rounded-lg text-white focus:outline-none focus:border-emerald-500 uppercase font-mono"
                     />
                   </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Configurações de Professores */}
+            <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-6">
+              <h2 className="text-lg font-semibold text-white mb-4 border-b border-zinc-800 pb-2">Gestão de Professores</h2>
+              <div className="space-y-4">
+                <label className="flex items-start gap-3 cursor-pointer">
+                  <div className="pt-1">
+                    <input
+                      type="checkbox"
+                      name="config_pagar_5_semana"
+                      checked={formData.config_pagar_5_semana}
+                      onChange={(e) => setFormData(prev => ({ ...prev, config_pagar_5_semana: e.target.checked }))}
+                      className="w-4 h-4 text-emerald-500 bg-zinc-950 border-zinc-700 rounded focus:ring-emerald-500"
+                    />
+                  </div>
+                  <div>
+                    <span className="block text-sm font-medium text-white">Meses com 5 Semanas (Remuneração Extra)</span>
+                    <span className="block text-xs text-zinc-500 mt-0.5">Se marcado, quando o mês tiver 5 aulas daquele aluno, o professor (horista/comissão) recebe o valor proporcional à 5ª aula. Se desmarcado, ele recebe o valor limite de 4 aulas (valor base da mensalidade).</span>
+                  </div>
+                </label>
+
+                <label className="flex items-start gap-3 cursor-pointer">
+                  <div className="pt-1">
+                    <input
+                      type="checkbox"
+                      name="config_descontar_falta_prof"
+                      checked={formData.config_descontar_falta_prof}
+                      onChange={(e) => setFormData(prev => ({ ...prev, config_descontar_falta_prof: e.target.checked }))}
+                      className="w-4 h-4 text-emerald-500 bg-zinc-950 border-zinc-700 rounded focus:ring-emerald-500"
+                    />
+                  </div>
+                  <div>
+                    <span className="block text-sm font-medium text-white">Descontar "Falta do Professor" Automaticamente</span>
+                    <span className="block text-xs text-zinc-500 mt-0.5">Se marcado, aulas marcadas como "Falta do Professor" sem reposição serão deduzidas do extrato (horista e comissão).</span>
+                  </div>
+                </label>
+
+                <div className="pt-2 border-t border-zinc-800">
+                  <label className="block text-sm font-medium text-zinc-400 mb-1">Como pagar o Professor Substituto?</label>
+                  <select
+                    name="config_pagamento_substituto"
+                    value={formData.config_pagamento_substituto}
+                    onChange={handleChange}
+                    className="w-full px-4 py-2 bg-zinc-950 border border-zinc-800 rounded-lg text-white focus:outline-none focus:border-emerald-500 transition-colors mb-3"
+                  >
+                    <option value="valor_normal_professor">Repassar o valor da aula do titular para o substituto (Proporcional)</option>
+                    <option value="valor_hora_substituto">Pagar o valor hora padrão cadastrado no perfil do professor substituto</option>
+                    <option value="valor_fixo">Pagar um valor fixo por substituição para qualquer professor</option>
+                  </select>
+
+                  {formData.config_pagamento_substituto === 'valor_fixo' && (
+                    <div>
+                      <label className="block text-sm font-medium text-zinc-400 mb-1">Valor Fixo da Substituição (R$)</label>
+                      <input
+                        type="number"
+                        name="config_valor_fixo_substituto"
+                        value={formData.config_valor_fixo_substituto}
+                        onChange={handleChange}
+                        className="w-full md:w-1/3 px-4 py-2 bg-zinc-950 border border-zinc-800 rounded-lg text-white focus:outline-none focus:border-emerald-500 transition-colors"
+                        placeholder="Ex: 50.00"
+                        step="0.01"
+                      />
+                    </div>
+                  )}
                 </div>
               </div>
             </div>

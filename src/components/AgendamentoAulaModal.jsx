@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, PlusCircle, Repeat, RotateCcw, User, Users, Calendar, Clock, CheckCircle, AlertCircle, RefreshCw, GraduationCap } from 'lucide-react';
+import { X, PlusCircle, Repeat, RotateCcw, User, Users, Calendar, Clock, CheckCircle, AlertCircle, RefreshCw, GraduationCap, MapPin } from 'lucide-react';
 
 const _envApi = import.meta.env.VITE_API_URL;
 const _defaultLocal = 'http://localhost:3005';
@@ -19,11 +19,14 @@ export default function AgendamentoAulaModal({ isOpen, onClose, initialData = nu
   const [alvo, setAlvo] = useState('aluno'); // 'aluno' | 'turma'
   const [carregandoAlunos, setCarregandoAlunos] = useState(false);
   const [carregandoTurmas, setCarregandoTurmas] = useState(false);
+  const [carregandoSalas, setCarregandoSalas] = useState(false);
   const [turmas, setTurmas] = useState([]);
+  const [salas, setSalas] = useState([]);
   const [formData, setFormData] = useState({
     aluno_id: '',
     turma_id: '',
     professor_id: '',
+    sala_id: '',
     data: '',
     horario: ''
   });
@@ -40,13 +43,14 @@ export default function AgendamentoAulaModal({ isOpen, onClose, initialData = nu
           aluno_id: initialData.aluno_id || '',
           turma_id: initialData.turma_id || '',
           professor_id: initialData.professor_id || '',
+          sala_id: initialData.sala_id || '',
           data: initialData.data_aula || initialData.data || '',
           horario: initialData.horario || ''
         });
         setTipoSelecionado(initialData.tipo_aula || tipoPadrao);
         setAlvo(initialData.turma_id ? 'turma' : 'aluno');
       } else {
-        setFormData({ aluno_id: '', turma_id: '', professor_id: '', data: '', horario: '' });
+        setFormData({ aluno_id: '', turma_id: '', professor_id: '', sala_id: '', data: '', horario: '' });
         setTipoSelecionado(tipoPadrao);
         setAlvo('aluno');
       }
@@ -68,6 +72,27 @@ export default function AgendamentoAulaModal({ isOpen, onClose, initialData = nu
       }
     }
   }, [formData.aluno_id, formData.turma_id, alvo, alunos, turmas]);
+
+  const carregarSalas = async () => {
+    setCarregandoSalas(true);
+    try {
+      const resposta = await fetch(`${API_URL}/api/salas`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (resposta.ok) {
+        const dados = await resposta.json();
+        setSalas(dados);
+      }
+    } catch (erro) {
+      console.error('Erro ao carregar salas:', erro);
+    } finally {
+      setCarregandoSalas(false);
+    }
+  };
+
+  useEffect(() => {
+    if (isOpen) carregarSalas();
+  }, [isOpen]);
 
   const carregarTurmas = async () => {
     setCarregandoTurmas(true);
@@ -142,9 +167,10 @@ export default function AgendamentoAulaModal({ isOpen, onClose, initialData = nu
           telefone: aluno.telefone || '',
           data: formData.data,
           horario: formData.horario,
-          status: 'agendada',
+          status: initialData ? initialData.status : 'agendada',
           tipo_aula: tipoSelecionado,
           professor_id: formData.professor_id ? Number(formData.professor_id) : null,
+          sala_id: formData.sala_id ? formData.sala_id : null,
         };
       } else {
         const turma = turmas.find(t => String(t.id) === String(formData.turma_id));
@@ -158,9 +184,10 @@ export default function AgendamentoAulaModal({ isOpen, onClose, initialData = nu
           telefone: '',
           data: formData.data,
           horario: formData.horario,
-          status: 'agendada',
+          status: initialData ? initialData.status : 'agendada',
           tipo_aula: tipoSelecionado,
           professor_id: formData.professor_id ? Number(formData.professor_id) : null,
+          sala_id: formData.sala_id ? formData.sala_id : null,
         };
       }
 
@@ -335,6 +362,26 @@ export default function AgendamentoAulaModal({ isOpen, onClose, initialData = nu
               {professores.map(p => (
                 <option key={p.id} value={p.id}>
                   {p.nome}{p.instrumento_principal ? ` (${p.instrumento_principal})` : ''}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Selecionar Sala */}
+          <div>
+            <label className="block text-xs font-bold text-zinc-500 uppercase mb-2 flex items-center gap-2">
+              <MapPin size={14} /> Sala Física
+            </label>
+            <select
+              value={formData.sala_id}
+              onChange={e => setFormData({...formData, sala_id: e.target.value})}
+              className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-4 py-2.5 text-sm text-white focus:border-emerald-500 outline-none transition-all"
+              disabled={carregandoSalas}
+            >
+              <option value="">{carregandoSalas ? 'Carregando salas...' : '-- Nenhuma sala específica --'}</option>
+              {salas.map(s => (
+                <option key={s.id} value={s.id}>
+                  {s.nome} {s.capacidade ? `(Capacidade: ${s.capacidade})` : ''}
                 </option>
               ))}
             </select>

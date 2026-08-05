@@ -20,7 +20,8 @@ export default function RegistroAulaModal({ isOpen, onClose, aluno, aula, onSave
     erro,
     sucesso,
     handleChange,
-    handleSubmit
+    handleSubmit,
+    professores
   } = useRegistroAula(aula, aluno, isOpen, onClose, onSave);
 
   if (!isOpen) return null;
@@ -130,6 +131,25 @@ export default function RegistroAulaModal({ isOpen, onClose, aluno, aula, onSave
                   className="w-full px-3 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-white placeholder-zinc-500 focus:border-orange-500 focus:outline-none transition"
                 />
               )}
+            </div>
+
+            <div>
+              <label htmlFor="professor_substituto_id" className="block text-sm font-medium text-zinc-300 mb-1.5 flex items-center justify-between">
+                <span>Professor Substituto</span>
+                <span className="text-xs font-normal text-zinc-500">(Opcional)</span>
+              </label>
+              <select
+                id="professor_substituto_id"
+                name="professor_substituto_id"
+                value={formData.professor_substituto_id || ''}
+                onChange={handleChange}
+                className="w-full px-3 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-white focus:border-orange-500 focus:outline-none transition"
+              >
+                <option value="">Selecione se for substituição...</option>
+                {professores?.map((prof) => (
+                  <option key={prof.id} value={prof.id}>{prof.nome}</option>
+                ))}
+              </select>
             </div>
 
             <div>

@@ -1,11 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { X, Calendar, CheckCircle2, XCircle, FileText, ListTodo } from 'lucide-react';
+import RepertorioAluno from './RepertorioAluno';
+import AvaliacaoAluno from './AvaliacaoAluno';
 
 const _envApi = import.meta.env.VITE_API_URL;
 const _defaultLocal = 'http://localhost:3005';
 const API_URL = (typeof window !== 'undefined' && window.location && window.location.hostname.includes('localhost')) ? _defaultLocal : (_envApi || _defaultLocal);
 
 export default function HistoricoAlunoModal({ isOpen, onClose, aluno }) {
+  const [abaAtiva, setAbaAtiva] = useState('historico');
   const [registros, setRegistros] = useState([]);
   const [carregando, setCarregando] = useState(true);
 
@@ -49,7 +52,7 @@ export default function HistoricoAlunoModal({ isOpen, onClose, aluno }) {
         <div className="p-6 border-b border-zinc-800 flex justify-between items-center bg-zinc-900/50 rounded-t-2xl">
           <div>
             <h2 className="text-xl font-bold text-white flex items-center gap-2">
-              📜 Histórico de Aulas
+              🎓 Ficha Pedagógica
             </h2>
             <p className="text-sm text-zinc-400 mt-1">
               Aluno: <span className="font-semibold text-emerald-400">{aluno?.nome}</span> • {aluno?.instrumento}
@@ -63,8 +66,30 @@ export default function HistoricoAlunoModal({ isOpen, onClose, aluno }) {
           </button>
         </div>
 
+        <div className="px-6 pt-4 border-b border-zinc-800 flex gap-2 overflow-x-auto custom-scrollbar">
+          <button 
+            onClick={() => setAbaAtiva('historico')}
+            className={`text-sm font-bold px-3 py-2 border-b-2 transition-colors whitespace-nowrap ${abaAtiva === 'historico' ? 'border-emerald-500 text-emerald-400' : 'border-transparent text-zinc-500 hover:text-zinc-300'}`}
+          >
+            Histórico de Aulas
+          </button>
+          <button 
+            onClick={() => setAbaAtiva('repertorio')}
+            className={`text-sm font-bold px-3 py-2 border-b-2 transition-colors whitespace-nowrap ${abaAtiva === 'repertorio' ? 'border-fuchsia-500 text-fuchsia-400' : 'border-transparent text-zinc-500 hover:text-zinc-300'}`}
+          >
+            Repertório Musical
+          </button>
+          <button 
+            onClick={() => setAbaAtiva('boletim')}
+            className={`text-sm font-bold px-3 py-2 border-b-2 transition-colors whitespace-nowrap ${abaAtiva === 'boletim' ? 'border-sky-500 text-sky-400' : 'border-transparent text-zinc-500 hover:text-zinc-300'}`}
+          >
+            Boletim & Avaliações
+          </button>
+        </div>
+
         <div className="flex-1 overflow-y-auto p-6">
-          {carregando ? (
+          {abaAtiva === 'historico' && (
+            carregando ? (
             <div className="flex flex-col items-center justify-center py-20 text-zinc-500">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-500 mb-4"></div>
               <p>Buscando registros pedagógicos...</p>
@@ -132,6 +157,14 @@ export default function HistoricoAlunoModal({ isOpen, onClose, aluno }) {
                 </div>
               ))}
             </div>
+          ))}
+
+          {abaAtiva === 'repertorio' && (
+            <RepertorioAluno alunoId={aluno.id} token={localStorage.getItem('@sonatta:token')} />
+          )}
+
+          {abaAtiva === 'boletim' && (
+            <AvaliacaoAluno alunoId={aluno.id} token={localStorage.getItem('@sonatta:token')} />
           )}
         </div>
       </div>

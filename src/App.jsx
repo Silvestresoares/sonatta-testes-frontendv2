@@ -1,5 +1,5 @@
 import React, { useState, useEffect, Suspense } from 'react';
-import { Routes, Route, useLocation, Navigate, useNavigate } from 'react-router-dom'; // <-- Adicionado useNavigate aqui
+import { Routes, Route, useLocation, Navigate, useNavigate } from 'react-router-dom';
 const Login = React.lazy(() => import('./pages/Login'));
 const LandingPage = React.lazy(() => import('./pages/LandingPage'));
 import Sidebar from './components/Sidebar';
@@ -16,11 +16,17 @@ const AulasExperimentais = React.lazy(() => import('./pages/AulasExperimentais')
 const Professores = React.lazy(() => import('./pages/Professores'));
 const Responsaveis = React.lazy(() => import('./pages/Responsaveis'));
 const CursosTurmas = React.lazy(() => import('./pages/CursosTurmas'));
+const Salas = React.lazy(() => import('./pages/Salas'));
+const LocacaoSalas = React.lazy(() => import('./pages/LocacaoSalas'));
+const Lojinha = React.lazy(() => import('./pages/Lojinha'));
 const MinhaAssinatura = React.lazy(() => import('./pages/MinhaAssinatura'));
 const AssinaturaSuspensa = React.lazy(() => import('./pages/AssinaturaSuspensa'));
 const Materiais = React.lazy(() => import('./pages/Materiais'));
 const SuperAdmin = React.lazy(() => import('./pages/SuperAdmin'));
 const Configuracoes = React.lazy(() => import('./pages/Configuracoes'));
+const Feriados = React.lazy(() => import('./pages/Feriados'));
+const Relatorios = React.lazy(() => import('./pages/Relatorios'));
+const Eventos = React.lazy(() => import('./pages/Eventos'));
 
 // Páginas do Professor
 const MinhaAgenda = React.lazy(() => import('./pages/MinhaAgenda'));
@@ -335,6 +341,7 @@ export default function App() {
             <Route path="/minhas-turmas" element={<LayoutComSidebar onLogout={handleLogout} tipoUsuario={tipoUsuario} professorId={professorId} isSuperAdmin={isSuperAdmin} isBlocked={isBlocked} currentRoute={location.pathname}><MinhasTurmas /></LayoutComSidebar>} />
             <Route path="/meus-alunos" element={<LayoutComSidebar onLogout={handleLogout} tipoUsuario={tipoUsuario} professorId={professorId} isSuperAdmin={isSuperAdmin} isBlocked={isBlocked} currentRoute={location.pathname}><MeusAlunos /></LayoutComSidebar>} />
             <Route path="/meus-recebimentos" element={<LayoutComSidebar onLogout={handleLogout} tipoUsuario={tipoUsuario} professorId={professorId} isSuperAdmin={isSuperAdmin} isBlocked={isBlocked} currentRoute={location.pathname}><MeusRecebimentos professorId={professorId} /></LayoutComSidebar>} />
+            <Route path="/eventos" element={<LayoutComSidebar onLogout={handleLogout} tipoUsuario={tipoUsuario} professorId={professorId} isSuperAdmin={isSuperAdmin} isBlocked={isBlocked} currentRoute={location.pathname}><Eventos /></LayoutComSidebar>} />
             <Route path="/materiais" element={<LayoutComSidebar onLogout={handleLogout} tipoUsuario={tipoUsuario} professorId={professorId} isSuperAdmin={isSuperAdmin} isBlocked={isBlocked} currentRoute={location.pathname}><Materiais /></LayoutComSidebar>} />
             <Route path="*" element={<Navigate to="/minha-agenda" replace />} />
           </Routes>
@@ -357,9 +364,15 @@ export default function App() {
           <Route path="/professores" element={<LayoutComSidebar onLogout={handleLogout} tipoUsuario={tipoUsuario} professorId={professorId} isSuperAdmin={isSuperAdmin} isBlocked={isBlocked} currentRoute={location.pathname}><Professores /></LayoutComSidebar>} />
           <Route path="/responsaveis" element={<LayoutComSidebar onLogout={handleLogout} tipoUsuario={tipoUsuario} professorId={professorId} isSuperAdmin={isSuperAdmin} isBlocked={isBlocked} currentRoute={location.pathname}><Responsaveis /></LayoutComSidebar>} />
           <Route path="/cursos-turmas" element={<LayoutComSidebar onLogout={handleLogout} tipoUsuario={tipoUsuario} professorId={professorId} isSuperAdmin={isSuperAdmin} isBlocked={isBlocked} currentRoute={location.pathname}><CursosTurmas /></LayoutComSidebar>} />
+          <Route path="/salas" element={<LayoutComSidebar onLogout={handleLogout} tipoUsuario={tipoUsuario} professorId={professorId} isSuperAdmin={isSuperAdmin} isBlocked={isBlocked} currentRoute={location.pathname}><Salas /></LayoutComSidebar>} />
+          <Route path="/locacao-salas" element={<LayoutComSidebar onLogout={handleLogout} tipoUsuario={tipoUsuario} professorId={professorId} isSuperAdmin={isSuperAdmin} isBlocked={isBlocked} currentRoute={location.pathname}><LocacaoSalas /></LayoutComSidebar>} />
           <Route path="/financeiro" element={<LayoutComSidebar onLogout={handleLogout} tipoUsuario={tipoUsuario} professorId={professorId} isSuperAdmin={isSuperAdmin} isBlocked={isBlocked} currentRoute={location.pathname}><Financeiro /></LayoutComSidebar>} />
+          <Route path="/feriados" element={<LayoutComSidebar onLogout={handleLogout} tipoUsuario={tipoUsuario} professorId={professorId} isSuperAdmin={isSuperAdmin} isBlocked={isBlocked} currentRoute={location.pathname}><Feriados /></LayoutComSidebar>} />
+          <Route path="/relatorios" element={<LayoutComSidebar onLogout={handleLogout} tipoUsuario={tipoUsuario} professorId={professorId} isSuperAdmin={isSuperAdmin} isBlocked={isBlocked} currentRoute={location.pathname}><Relatorios /></LayoutComSidebar>} />
+          <Route path="/eventos" element={<LayoutComSidebar onLogout={handleLogout} tipoUsuario={tipoUsuario} professorId={professorId} isSuperAdmin={isSuperAdmin} isBlocked={isBlocked} currentRoute={location.pathname}><Eventos /></LayoutComSidebar>} />
           <Route path="/materiais" element={<LayoutComSidebar onLogout={handleLogout} tipoUsuario={tipoUsuario} professorId={professorId} isSuperAdmin={isSuperAdmin} isBlocked={isBlocked} currentRoute={location.pathname}><Materiais /></LayoutComSidebar>} />
           <Route path="/configuracoes" element={<LayoutComSidebar onLogout={handleLogout} tipoUsuario={tipoUsuario} professorId={professorId} isSuperAdmin={isSuperAdmin} isBlocked={isBlocked} currentRoute={location.pathname}><Configuracoes /></LayoutComSidebar>} />
+          <Route path="/lojinha" element={<LayoutComSidebar onLogout={handleLogout} tipoUsuario={tipoUsuario} professorId={professorId} isSuperAdmin={isSuperAdmin} isBlocked={isBlocked} currentRoute={location.pathname}><Lojinha /></LayoutComSidebar>} />
           <Route path="/minha-assinatura" element={<LayoutComSidebar onLogout={handleLogout} tipoUsuario={tipoUsuario} professorId={professorId} isSuperAdmin={isSuperAdmin} isBlocked={isBlocked} currentRoute={location.pathname}><MinhaAssinatura /></LayoutComSidebar>} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>

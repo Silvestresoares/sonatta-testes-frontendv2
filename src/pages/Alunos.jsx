@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Eye, Edit, Trash2, History, Upload, PlusCircle, Search, FileText } from 'lucide-react';
+import { Eye, Edit, Trash2, History, Upload, PlusCircle, Search, FileText, GraduationCap } from 'lucide-react';
 import HistoricoAlunoModal from '../components/HistoricoAlunoModal';
+import RepertorioAluno from '../components/RepertorioAluno';
+import AvaliacaoAluno from '../components/AvaliacaoAluno';
 import { exportarParaCSV, exportarParaPDF } from '../utils/exportar';
 import { API_URL } from '../utils/api';
 // Detecta a URL da internet ou usa o localhost se estiver testando no computador
@@ -50,6 +52,11 @@ export default function Alunos() {
   // Controle de Histórico de Aulas
   const [modalHistoricoAberto, setModalHistoricoAberto] = useState(false);
   const [alunoHistoricoSelecionado, setAlunoHistoricoSelecionado] = useState(null);
+
+  // Controle de Certificado
+  const [alunoCertificado, setAlunoCertificado] = useState(null);
+  const [cursoCertificado, setCursoCertificado] = useState('');
+  const [isEmitindoCertificado, setIsEmitindoCertificado] = useState(false);
 
   // Estados para o formulário
   const [nome, setNome] = useState('');
@@ -456,6 +463,52 @@ export default function Alunos() {
     setAlunoHistoricoSelecionado(null);
   };
 
+  const handleEmitirCertificado = async (e) => {
+    e.preventDefault();
+    if (!cursoCertificado) {
+      alert("Por favor, preencha o nome do curso.");
+      return;
+    }
+    
+    setIsEmitindoCertificado(true);
+    try {
+      const token = localStorage.getItem('@sonatta:token');
+      const response = await fetch(`${API_URL}/api/certificados/emitir`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          aluno_id: alunoCertificado.id,
+          curso: cursoCertificado
+        })
+      });
+
+      if (!response.ok) {
+        const errData = await response.json();
+        throw new Error(errData.erro || 'Erro ao emitir certificado');
+      }
+
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `Certificado_${alunoCertificado.nome}_${cursoCertificado}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+      
+      setAlunoCertificado(null);
+      setCursoCertificado('');
+    } catch (err) {
+      alert(err.message);
+    } finally {
+      setIsEmitindoCertificado(false);
+    }
+  };
+
   const fecharModal = () => {
     setModalAberto(false);
     setIdSendoEditado(null);
@@ -683,6 +736,13 @@ export default function Alunos() {
                               title="Upload de Material"
                             >
                               <Upload size={18} />
+                            </button>
+                            <button
+                              onClick={(e) => { e.stopPropagation(); setAlunoCertificado(aluno); setCursoCertificado(aluno.instrumento || ''); }}
+                              className="text-fuchsia-400 hover:text-fuchsia-300 p-2 rounded transition-all cursor-pointer hover:bg-fuchsia-500/10"
+                              title="Emitir Certificado"
+                            >
+                              <GraduationCap size={18} />
                             </button>
                             <button
                               onClick={(e) => { e.stopPropagation(); handleDeletarAluno(aluno.id, aluno.nome); }}
@@ -1134,12 +1194,61 @@ export default function Alunos() {
           }}
         />
       )}
+
+      {/* Modal Emitir Certificado */}
+      {alunoCertificado && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-[9999]" onClick={() => { setAlunoCertificado(null); setCursoCertificado(''); }}>
+          <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-6 w-full max-w-sm shadow-2xl" onClick={e => e.stopPropagation()}>
+            <h2 className="text-xl font-bold mb-4 text-white flex items-center gap-2">
+              <GraduationCap className="text-fuchsia-500" /> Emitir Certificado
+            </h2>
+            <p className="text-sm text-zinc-400 mb-4">
+              Emitindo para: <strong className="text-white">{alunoCertificado.nome}</strong>
+            </p>
+            <form onSubmit={handleEmitirCertificado}>
+              <div className="mb-4">
+                <label className="block text-xs font-semibold text-zinc-400 uppercase tracking-wider mb-2">
+                  Nome do Curso/Módulo
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={cursoCertificado}
+                  onChange={e => setCursoCertificado(e.target.value)}
+                  className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-fuchsia-500"
+                  placeholder="Ex: Piano Clássico, Módulo 1..."
+                />
+              </div>
+              <div className="flex gap-3 justify-end mt-6">
+                <button
+                  type="button"
+                  onClick={() => { setAlunoCertificado(null); setCursoCertificado(''); }}
+                  className="px-4 py-2 text-zinc-400 hover:text-white transition-colors"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  disabled={isEmitindoCertificado}
+                  className="bg-fuchsia-600 hover:bg-fuchsia-700 disabled:opacity-50 text-white font-semibold px-4 py-2 rounded-lg flex items-center gap-2 transition-colors"
+                >
+                  {isEmitindoCertificado ? 'Gerando PDF...' : 'Baixar PDF'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }
 
 // ─── MODAL DE VISUALIZAÇÃO / FICHA DO ALUNO ─────────────────────────────────
 function ModalVisualizacaoAluno({ aluno, onClose, onEditar }) {
+  const [abaAtiva, setAbaAtiva] = useState('ficha');
+  const token = localStorage.getItem('@sonatta:token');
+  
   const formatarData = (data) => {
     if (!data) return '—';
     const clean = typeof data === 'string' ? data.split('T')[0] : data;
@@ -1217,8 +1326,26 @@ function ModalVisualizacaoAluno({ aluno, onClose, onEditar }) {
             <span className="text-xs text-zinc-500">· Matrícula: {formatarData(aluno.data_matricula)}</span>
           </div>
 
-          {/* Informações Gerais */}
-          <section className="space-y-3">
+          {/* Tabs */}
+          <div className="flex gap-2 border-b border-zinc-800 pb-2">
+            <button 
+              onClick={() => setAbaAtiva('ficha')}
+              className={`text-sm font-bold px-3 py-1.5 rounded-lg transition-colors ${abaAtiva === 'ficha' ? 'bg-zinc-800 text-white' : 'text-zinc-500 hover:text-zinc-300'}`}
+            >Ficha Cadastral</button>
+            <button 
+              onClick={() => setAbaAtiva('repertorio')}
+              className={`text-sm font-bold px-3 py-1.5 rounded-lg transition-colors ${abaAtiva === 'repertorio' ? 'bg-emerald-600/20 text-emerald-400' : 'text-zinc-500 hover:text-zinc-300'}`}
+            >Repertório</button>
+            <button 
+              onClick={() => setAbaAtiva('boletim')}
+              className={`text-sm font-bold px-3 py-1.5 rounded-lg transition-colors ${abaAtiva === 'boletim' ? 'bg-sky-600/20 text-sky-400' : 'text-zinc-500 hover:text-zinc-300'}`}
+            >Boletim & Avaliações</button>
+          </div>
+
+          {abaAtiva === 'ficha' && (
+            <>
+              {/* Informações Gerais */}
+              <section className="space-y-3">
             <h3 className="text-xs font-bold text-zinc-500 uppercase tracking-wider">Cadastro & Contato</h3>
             <div className="grid grid-cols-2 gap-4 text-sm bg-zinc-950/40 p-4 border border-zinc-850 rounded-xl">
               <div>
@@ -1331,6 +1458,16 @@ function ModalVisualizacaoAluno({ aluno, onClose, onEditar }) {
               </div>
             </div>
           </section>
+          </>
+          )}
+
+          {abaAtiva === 'repertorio' && (
+            <RepertorioAluno alunoId={aluno.id} token={token} />
+          )}
+
+          {abaAtiva === 'boletim' && (
+            <AvaliacaoAluno alunoId={aluno.id} token={token} />
+          )}
         </div>
       </div>
     </div>

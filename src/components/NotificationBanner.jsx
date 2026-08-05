@@ -66,11 +66,24 @@ export default function NotificationBanner() {
 
         // Enviar a inscrição para o backend
         const token = localStorage.getItem('@sonatta:token');
-        const response = await fetch(`${API_URL}/api/notificacoes/subscribe`, {
+        const portalToken = localStorage.getItem('@sonatta:portal_token');
+        const activeToken = token || portalToken;
+
+        if (!activeToken) {
+          console.error('Nenhum token encontrado para salvar a inscrição.');
+          return;
+        }
+
+        const urlParams = new URLSearchParams(window.location.search);
+        // Se for o portal que chamou (pelo portalToken ser o principal ou a rota ser de portal)
+        const isPortal = !token && portalToken;
+        const urlEndpoint = isPortal ? '/api/portal/notificacoes/subscribe' : '/api/notificacoes/subscribe';
+
+        const response = await fetch(`${API_URL}${urlEndpoint}`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`
+            'Authorization': `Bearer ${activeToken}`
           },
           body: JSON.stringify(subscription)
         });
