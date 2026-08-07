@@ -108,7 +108,7 @@ export default function MinhaAgenda({ professorId }) {
     if (dataSelec > dataHoje) return { restantes: totais, dadas: 0, totais };
 
     const horaAtualMinutos = hoje.getHours() * 60 + hoje.getMinutes();
-    
+
     let restantes = 0;
     let dadas = 0;
 
@@ -222,7 +222,7 @@ export default function MinhaAgenda({ professorId }) {
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
             <h1 className="text-2xl font-bold text-emerald-400">📅 Minha Agenda</h1>
-            <p className="text-xs text-zinc-500 mt-1">Visualize e registre suas aulas com o mesmo layout do administrador.</p>
+            <p className="text-xs text-zinc-500 mt-1">Visualize e registre suas aulas.</p>
           </div>
           <button onClick={carregarAgenda} className="flex items-center gap-2 border border-zinc-800 text-zinc-200 rounded-lg px-4 py-2 text-sm hover:bg-zinc-900 transition">
             <RefreshCw size={16} /> Atualizar
@@ -257,7 +257,7 @@ export default function MinhaAgenda({ professorId }) {
                 </div>
               ) : (
                 <div className="mt-4 p-3 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg text-center">
-                   <p className="text-sm font-semibold text-zinc-400">Nenhuma aula neste dia</p>
+                  <p className="text-sm font-semibold text-zinc-400">Nenhuma aula neste dia</p>
                 </div>
               )}
             </div>
