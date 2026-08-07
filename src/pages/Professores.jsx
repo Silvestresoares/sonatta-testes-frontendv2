@@ -4,6 +4,7 @@ import { UserPlus, Search, Download, Printer, X,
          Users, Edit2, Plus, Minus,
          ChevronLeft, ChevronRight, CheckCircle2, AlertCircle, CalendarClock, ShieldCheck, Eye, Edit, Trash2 } from 'lucide-react';
 import { API_URL } from '../utils/api';
+import HistoricoPontoModal from '../components/HistoricoPontoModal';
 
 const canalComunicacao = new BroadcastChannel('sonatta_updates');
 
@@ -1304,6 +1305,8 @@ export default function Professores() {
   const [modalAberto, setModalAberto] = useState(false);
   const [profSelecionado, setProfSelecionado] = useState(null);
   const [modalVisualizacao, setModalVisualizacao] = useState(false);
+  const [historicoPontoAberto, setHistoricoPontoAberto] = useState(false);
+  const [profSelecionadoHistorico, setProfSelecionadoHistorico] = useState(null);
 
   const token = localStorage.getItem('@sonatta:token');
 
@@ -1533,6 +1536,13 @@ export default function Professores() {
                   <td className="p-4">
                     <div className="flex items-center justify-center gap-2">
                       <button
+                        onClick={() => { setProfSelecionadoHistorico(prof.id); setHistoricoPontoAberto(true); }}
+                        className="text-amber-400 hover:text-amber-300 p-2 rounded transition-all cursor-pointer hover:bg-amber-500/10"
+                        title="Histórico de Ponto"
+                      >
+                        <CalendarClock size={18} />
+                      </button>
+                      <button
                         onClick={() => abrirVisualizacao(prof)}
                         className="text-emerald-400 hover:text-emerald-300 p-2 rounded transition-all cursor-pointer hover:bg-emerald-500/10"
                         title="Visualizar ficha"
@@ -1579,6 +1589,11 @@ export default function Professores() {
           onEditar={() => abrirEdicao(profSelecionado)}
         />
       )}
+      <HistoricoPontoModal 
+        isOpen={historicoPontoAberto}
+        onClose={() => setHistoricoPontoAberto(false)}
+        professorId={profSelecionadoHistorico}
+      />
     </div>
   );
 }
