@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Calendar, DollarSign, User, CheckCircle2, AlertCircle, BookOpen, Headphones, FileAudio, FileImage, FileText, Download, Folder, Music, Star, Award } from 'lucide-react';
 import PortalLayout from '../../components/PortalLayout';
 import { useNavigate } from 'react-router-dom';
@@ -74,6 +74,24 @@ export default function DashboardPortal() {
   const [aulasHoje, setAulasHoje] = useState([]);
 
   const token = localStorage.getItem('@sonatta:portal_token');
+
+  const isBloqueadoInadimplencia = useMemo(() => {
+    if (!financeiro || financeiro.length === 0) return false;
+    return financeiro.some(item => {
+      if (item.status === 'Pendente') {
+        const dataStr = item.data_vencimento || item.data;
+        if (!dataStr) return false;
+        const [ano, mes, dia] = dataStr.split('T')[0].split('-');
+        const vencimento = new Date(ano, mes - 1, dia);
+        const agora = new Date();
+        agora.setHours(0, 0, 0, 0);
+        const diffTempo = agora.getTime() - vencimento.getTime();
+        const diffDias = Math.floor(diffTempo / (1000 * 60 * 60 * 24));
+        return diffDias >= 3;
+      }
+      return false;
+    });
+  }, [financeiro]);
 
   useEffect(() => {
     if (!token) {
@@ -423,8 +441,6 @@ export default function DashboardPortal() {
   };
   const saudacao = getSaudacao();
 
-
-
   const nomeExibicao = dados?.usuario?.nome ? dados.usuario.nome.split(' ')[0] : 'Aluno';
 
   return (
@@ -446,7 +462,7 @@ export default function DashboardPortal() {
             <p className="text-zinc-300 text-lg">{saudacao.sub}</p>
           </div>
 
-          {agenda && agenda.length > 0 && (
+          {!isBloqueadoInadimplencia && agenda && agenda.length > 0 && (
             <div className="flex flex-col gap-2 w-full md:w-auto md:min-w-[280px] md:max-h-40 overflow-y-auto custom-scrollbar pr-2 mt-4 md:mt-0 relative z-10">
               <p className="text-xs font-bold text-emerald-400 uppercase tracking-widest text-left mb-1">Próxima(s) Aula(s)</p>
               {agenda.map((turma, idx) => (
@@ -507,7 +523,13 @@ export default function DashboardPortal() {
                 )}
               </div>
               <div className="p-4">
-                {registrosHoje.length === 0 ? (
+                {isBloqueadoInadimplencia ? (
+                  <div className="text-center py-6">
+                    <div className="text-3xl mb-2 text-red-500">🔒</div>
+                    <p className="text-red-400 text-sm font-bold">Acesso Suspenso</p>
+                    <p className="text-zinc-400 text-xs mt-1 px-4">Por favor, regularize as faturas pendentes na aba Financeiro ao lado para liberar o portal.</p>
+                  </div>
+                ) : registrosHoje.length === 0 ? (
                   <div className="text-center py-6">
                     <div className="text-3xl mb-2">🎵</div>
                     <p className="text-zinc-400 text-sm">O palco está limpo por enquanto.</p>
@@ -620,7 +642,13 @@ export default function DashboardPortal() {
               </div>
 
               <div className="p-4">
-                {materiais.length === 0 ? (
+                {isBloqueadoInadimplencia ? (
+                  <div className="text-center py-6">
+                    <div className="text-3xl mb-2 text-red-500">🔒</div>
+                    <p className="text-red-400 text-sm font-bold">Acesso Suspenso</p>
+                    <p className="text-zinc-400 text-xs mt-1 px-4">Por favor, regularize as faturas pendentes na aba Financeiro para liberar os materiais.</p>
+                  </div>
+                ) : materiais.length === 0 ? (
                   <div className="text-center py-6">
                     <div className="text-3xl mb-2">📚</div>
                     <p className="text-zinc-400 text-sm">Material disponível em breve.</p>
@@ -681,7 +709,13 @@ export default function DashboardPortal() {
               </div>
 
               <div className="p-4">
-                {repertorio.length === 0 ? (
+                {isBloqueadoInadimplencia ? (
+                  <div className="text-center py-6">
+                    <div className="text-3xl mb-2 text-red-500">🔒</div>
+                    <p className="text-red-400 text-sm font-bold">Acesso Suspenso</p>
+                    <p className="text-zinc-400 text-xs mt-1 px-4">Por favor, regularize as faturas pendentes na aba Financeiro para acessar o repertório.</p>
+                  </div>
+                ) : repertorio.length === 0 ? (
                   <div className="text-center py-6">
                     <div className="text-3xl mb-2">🎵</div>
                     <p className="text-zinc-400 text-sm">Seu repertório aparecerá aqui.</p>
@@ -717,7 +751,13 @@ export default function DashboardPortal() {
               </div>
 
               <div className="p-4">
-                {avaliacoes.length === 0 ? (
+                {isBloqueadoInadimplencia ? (
+                  <div className="text-center py-6">
+                    <div className="text-3xl mb-2 text-red-500">🔒</div>
+                    <p className="text-red-400 text-sm font-bold">Acesso Suspenso</p>
+                    <p className="text-zinc-400 text-xs mt-1 px-4">Por favor, regularize as faturas pendentes na aba Financeiro para acessar as avaliações.</p>
+                  </div>
+                ) : avaliacoes.length === 0 ? (
                   <div className="text-center py-6">
                     <div className="text-3xl mb-2">⭐</div>
                     <p className="text-zinc-400 text-sm">Nenhum boletim lançado ainda.</p>

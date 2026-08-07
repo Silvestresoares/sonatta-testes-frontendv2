@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { Eye, EyeOff } from 'lucide-react';
 import { API_URL } from '../utils/api';
 // 📦 Importação das novas telas isoladas
 import EsqueciSenha from './EsqueciSenha';
@@ -17,6 +18,7 @@ export default function Login({ aoLogar }) {
   // Estados para Login
   const [emailLogin, setEmailLogin] = useState('');
   const [senhaLogin, setSenhaLogin] = useState('');
+  const [mostrarSenha, setMostrarSenha] = useState(false);
 
 
 
@@ -229,14 +231,23 @@ export default function Login({ aoLogar }) {
                     Esqueceu a senha?
                   </button>
                 </div>
-                <input 
-                  type="password" 
-                  required 
-                  placeholder="••••••••"
-                  value={senhaLogin} 
-                  onChange={e => setSenhaLogin(e.target.value)}
-                  className="w-full bg-zinc-900 border border-zinc-800 rounded-xl px-4 py-3 text-sm text-white outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition-all placeholder-zinc-600"
-                />
+                <div className="relative">
+                  <input 
+                    type={mostrarSenha ? "text" : "password"} 
+                    required 
+                    placeholder="••••••••"
+                    value={senhaLogin} 
+                    onChange={e => setSenhaLogin(e.target.value)}
+                    className="w-full bg-zinc-900 border border-zinc-800 rounded-xl px-4 py-3 pr-12 text-sm text-white outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition-all placeholder-zinc-600"
+                  />
+                  <button 
+                    type="button"
+                    onClick={() => setMostrarSenha(!mostrarSenha)}
+                    className="absolute right-4 top-1/2 -translate-y-1/2 text-zinc-500 hover:text-emerald-500 transition-colors"
+                  >
+                    {mostrarSenha ? <EyeOff size={18} /> : <Eye size={18} />}
+                  </button>
+                </div>
               </div>
 
               <button 

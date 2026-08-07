@@ -408,6 +408,29 @@ export default function Financeiro() {
     }
   };
 
+  const gerarLoteMensalidades = async () => {
+    if (!window.confirm(`Tem certeza que deseja gerar mensalidades em lote para o mês ${mesFiltro}/${anoFiltro}? O sistema irá agrupar cobranças de alunos do mesmo responsável.`)) return;
+    const token = localStorage.getItem('@sonatta:token');
+    try {
+      const resposta = await fetch(`${API_URL}/api/financeiro/gerar-lote`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify({ mes: mesFiltro, ano: anoFiltro })
+      });
+      const data = await resposta.json();
+      if (resposta.ok) {
+        alert('Lote gerado com sucesso! Os responsáveis já podem acessar a fatura única.');
+        carregarFinanceiro();
+        carregarAlunos();
+      } else {
+        alert(`Erro ao gerar lote: ${data.erro}`);
+      }
+    } catch (erro) {
+      console.error(erro);
+      alert('Erro de conexão ao gerar lote.');
+    }
+  };
+
   const fecharModal = () => {
     setModalAberto(false);
     setEditandoId(null);
@@ -524,8 +547,8 @@ export default function Financeiro() {
 
   if (isMesAtual) {
     // Para o mês atual, consideramos apenas lançamentos com status 'Pago'
-    receitasOutros = transacoes.filter(t => t.tipo === "Receita" && t.status === "Pago" && !t.aluno_id).reduce((acc, t) => acc + (Number(t.valor) || 0), 0);
-    despesasOutros = transacoes.filter(t => t.tipo === "Despesa" && t.status === "Pago" && !t.aluno_id).reduce((acc, t) => acc + (Number(t.valor) || 0), 0);
+    receitasOutros = transacoes.filter(t => t.tipo === "Receita" && t.status === "Pago" && !t.aluno_id && !t.responsavel_id).reduce((acc, t) => acc + (Number(t.valor) || 0), 0);
+    despesasOutros = transacoes.filter(t => t.tipo === "Despesa" && t.status === "Pago" && !t.aluno_id && !t.responsavel_id).reduce((acc, t) => acc + (Number(t.valor) || 0), 0);
   } else if (isMesPassado) {
     // Para meses passados, incluímos TUDO (incluindo mensalidades salvas no financeiro), pois a aba Mensalidades não mostra passado
     receitasOutros = transacoes.filter(t => t.tipo === "Receita" && (t.status === "Pago" || t.status === "concluido")).reduce((acc, t) => acc + (Number(t.valor) || 0), 0);
@@ -537,14 +560,69 @@ export default function Financeiro() {
 
   const saldoTotal = receitasOutros + mensalidadesPagas - despesasOutros;
 
-  // Filtragem Local de Alunos
+  // Filtragem Local e Agrupamento de Alunos (Fatura Unificada)
   const alunosFiltrados = useMemo(() => {
-    return alunos.filter(a => {
+    const filtrados = alunos.filter(a => {
       const matchBusca = a.nome.toLowerCase().includes(buscaAlunos.toLowerCase());
       const matchStatus = statusMensalidadeFiltro === 'Todos' ? true : a.status_mensalidade === statusMensalidadeFiltro;
       return matchBusca && matchStatus;
     });
-  }, [alunos, buscaAlunos, statusMensalidadeFiltro]);
+
+    const grupos = {};
+    const resultado = [];
+
+    filtrados.forEach(aluno => {
+      if (aluno.responsavel_id) {
+        if (!grupos[aluno.responsavel_id]) {
+          grupos[aluno.responsavel_id] = {
+            isGroup: true,
+            id: `resp_${aluno.responsavel_id}`,
+            responsavel_id: aluno.responsavel_id,
+            alunos: [],
+            valor_calculado: 0
+          };
+          resultado.push(grupos[aluno.responsavel_id]);
+        }
+        grupos[aluno.responsavel_id].alunos.push(aluno);
+        grupos[aluno.responsavel_id].valor_calculado += Number(aluno.valor_calculado || 0);
+      } else {
+        resultado.push({ ...aluno, isGroup: false });
+      }
+    });
+
+    // Populate Group Names and find Fatura Unificada to get status
+    resultado.forEach(item => {
+      if (item.isGroup) {
+        item.nome = item.alunos.map(a => a.nome).join(', ');
+        item.instrumento = 'Múltiplos';
+        
+        // Find corresponding Fatura Unificada in transacoes
+        const fatura = transacoes.find(t => 
+          t.responsavel_id != null && item.responsavel_id != null &&
+          String(t.responsavel_id) === String(item.responsavel_id) && 
+          t.tipo === 'Receita' && 
+          (isMesAtual ? (t.status === 'Pendente' || t.status === 'Pago') : true)
+        );
+
+        if (fatura) {
+          item.fatura_id = fatura.id;
+          item.status_mensalidade = fatura.status;
+          item.data_pagamento_mensalidade = fatura.data;
+          // Set children status visually based on parent fatura
+          item.alunos.forEach(a => {
+            a.status_mensalidade = fatura.status;
+            a.data_pagamento_mensalidade = fatura.data;
+          });
+        } else {
+          // Fallback if not generated yet
+          item.status_mensalidade = item.alunos.some(a => a.status_mensalidade === 'Pendente') ? 'Pendente' : 'Pago';
+          item.data_pagamento_mensalidade = null;
+        }
+      }
+    });
+
+    return resultado;
+  }, [alunos, buscaAlunos, statusMensalidadeFiltro, transacoes, isMesAtual]);
 
   // Lógica de Paginação Local
   const alunosPaginados = alunosFiltrados.slice((paginaAlunos - 1) * limite, paginaAlunos * limite);
@@ -557,6 +635,9 @@ export default function Financeiro() {
 
   const transacoesExtratoFiltradas = useMemo(() => {
     return transacoes.filter(t => {
+      // Remover Faturas Unificadas da aba Extrato, elas são da aba Mensalidades
+      if (t.responsavel_id) return false;
+
       const isLojinha = t.descricao.toLowerCase().includes('venda lojinha:');
       const isLocacao = t.descricao.toLowerCase().includes('locação de sala:');
       if (filtroOrigem === 'Mensalidades') return t.aluno_id != null && !isLojinha && !isLocacao;
@@ -569,12 +650,12 @@ export default function Financeiro() {
   }, [transacoes, filtroOrigem]);
 
   const transacoesLancamentosFiltradas = useMemo(() => {
-    // Na aba de lançamentos manuais, não mostramos as mensalidades
+    // Na aba de lançamentos manuais, não mostramos as mensalidades nem Faturas Unificadas
     // Mas incluimos as aulas extras e as vendas da lojinha (que podem possuir aluno_id)
-    return transacoes.filter(t =>
-      t.aluno_id == null ||
-      (t.descricao && (t.descricao.toLowerCase().includes('aula extra') || t.descricao.toLowerCase().includes('venda lojinha:')))
-    );
+    return transacoes.filter(t => {
+      if (t.responsavel_id) return false;
+      return t.aluno_id == null || (t.descricao && (t.descricao.toLowerCase().includes('aula extra') || t.descricao.toLowerCase().includes('venda lojinha:')));
+    });
   }, [transacoes]);
 
   const extratoPaginado = transacoesExtratoFiltradas.slice((paginaTransacoes - 1) * limite, paginaTransacoes * limite);
@@ -643,6 +724,16 @@ export default function Financeiro() {
 
 
       {/* Conteúdo da Aba: MENSALIDADES */}
+      {abaSelecionada === 'mensalidades' && (
+        <div className="flex justify-end mb-4">
+          <button 
+            onClick={gerarLoteMensalidades} 
+            className="bg-sky-600 hover:bg-sky-700 text-white text-xs font-bold py-2 px-4 rounded transition-colors shadow-lg"
+          >
+            ⚡ GERAR MENSALIDADES EM LOTE
+          </button>
+        </div>
+      )}
       {abaSelecionada === 'mensalidades' && (
         <div className="bg-zinc-900 border border-zinc-800 rounded-xl overflow-hidden">
           {/* Filtros de Mensalidades */}
@@ -762,7 +853,7 @@ export default function Financeiro() {
                     let statusRender = aluno.status_mensalidade;
                     let dataPgtoRender = aluno.data_pagamento_mensalidade;
 
-                    if (!isMesAtual) {
+                    if (!isMesAtual && !aluno.isGroup) {
                       const transacaoMes = transacoes.find(t =>
                         t.aluno_id === aluno.id &&
                         t.tipo === 'Receita' &&
@@ -774,7 +865,16 @@ export default function Financeiro() {
 
                     return (
                       <tr key={aluno.id} className="border-b border-zinc-800/50 hover:bg-zinc-800/20">
-                        <td className="p-4 text-zinc-200">{aluno.nome}</td>
+                        <td className="p-4 text-zinc-200">
+                          {aluno.isGroup ? (
+                            <div className="flex flex-col">
+                              <span className="font-semibold text-sky-400">Responsável: {aluno.nome}</span>
+                              <span className="text-[10px] text-zinc-500 uppercase tracking-widest mt-1">Fatura Unificada</span>
+                            </div>
+                          ) : (
+                            aluno.nome
+                          )}
+                        </td>
                         <td className="p-4 text-zinc-400">{aluno.instrumento || '—'}</td>
                         <td className="p-4 text-right text-sky-400 font-semibold">
                           R$ {Number(aluno.valor_calculado || 0).toFixed(2)}
@@ -791,36 +891,54 @@ export default function Financeiro() {
                           </span>
                         </td>
                         <td className="p-4 text-center">
-                          <div className="flex items-center justify-center gap-2">
-                            <button
-                              onClick={() => alternarStatusMensalidade(aluno.id, aluno.nome, statusRender || 'Pendente')}
-                              title={statusRender === 'Pago' ? "Marcar como Pendente" : "Marcar como Pago Manualmente"}
-                              className={`px-3 py-1.5 text-xs font-medium rounded transition-all cursor-pointer ${statusRender === 'Pago'
-                                ? 'bg-amber-600/30 text-amber-300 hover:bg-amber-600/50'
-                                : 'bg-emerald-600/30 text-emerald-300 hover:bg-emerald-600/50'
-                                }`}
-                            >
-                              {statusRender === 'Pago' ? 'Desfazer Pago' : 'Marcar Pago'}
-                            </button>
-                            {statusRender !== 'Pago' && (
-                              asaasConfigurado ? (
-                                <button
-                                  onClick={() => gerarCobrancaAsaas(`aluno-${aluno.id}`, 'mensalidade')}
-                                  className="bg-blue-600 hover:bg-blue-700 px-3 py-1.5 text-xs font-medium rounded text-white transition-all shadow-lg cursor-pointer"
-                                >
-                                  Gerar Asaas
-                                </button>
-                              ) : (
-                                <button
-                                  onClick={() => gerarMensalidadeManual(aluno.id)}
-                                  className="bg-zinc-700 hover:bg-zinc-600 px-3 py-1.5 text-xs font-medium rounded text-white transition-all shadow-lg cursor-pointer"
-                                  title="Gerar mensalidade pendente manualmente para o aluno ver no portal"
-                                >
-                                  Gerar Mensalidade
-                                </button>
-                              )
-                            )}
-                          </div>
+                          {aluno.isGroup && !aluno.fatura_id ? (
+                            <span className="text-xs text-rose-500/70 italic px-2">Lote não gerado para este mês</span>
+                          ) : (
+                            <div className="flex items-center justify-center gap-2">
+                              <button
+                                onClick={() => {
+                                  if (aluno.isGroup) {
+                                    alternarStatusLancamento(aluno.fatura_id, statusRender || 'Pendente');
+                                  } else {
+                                    alternarStatusMensalidade(aluno.id, aluno.nome, statusRender || 'Pendente');
+                                  }
+                                }}
+                                title={statusRender === 'Pago' ? "Marcar como Pendente" : "Marcar como Pago Manualmente"}
+                                className={`px-3 py-1.5 text-xs font-medium rounded transition-all cursor-pointer ${statusRender === 'Pago'
+                                  ? 'bg-amber-600/30 text-amber-300 hover:bg-amber-600/50'
+                                  : 'bg-emerald-600/30 text-emerald-300 hover:bg-emerald-600/50'
+                                  }`}
+                              >
+                                {statusRender === 'Pago' ? 'Desfazer Pago' : 'Marcar Pago'}
+                              </button>
+                              {statusRender !== 'Pago' && (
+                                asaasConfigurado ? (
+                                  <button
+                                    onClick={() => {
+                                      if (aluno.isGroup) {
+                                        gerarCobrancaAsaas(aluno.fatura_id, 'lancamento');
+                                      } else {
+                                        gerarCobrancaAsaas(`aluno-${aluno.id}`, 'mensalidade');
+                                      }
+                                    }}
+                                    className="bg-blue-600 hover:bg-blue-700 px-3 py-1.5 text-xs font-medium rounded text-white transition-all shadow-lg cursor-pointer"
+                                  >
+                                    Gerar Asaas
+                                  </button>
+                                ) : (
+                                  !aluno.isGroup && (
+                                    <button
+                                      onClick={() => gerarMensalidadeManual(aluno.id)}
+                                      className="bg-zinc-700 hover:bg-zinc-600 px-3 py-1.5 text-xs font-medium rounded text-white transition-all shadow-lg cursor-pointer"
+                                      title="Gerar mensalidade pendente manualmente para o aluno ver no portal"
+                                    >
+                                      Gerar Mensalidade
+                                    </button>
+                                  )
+                                )
+                              )}
+                            </div>
+                          )}
                         </td>
                       </tr>
                     )
@@ -1053,9 +1171,9 @@ export default function Financeiro() {
                         {extratoPaginado.map((t) => (
                           <tr key={t.id} className="border-b border-zinc-800/50 hover:bg-zinc-800/20">
                             <td className="p-4 text-zinc-200">
-                              {t.descricao}
-                              {t.aluno_id && <span className="ml-2 text-[10px] bg-sky-900/50 text-sky-400 px-2 py-0.5 rounded-full">Mensalidade</span>}
-                              {!t.aluno_id && (t.descricao.toLowerCase().includes('professor') || t.descricao.toLowerCase().includes('repasse')) && (
+                              {t.responsavel_nome ? `${t.descricao} (Resp: ${t.responsavel_nome})` : t.descricao}
+                              {(t.aluno_id || t.responsavel_id) && <span className="ml-2 text-[10px] bg-sky-900/50 text-sky-400 px-2 py-0.5 rounded-full">Mensalidade</span>}
+                              {!t.aluno_id && !t.responsavel_id && (t.descricao.toLowerCase().includes('professor') || t.descricao.toLowerCase().includes('repasse')) && (
                                 <span className="ml-2 text-[10px] bg-purple-900/50 text-purple-400 px-2 py-0.5 rounded-full">Professor</span>
                               )}
                             </td>
@@ -1245,7 +1363,16 @@ export default function Financeiro() {
                 <tbody>
                   {lancamentosPaginados.map((t) => (
                     <tr key={t.id} className="border-b border-zinc-800/50 hover:bg-zinc-800/20">
-                      <td className="p-4 text-zinc-200">{t.descricao}</td>
+                      <td className="p-4 text-zinc-200">
+                        <div className="flex flex-col gap-1">
+                          <span>{t.responsavel_nome ? `${t.descricao} (Resp: ${t.responsavel_nome})` : t.descricao}</span>
+                          {t.responsavel_id && (
+                            <span className="w-fit text-[10px] bg-sky-900/50 text-sky-300 px-2 py-0.5 rounded uppercase font-bold tracking-wider" title="O pagamento desta fatura atualizará todos os alunos vinculados a ela">
+                              Fatura Unificada
+                            </span>
+                          )}
+                        </div>
+                      </td>
                       <td className="p-4 text-center">
                         <span className={`text-xs font-bold px-2 py-1 rounded ${t.tipo === 'Receita' ? 'bg-emerald-900/50 text-emerald-300' : 'bg-rose-900/50 text-rose-300'
                           }`}>

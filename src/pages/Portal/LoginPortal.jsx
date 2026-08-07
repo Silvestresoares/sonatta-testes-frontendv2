@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { KeyRound, Mail, ArrowRight } from 'lucide-react';
+import { KeyRound, Mail, ArrowRight, Eye, EyeOff } from 'lucide-react';
 import EsqueciSenhaPortal from './EsqueciSenhaPortal';
 import RedefinirSenhaPortal from './RedefinirSenhaPortal';
 
@@ -11,6 +11,7 @@ export default function LoginPortal() {
   const [senha, setSenha] = useState('');
   const [erro, setErro] = useState('');
   const [carregando, setCarregando] = useState(false);
+  const [mostrarSenha, setMostrarSenha] = useState(false);
   const [telaAtual, setTelaAtual] = useState('painel'); // 'painel', 'esqueci', 'redefinir'
   const navigate = useNavigate();
 
@@ -132,13 +133,20 @@ export default function LoginPortal() {
                 <div className="relative">
                   <KeyRound className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500" size={18} />
                   <input
-                    type="password"
+                    type={mostrarSenha ? "text" : "password"}
                     value={senha}
                     onChange={(e) => setSenha(e.target.value)}
-                    className="w-full pl-10 pr-4 py-3 bg-zinc-950/50 border border-zinc-800 rounded-xl text-white placeholder-zinc-600 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500 transition-all"
+                    className="w-full pl-10 pr-12 py-3 bg-zinc-950/50 border border-zinc-800 rounded-xl text-white placeholder-zinc-600 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500 transition-all"
                     placeholder="Sua senha de acesso"
                     required
                   />
+                  <button 
+                    type="button" 
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-500 hover:text-emerald-500 transition-colors"
+                    onClick={() => setMostrarSenha(!mostrarSenha)}
+                  >
+                    {mostrarSenha ? <EyeOff size={18} /> : <Eye size={18} />}
+                  </button>
                 </div>
                 <div className="text-xs text-zinc-500 mt-2 text-right">
                   Primeiro acesso? Use a senha padrão <strong className="text-zinc-300">sonatta123</strong>
