@@ -49,12 +49,12 @@ export default function HistoricoAlunoModal({ isOpen, onClose, aluno }) {
   return (
     <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-[100] p-4">
       <div className="bg-zinc-950 border border-zinc-800 rounded-2xl w-full max-w-3xl max-h-[90vh] flex flex-col shadow-2xl">
-        <div className="p-6 border-b border-zinc-800 flex justify-between items-center bg-zinc-900/50 rounded-t-2xl">
+        <div className="p-4 sm:p-6 border-b border-zinc-800 flex justify-between items-start sm:items-center bg-zinc-900/50 rounded-t-2xl gap-4">
           <div>
-            <h2 className="text-xl font-bold text-white flex items-center gap-2">
+            <h2 className="text-lg sm:text-xl font-bold text-white flex items-center gap-2">
               🎓 Ficha Pedagógica
             </h2>
-            <p className="text-sm text-zinc-400 mt-1">
+            <p className="text-xs sm:text-sm text-zinc-400 mt-1">
               Aluno: <span className="font-semibold text-emerald-400">{aluno?.nome}</span> • {aluno?.instrumento}
             </p>
           </div>
@@ -66,7 +66,7 @@ export default function HistoricoAlunoModal({ isOpen, onClose, aluno }) {
           </button>
         </div>
 
-        <div className="px-6 pt-4 border-b border-zinc-800 flex gap-2 overflow-x-auto custom-scrollbar">
+        <div className="px-4 sm:px-6 pt-4 border-b border-zinc-800 flex gap-2 overflow-x-auto custom-scrollbar">
           <button 
             onClick={() => setAbaAtiva('historico')}
             className={`text-sm font-bold px-3 py-2 border-b-2 transition-colors whitespace-nowrap ${abaAtiva === 'historico' ? 'border-emerald-500 text-emerald-400' : 'border-transparent text-zinc-500 hover:text-zinc-300'}`}
@@ -87,7 +87,7 @@ export default function HistoricoAlunoModal({ isOpen, onClose, aluno }) {
           </button>
         </div>
 
-        <div className="flex-1 overflow-y-auto p-6">
+        <div className="flex-1 overflow-y-auto p-4 sm:p-6">
           {abaAtiva === 'historico' && (
             carregando ? (
             <div className="flex flex-col items-center justify-center py-20 text-zinc-500">
@@ -108,8 +108,8 @@ export default function HistoricoAlunoModal({ isOpen, onClose, aluno }) {
                     registro.status_presenca === 'cancelada' ? 'bg-rose-500' : 'bg-amber-500'
                   }`} />
                   
-                  <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-5 hover:border-zinc-700 transition-colors">
-                    <div className="flex flex-wrap items-center justify-between gap-4 mb-4">
+                  <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-4 sm:p-5 hover:border-zinc-700 transition-colors">
+                    <div className="flex flex-wrap items-center justify-between gap-2 sm:gap-4 mb-4">
                       <div className="flex items-center gap-2 text-zinc-300 font-medium">
                         <Calendar size={16} className="text-zinc-500" />
                         {formatarData(registro.data_aula)}

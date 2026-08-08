@@ -7,13 +7,13 @@ import { useAulasFrequencia } from '../contexts/AulasFrequenciaContext';
  * Escuta mudanças no BroadcastChannel e atualiza dados
  */
 export function useSincronizacaoAulas(alunoId, mes = null, ano = null) {
-  const { 
-    sincronizarDados, 
-    carregarAulasPorAluno, 
+  const {
+    sincronizarDados,
+    carregarAulasPorAluno,
     carregarFrequenciaAluno,
-    atualizacoes 
+    atualizacoes
   } = useAulasFrequencia();
-  
+
   const primeiroCarregamentoRef = useRef(false);
   const timerRef = useRef(null);
 
@@ -50,7 +50,7 @@ export function useSincronizacaoAulas(alunoId, mes = null, ano = null) {
       if (alunoId) {
         sincronizarDados(alunoId, mes, ano).catch(console.error);
       }
-    }, 500);
+    }, 50000);
 
     return () => {
       if (timerRef.current) {
@@ -77,14 +77,14 @@ export function useAulasAluno(alunoId, mes = null, ano = null) {
 
   if (mes && ano) {
     aulasAluno = aulasAluno.filter(aula => {
-      const [aulaMes, aulaAno] = aula.mes && aula.ano 
+      const [aulaMes, aulaAno] = aula.mes && aula.ano
         ? [aula.mes, aula.ano]
         : aula.data_aula
-        ? (() => {
+          ? (() => {
             const data = parseDataLocal(aula.data_aula);
             return data ? [data.getMonth() + 1, data.getFullYear()] : [null, null];
           })()
-        : [null, null];
+          : [null, null];
 
       return aulaMes === mes && aulaAno === ano;
     });
@@ -122,7 +122,7 @@ export function useFrequenciaEmTempoReal(alunoId, callback) {
   useEffect(() => {
     try {
       canalRef.current = new BroadcastChannel('sonatta-aulas-frequencia');
-      
+
       canalRef.current.onmessage = (evento) => {
         // Filtrar apenas atualizações para este aluno
         if (

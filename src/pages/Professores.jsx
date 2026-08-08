@@ -1,9 +1,11 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { UserPlus, Search, Download, Printer, X,
 
-         Users, Edit2, Plus, Minus,
+         Users, Edit2, Plus, Minus, Clock,
          ChevronLeft, ChevronRight, CheckCircle2, AlertCircle, CalendarClock, ShieldCheck, Eye, Edit, Trash2 } from 'lucide-react';
 import { API_URL } from '../utils/api';
+import HistoricoPontoModal from '../components/HistoricoPontoModal';
+import SolicitacoesPontoModal from '../components/SolicitacoesPontoModal';
 
 const canalComunicacao = new BroadcastChannel('sonatta_updates');
 
@@ -1304,6 +1306,9 @@ export default function Professores() {
   const [modalAberto, setModalAberto] = useState(false);
   const [profSelecionado, setProfSelecionado] = useState(null);
   const [modalVisualizacao, setModalVisualizacao] = useState(false);
+  const [historicoPontoAberto, setHistoricoPontoAberto] = useState(false);
+  const [profSelecionadoHistorico, setProfSelecionadoHistorico] = useState(null);
+  const [solicitacoesPontoAberto, setSolicitacoesPontoAberto] = useState(false);
 
   const token = localStorage.getItem('@sonatta:token');
 
@@ -1407,6 +1412,12 @@ export default function Professores() {
             title="Exportar CSV"
           >
             <Download size={15} /> CSV
+          </button>
+          <button
+            onClick={() => setSolicitacoesPontoAberto(true)}
+            className="flex items-center gap-2 bg-amber-500/10 text-amber-500 border border-amber-500/20 hover:bg-amber-500/20 font-medium px-4 py-2 rounded-lg transition-all shadow-lg text-sm"
+          >
+            <Clock size={16} /> Ajustes de Ponto
           </button>
           <button
             onClick={abrirNovo}
@@ -1533,6 +1544,13 @@ export default function Professores() {
                   <td className="p-4">
                     <div className="flex items-center justify-center gap-2">
                       <button
+                        onClick={() => { setProfSelecionadoHistorico(prof.id); setHistoricoPontoAberto(true); }}
+                        className="text-amber-400 hover:text-amber-300 p-2 rounded transition-all cursor-pointer hover:bg-amber-500/10"
+                        title="Histórico de Ponto"
+                      >
+                        <CalendarClock size={18} />
+                      </button>
+                      <button
                         onClick={() => abrirVisualizacao(prof)}
                         className="text-emerald-400 hover:text-emerald-300 p-2 rounded transition-all cursor-pointer hover:bg-emerald-500/10"
                         title="Visualizar ficha"
@@ -1579,6 +1597,16 @@ export default function Professores() {
           onEditar={() => abrirEdicao(profSelecionado)}
         />
       )}
+      <HistoricoPontoModal 
+        isOpen={historicoPontoAberto}
+        onClose={() => setHistoricoPontoAberto(false)}
+        professorId={profSelecionadoHistorico}
+      />
+      <SolicitacoesPontoModal
+        isOpen={solicitacoesPontoAberto}
+        onClose={() => setSolicitacoesPontoAberto(false)}
+        token={token}
+      />
     </div>
   );
 }

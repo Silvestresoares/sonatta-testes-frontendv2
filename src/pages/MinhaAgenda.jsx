@@ -1,9 +1,11 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { RefreshCw, Calendar as CalendarIcon, Clock } from 'lucide-react';
+import { RefreshCw, Calendar as CalendarIcon, Clock, LogIn, LogOut } from 'lucide-react';
 import RegistroAulaModal from '../components/RegistroAulaModal';
 import RegistroTurmaModal from '../components/RegistroTurmaModal';
 import CalendarioVisual from '../components/CalendarioVisual';
 import AulasTimeline from '../components/AulasTimeline';
+import HistoricoPontoModal from '../components/HistoricoPontoModal';
+import SolicitarAjustePontoModal from '../components/SolicitarAjustePontoModal';
 
 
 import { API_URL } from '../utils/api';
@@ -52,6 +54,11 @@ export default function MinhaAgenda({ professorId }) {
   const [aulaSelecionada, setAulaSelecionada] = useState(null);
   const [registroTurmaAberto, setRegistroTurmaAberto] = useState(false);
   const [turmaSelecionada, setTurmaSelecionada] = useState(null);
+  
+  const [pontoHoje, setPontoHoje] = useState(null);
+  const [carregandoPonto, setCarregandoPonto] = useState(true);
+  const [historicoAberto, setHistoricoAberto] = useState(false);
+  const [ajusteAberto, setAjusteAberto] = useState(false);
 
   const token = localStorage.getItem('@sonatta:token');
   const profId = professorId && professorId !== '' ? Number(professorId) : null;
@@ -85,8 +92,50 @@ export default function MinhaAgenda({ professorId }) {
     }
   };
 
+  const carregarPonto = async () => {
+    if (!profId) return;
+    setCarregandoPonto(true);
+    try {
+      const res = await fetch(`${API_URL}/api/professores/${profId}/ponto/hoje`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (res.ok) {
+        const json = await res.json();
+        setPontoHoje(json); // pode ser null ou o ultimo ponto
+      }
+    } catch (err) {
+      console.error('Erro ao carregar ponto:', err);
+    } finally {
+      setCarregandoPonto(false);
+    }
+  };
+
+  const registrarPonto = async (tipo) => {
+    try {
+      const res = await fetch(`${API_URL}/api/professores/${profId}/ponto`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({ tipo })
+      });
+      if (res.ok) {
+        const json = await res.json();
+        setPontoHoje(json);
+      } else {
+        const err = await res.json();
+        alert(err.erro || 'Erro ao registrar ponto');
+      }
+    } catch (err) {
+      console.error('Erro ao registrar ponto:', err);
+      alert('Erro de conexão ao registrar ponto');
+    }
+  };
+
   useEffect(() => {
     carregarAgenda();
+    carregarPonto();
   }, [profId, mesAtual, anoAtual]);
 
   const ehMesAtual = mesAtual === new Date().getMonth() + 1 && anoAtual === new Date().getFullYear();
@@ -128,6 +177,12 @@ export default function MinhaAgenda({ professorId }) {
 
     return { restantes, dadas, totais };
   }, [aulasDoDia, dataSelecionada]);
+
+  const temAulaHoje = useMemo(() => {
+    if (!dados?.aulas_mes) return false;
+    const dataISO = formatarDataISO(new Date());
+    return dados.aulas_mes.some((aula) => aula.data_aula?.toString().substring(0, 10) === dataISO);
+  }, [dados]);
 
   const atualizarMes = (mes, ano) => {
     if (mes === mesAtual && ano === anoAtual) return;
@@ -224,9 +279,51 @@ export default function MinhaAgenda({ professorId }) {
             <h1 className="text-2xl font-bold text-emerald-400">📅 Minha Agenda</h1>
             <p className="text-xs text-zinc-500 mt-1">Visualize e registre suas aulas com o mesmo layout do administrador.</p>
           </div>
-          <button onClick={carregarAgenda} className="flex items-center gap-2 border border-zinc-800 text-zinc-200 rounded-lg px-4 py-2 text-sm hover:bg-zinc-900 transition">
-            <RefreshCw size={16} /> Atualizar
-          </button>
+          <div className="flex flex-wrap gap-2 items-center">
+            {carregandoPonto ? (
+              <span className="text-xs text-zinc-500 mr-2">Carregando ponto...</span>
+            ) : temAulaHoje ? (
+              (!pontoHoje || pontoHoje.tipo === 'Saida') ? (
+                <button 
+                  onClick={() => registrarPonto('Entrada')} 
+                  className="flex items-center gap-2 bg-emerald-600/10 text-emerald-500 hover:bg-emerald-600/20 border border-emerald-500/20 rounded-lg px-4 py-2 text-sm transition font-medium"
+                >
+                  <LogIn size={16} /> Bater Ponto (Entrada)
+                </button>
+              ) : (
+                <button 
+                  onClick={() => registrarPonto('Saida')} 
+                  className="flex items-center gap-2 bg-rose-600/10 text-rose-500 hover:bg-rose-600/20 border border-rose-500/20 rounded-lg px-4 py-2 text-sm transition font-medium"
+                >
+                  <LogOut size={16} /> Bater Ponto (Saída)
+                </button>
+              )
+            ) : (
+              <span className="text-xs text-zinc-500 mr-2 italic border border-dashed border-zinc-200 dark:border-zinc-700 px-3 py-1.5 rounded-lg">
+                Sem aulas hoje (Ponto Bloqueado)
+              </span>
+            )}
+
+            <button 
+              onClick={() => setHistoricoAberto(true)} 
+              className="flex items-center gap-2 border border-zinc-200 dark:border-zinc-800 text-zinc-700 dark:text-zinc-200 rounded-lg px-4 py-2 text-sm hover:bg-zinc-100 dark:hover:bg-zinc-900 transition"
+              title="Ver Histórico de Ponto"
+            >
+              <Clock size={16} /> Histórico
+            </button>
+            
+            <button 
+              onClick={() => setAjusteAberto(true)} 
+              className="flex items-center gap-2 border border-zinc-200 dark:border-zinc-800 text-amber-500 rounded-lg px-4 py-2 text-sm hover:bg-zinc-100 dark:hover:bg-zinc-900 transition"
+              title="Solicitar Ajuste Manual de Ponto"
+            >
+              📝 Solicitar Ajuste
+            </button>
+
+            <button onClick={() => { carregarAgenda(); carregarPonto(); }} className="flex items-center gap-2 border border-zinc-800 text-zinc-200 rounded-lg px-4 py-2 text-sm hover:bg-zinc-900 transition">
+              <RefreshCw size={16} /> Atualizar
+            </button>
+          </div>
         </div>
       </div>
 
@@ -298,6 +395,19 @@ export default function MinhaAgenda({ professorId }) {
         onClose={fecharRegistroTurma}
         turmaAula={turmaSelecionada}
         onSave={fecharRegistroTurma}
+      />
+
+      <HistoricoPontoModal 
+        isOpen={historicoAberto}
+        onClose={() => setHistoricoAberto(false)}
+        professorId={profId}
+      />
+
+      <SolicitarAjustePontoModal
+        isOpen={ajusteAberto}
+        onClose={() => setAjusteAberto(false)}
+        professorId={profId}
+        token={token}
       />
     </div>
   );
