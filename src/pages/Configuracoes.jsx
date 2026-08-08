@@ -3,6 +3,8 @@ import { Settings, Save, MapPin, Phone, Mail, Link, AlertCircle, Wallet, DollarS
 
 
 import { API_URL } from '../utils/api';
+import WhatsAppConfig from '../components/WhatsAppConfig';
+
 export default function Configuracoes() {
   const [loading, setLoading] = useState(true);
   const [salvando, setSalvando] = useState(false);
@@ -766,6 +768,9 @@ export default function Configuracoes() {
                 </div>
               </div>
             </div>
+
+            {/* Integração Híbrida do WhatsApp */}
+            <WhatsAppConfig token={token} />
 
           </form>
         </div>

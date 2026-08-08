@@ -48,6 +48,13 @@ export default function HistoricoPontoModal({ isOpen, onClose, professorId }) {
     return data.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', timeZone: 'America/Sao_Paulo' });
   };
 
+  const formatarMinutos = (minutos) => {
+    if (!minutos) return '-';
+    const h = Math.floor(minutos / 60);
+    const m = minutos % 60;
+    return `${h}h ${m > 0 ? m + 'm' : ''}`;
+  };
+
   const formatarDataLocal = (dataIso) => {
     if (!dataIso) return '';
     const [ano, mes, dia] = dataIso.split('-');
@@ -116,7 +123,7 @@ export default function HistoricoPontoModal({ isOpen, onClose, professorId }) {
           ) : (
             <>
               {/* Summary Cards */}
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-3 gap-4">
                 <div className="bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-200 dark:border-emerald-500/20 rounded-xl p-4 flex items-start gap-3">
                   <div className="p-2 bg-emerald-100 dark:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 rounded-lg">
                     <CheckCircle2 size={24} />
@@ -136,6 +143,16 @@ export default function HistoricoPontoModal({ isOpen, onClose, professorId }) {
                     <p className="text-2xl font-bold text-rose-700 dark:text-rose-400">{dados?.resumo?.faltas || 0}</p>
                   </div>
                 </div>
+
+                <div className="bg-indigo-50 dark:bg-indigo-500/10 border border-indigo-200 dark:border-indigo-500/20 rounded-xl p-4 flex items-start gap-3">
+                  <div className="p-2 bg-indigo-100 dark:bg-indigo-500/20 text-indigo-600 dark:text-indigo-400 rounded-lg">
+                    <Clock size={24} />
+                  </div>
+                  <div>
+                    <p className="text-sm text-indigo-600/80 dark:text-indigo-400/80 font-medium">Horas Mensais</p>
+                    <p className="text-2xl font-bold text-indigo-700 dark:text-indigo-400">{dados?.resumo?.horas_trabalhadas || '0h 0m'}</p>
+                  </div>
+                </div>
               </div>
 
               {/* Table */}
@@ -147,6 +164,7 @@ export default function HistoricoPontoModal({ isOpen, onClose, professorId }) {
                       <th className="px-4 py-3 text-center">Status</th>
                       <th className="px-4 py-3 text-center">Entrada(s)</th>
                       <th className="px-4 py-3 text-center">Saída(s)</th>
+                      <th className="px-4 py-3 text-center">Horas</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-zinc-200 dark:divide-zinc-800">
@@ -177,6 +195,9 @@ export default function HistoricoPontoModal({ isOpen, onClose, professorId }) {
                             {dia.registros.saidas.length > 0 
                               ? dia.registros.saidas.map((t, i) => <div key={i}>{formatarHora(t)}</div>) 
                               : '-'}
+                          </td>
+                          <td className="px-4 py-3 text-center text-zinc-900 dark:text-zinc-100 font-medium">
+                            {formatarMinutos(dia.minutos_trabalhados)}
                           </td>
                         </tr>
                       ))

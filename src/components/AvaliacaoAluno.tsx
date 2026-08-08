@@ -150,7 +150,7 @@ export default function AvaliacaoAluno({ alunoId, token }: { alunoId: number, to
             <CheckCircle size={18} /> {editandoId ? 'Editar Boletim' : 'Lançar Novo Boletim'}
           </h3>
           
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="text-xs text-zinc-500 uppercase">Período *</label>
               <input required type="text" placeholder="Ex: 1º Semestre 2026" value={form.periodo} onChange={e => setForm({...form, periodo: e.target.value})} className="w-full bg-zinc-900 border border-zinc-700 rounded p-2 text-white text-sm" />
@@ -191,7 +191,7 @@ export default function AvaliacaoAluno({ alunoId, token }: { alunoId: number, to
         ) : (
           avaliacoes.map(av => (
             <div key={av.id} className="bg-zinc-900 border border-zinc-800 p-5 rounded-xl flex flex-col gap-4">
-              <div className="flex justify-between items-start">
+              <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-2">
                 <div>
                   <h4 className="text-zinc-200 font-bold text-lg">{av.periodo}</h4>
                   <p className="text-zinc-500 text-xs">Professor(a): {av.professor_nome || 'N/A'}</p>

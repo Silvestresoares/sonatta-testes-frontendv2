@@ -102,7 +102,7 @@ export default function RepertorioAluno({ alunoId, token }: { alunoId: number, t
           <Music size={18} /> {editandoId ? 'Editar Música' : 'Nova Música no Repertório'}
         </h3>
         
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
             <label className="text-xs text-zinc-500 uppercase">Música *</label>
             <input required type="text" value={form.nome_musica} onChange={e => setForm({...form, nome_musica: e.target.value})} className="w-full bg-zinc-900 border border-zinc-700 rounded p-2 text-white text-sm" />
@@ -129,7 +129,7 @@ export default function RepertorioAluno({ alunoId, token }: { alunoId: number, t
           <p className="text-center text-zinc-500 py-8">Nenhuma música no repertório ainda.</p>
         ) : (
           musicas.map(m => (
-            <div key={m.id} className="bg-zinc-900/50 p-4 border border-zinc-800 rounded-lg flex items-center justify-between">
+            <div key={m.id} className="bg-zinc-900/50 p-4 border border-zinc-800 rounded-lg flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <div>
                 <h4 className="text-zinc-200 font-bold">{m.nome_musica} <span className="text-zinc-500 text-sm font-normal">({m.artista || 'Desconhecido'})</span></h4>
                 {m.link_partitura && (
@@ -137,7 +137,7 @@ export default function RepertorioAluno({ alunoId, token }: { alunoId: number, t
                 )}
               </div>
               
-              <div className="flex items-center gap-4">
+              <div className="flex flex-wrap items-center gap-3 sm:gap-4">
                 <select 
                   value={m.status} 
                   onChange={(e) => mudarStatus(m.id, e.target.value)}
