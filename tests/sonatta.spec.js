@@ -40,9 +40,9 @@ test('Simulação do Usuário - Teste Geral do Sonatta', async ({ page }) => {
 
 
   // ----------------------------------------------------------------------
-  // 1. Abre a página inicial (Ajustado para IP Exato)
+  // 1. Abre a tela de login do sistema
   // ----------------------------------------------------------------------
-  await page.goto('http://localhost:5175');
+  await page.goto('/login');
   await page.waitForLoadState('networkidle');
 
   // Configura interceptação de alertas (como "Usuário criado com sucesso!")

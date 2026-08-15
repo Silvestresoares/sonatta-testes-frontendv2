@@ -118,7 +118,7 @@ export default function Agenda() {
   // Carregar aulas da tabela 'aulas' (onde ficam as extras/reposições da Sidebar)
   const carregarAulasAgendadas = useCallback(async () => {
     try {
-      const resposta = await fetch(`${API_URL}/api/aulas`, {
+      const resposta = await fetch(`${API_URL}/api/aulas?mes=${mesVisivel.mes}&ano=${mesVisivel.ano}`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       if (resposta.ok) {
@@ -128,12 +128,12 @@ export default function Agenda() {
     } catch (erro) {
       console.error('Erro ao carregar aulas agendadas:', erro);
     }
-  }, [token]);
+  }, [token, mesVisivel]);
 
   // Carregar aulas experimentais
   const carregarExperimentais = useCallback(async () => {
     try {
-      const resposta = await fetch(`${API_URL}/api/aulas-experimentais`, {
+      const resposta = await fetch(`${API_URL}/api/aulas-experimentais?mes=${mesVisivel.mes}&ano=${mesVisivel.ano}`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       if (resposta.ok) {
@@ -143,7 +143,7 @@ export default function Agenda() {
     } catch (erro) {
       console.error('Erro ao carregar aulas experimentais:', erro);
     }
-  }, [token]);
+  }, [token, mesVisivel]);
 
   // Carregar professores ativos
   const carregarProfessores = useCallback(async () => {

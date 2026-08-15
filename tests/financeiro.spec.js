@@ -6,7 +6,7 @@ test.describe('Módulo Financeiro', () => {
   
   test.beforeEach(async ({ page }) => {
     // Acessa a página (idealmente com auth state injetado no playwright.config)
-    await page.goto('http://localhost:5175/financeiro');
+    await page.goto('/financeiro');
   });
 
   test('deve exibir a aba de receitas e despesas', async ({ page }) => {

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { API_URL } from '../utils/api';
-import { ShoppingCart, Package, Plus, Search, Trash2, Edit, CheckCircle, CreditCard, Banknote, Landmark, X } from 'lucide-react';
+import { ShoppingCart, Package, Plus, Search, Trash2, Edit, CheckCircle, X } from 'lucide-react';
 
 export default function Lojinha() {
   const [activeTab, setActiveTab] = useState('pdv'); // pdv, estoque
@@ -138,8 +138,8 @@ export default function Lojinha() {
       if (!res.ok) throw new Error('Erro ao salvar produto');
       setModalProduto(false);
       carregarDados();
-    } catch (err) {
-      alert(err.message);
+    } catch (erro) {
+      alert(erro.message);
     }
   };
 
@@ -151,7 +151,7 @@ export default function Lojinha() {
         headers: { 'Authorization': `Bearer ${localStorage.getItem('@sonatta:token')}` }
       });
       carregarDados();
-    } catch (err) {
+    } catch {
       alert('Erro ao excluir');
     }
   };

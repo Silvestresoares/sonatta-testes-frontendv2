@@ -72,7 +72,7 @@ export default function Salas() {
       if (!response.ok) throw new Error('Erro ao remover');
 
       setSalas(salas.filter(s => s.id !== id));
-    } catch (err) {
+    } catch {
       setErro('Erro ao remover sala.');
     }
   };

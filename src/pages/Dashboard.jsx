@@ -10,8 +10,6 @@ import {
   CartesianGrid,
   Tooltip,
   ResponsiveContainer,
-  PieChart,
-  Pie,
   Legend,
   Cell
 } from 'recharts';
@@ -99,7 +97,9 @@ export default function Dashboard() {
           headers: { 'Authorization': `Bearer ${token}` }
         });
         if (resProf.ok) setMetricasProfessores(await resProf.json());
-      } catch {}
+      } catch (erroProfessores) {
+        console.warn('Falha ao carregar métricas de professores:', erroProfessores);
+      }
 
       // Carrega alertas de frequência em paralelo
       try {
@@ -115,7 +115,9 @@ export default function Dashboard() {
             setAlertasFrequencia(alunosEmAlerta);
           }
         }
-      } catch {}
+      } catch (erroFrequencia) {
+        console.warn('Falha ao carregar alertas de frequência:', erroFrequencia);
+      }
 
     } catch (erro) {
       console.error("Erro ao carregar dashboard:", erro);
@@ -149,17 +151,6 @@ export default function Dashboard() {
       canalSincronizacao.removeEventListener('message', escutarSincronizacao);
     };
   }, []);
-
-  const dadosCaixa = useMemo(() => {
-    return [
-      { name: 'Receitas', value: Number(metricas.receitasMes) || 0, fill: '#10b981' },
-      { name: 'Despesas', value: Number(metricas.despesasMes) || 0, fill: '#f43f5e' }
-    ];
-  }, [metricas.receitasMes, metricas.despesasMes]);
-
-  const hasCaixaData = useMemo(() => {
-    return (Number(metricas.receitasMes) || 0) > 0 || (Number(metricas.despesasMes) || 0) > 0;
-  }, [metricas.receitasMes, metricas.despesasMes]);
 
   const dadosGrafico = useMemo(() => {
     return metricas.dadosGraficoPizza || [];

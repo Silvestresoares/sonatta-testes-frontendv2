@@ -149,7 +149,7 @@ export default function LoginPortal() {
                   </button>
                 </div>
                 <div className="text-xs text-zinc-500 mt-2 text-right">
-                  Primeiro acesso? Use a senha padrão <strong className="text-zinc-300">sonatta123</strong>
+                  🔐 Senha enviada por email/Whatsapp.
                 </div>
               </div>
 

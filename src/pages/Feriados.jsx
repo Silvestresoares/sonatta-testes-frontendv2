@@ -71,7 +71,7 @@ export default function Feriados() {
       if (!response.ok) throw new Error('Erro ao remover');
 
       setFeriados(feriados.filter(f => f.id !== id));
-    } catch (err) {
+    } catch {
       setErro('Erro ao remover feriado.');
     }
   };

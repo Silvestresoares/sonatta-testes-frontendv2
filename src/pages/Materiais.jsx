@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Upload, FileText, Trash2, Search, X, Headphones, FileAudio, FileImage, Download } from 'lucide-react';
+import { Upload, FileText, Trash2, Search, X, Headphones, FileImage, Download } from 'lucide-react';
 
 
 import { API_URL } from '../utils/api';

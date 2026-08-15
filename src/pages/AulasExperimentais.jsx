@@ -173,7 +173,7 @@ export default function AulasExperimentais() {
       if (!res.ok) throw new Error('Erro ao converter lead');
       return res.json();
     },
-    onSuccess: (data) => {
+    onSuccess: () => {
       setSucesso('🎉 Lead convertido em Aluno Oficial com sucesso!');
       queryClient.invalidateQueries({ queryKey: ['aulasExperimentais'] });
       // Idealmente, redirecionar ou apenas avisar

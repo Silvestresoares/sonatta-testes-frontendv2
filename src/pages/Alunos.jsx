@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Eye, Edit, Trash2, History, Upload, PlusCircle, Search, FileText, GraduationCap } from 'lucide-react';
+import { Eye, Edit, Trash2, History, Upload, GraduationCap } from 'lucide-react';
 import HistoricoAlunoModal from '../components/HistoricoAlunoModal';
 import RepertorioAluno from '../components/RepertorioAluno';
 import AvaliacaoAluno from '../components/AvaliacaoAluno';
+import ModalConfirmacao from '../components/ModalConfirmacao';
 import { exportarParaCSV, exportarParaPDF } from '../utils/exportar';
 import { API_URL } from '../utils/api';
 // Detecta a URL da internet ou usa o localhost se estiver testando no computador
@@ -58,6 +59,11 @@ export default function Alunos() {
   const [cursoCertificado, setCursoCertificado] = useState('');
   const [isEmitindoCertificado, setIsEmitindoCertificado] = useState(false);
 
+  // Controle do Modal de Confirmação de Deleção
+  const [modalDeleteAberto, setModalDeleteAberto] = useState(false);
+  const [alunoDeletando, setAlunoDeletando] = useState(null);
+  const [carregandoDelete, setCarregandoDelete] = useState(false);
+
   // Estados para o formulário
   const [nome, setNome] = useState('');
   const [instrumento, setInstrumento] = useState('');
@@ -71,8 +77,7 @@ export default function Alunos() {
   const [cep, setCep] = useState('');
   const [dataMatricula, setDataMatricula] = useState('');
   const [primeiraAula, setPrimeiraAula] = useState('');
-  const [diaAula, setDiaAula] = useState('Segunda');
-  const [horario, setHorario] = useState('');
+  const [horariosAula, setHorariosAula] = useState([{ dia: 'Segunda', horario: '' }]);
   const [mensalidade, setMensalidade] = useState('');
   const [quantidadeAulas, setQuantidadeAulas] = useState('');
   const [aulasMesEntrada, setAulasMesEntrada] = useState('4');
@@ -340,8 +345,8 @@ export default function Alunos() {
       telefone: telefone || '',
       data_matricula: dataMatricula || '',
       primeira_aula: primeiraAula || '',
-      dia_aula: diaAula,
-      horario: horario || '',
+      dia_aula: horariosAula.map(h => h.dia).join(', '),
+      horario: horariosAula.map(h => h.horario).join(', '),
       mensalidade: mensalidade ? Number(mensalidade) : 0,
       quantidade_aulas: quantidadeAulas ? parseInt(quantidadeAulas) : 4,
       aulas_mes_entrada: aulasMesEntrada ? parseInt(aulasMesEntrada) : 4,
@@ -395,32 +400,48 @@ export default function Alunos() {
   };
 
   // 4. EXCLUIR ALUNO (DELETE)
-  const handleDeletarAluno = async (id, nomeAluno) => {
+  // ✅ Abre modal de confirmação
+  const handleAbrirDeleteConfirmacao = (aluno) => {
+    setAlunoDeletando(aluno);
+    setModalDeleteAberto(true);
+  };
+
+  // ✅ Executa deleção após confirmação do modal
+  const handleConfirmarDelete = async () => {
+    if (!alunoDeletando) return;
+    
     const token = localStorage.getItem('@sonatta:token');
-    if (!token) return alert("Sessão expirada.");
+    if (!token) {
+      alert("Sessão expirada.");
+      setModalDeleteAberto(false);
+      return;
+    }
 
-    if (window.confirm(`Tem certeza que deseja remover permanentemente o aluno "${nomeAluno}"?`)) {
-      try {
-        const resposta = await fetch(`${API_URL}/api/alunos/${id}`, {
-          method: 'DELETE',
-          headers: {
-            'Authorization': `Bearer ${token}`
-          }
-        });
-
-        if (resposta.ok) {
-          // Filtra e remove da tela imediatamente
-          setAlunos(prev => prev.filter(aluno => aluno.id !== id));
-          // 📢 Notifica todas as páginas sobre a exclusão
-          canalComunicacao.postMessage('atualizar_dados');
-          alert("Aluno excluído com sucesso!");
-        } else {
-          alert("Erro ao excluir aluno do banco.");
+    setCarregandoDelete(true);
+    try {
+      const resposta = await fetch(`${API_URL}/api/alunos/${alunoDeletando.id}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`
         }
-      } catch (error) {
-        console.error("Erro na requisição de exclusão:", error);
-        alert("Erro de conexão ao tentar deletar.");
+      });
+
+      if (resposta.ok) {
+        // Filtra e remove da tela imediatamente
+        setAlunos(prev => prev.filter(aluno => aluno.id !== alunoDeletando.id));
+        // 📢 Notifica todas as páginas sobre a exclusão
+        canalComunicacao.postMessage('atualizar_dados');
+        alert("Aluno excluído com sucesso!");
+      } else {
+        alert("Erro ao excluir aluno do banco.");
       }
+    } catch (error) {
+      console.error("Erro na requisição de exclusão:", error);
+      alert("Erro de conexão ao tentar deletar.");
+    } finally {
+      setCarregandoDelete(false);
+      setModalDeleteAberto(false);
+      setAlunoDeletando(null);
     }
   };
 
@@ -436,10 +457,10 @@ export default function Alunos() {
     setDataMatricula(aluno.data_matricula ? aluno.data_matricula.split('T')[0] : '');
     setPrimeiraAula(aluno.primeira_aula ? aluno.primeira_aula.split('T')[0] : '');
     setStatusMensalidade(aluno.status_mensalidade || 'Pendente');
-    setHorario(aluno.horario || '');
-
-    const diaTratado = aluno.dia_aula ? aluno.dia_aula.replace('-feira', '') : 'Segunda';
-    setDiaAula(diaTratado);
+    const dias = aluno.dia_aula ? aluno.dia_aula.split(',').map(d => d.trim().replace('-feira', '')) : ['Segunda'];
+    const horas = aluno.horario ? aluno.horario.split(',').map(h => h.trim()) : [''];
+    const combinados = dias.map((d, i) => ({ dia: d, horario: horas[i] || horas[0] || '' }));
+    setHorariosAula(combinados);
 
     setMensalidade(aluno.mensalidade || '');
     setQuantidadeAulas(aluno.quantidade_aulas?.toString() || '4');
@@ -512,8 +533,8 @@ export default function Alunos() {
   const fecharModal = () => {
     setModalAberto(false);
     setIdSendoEditado(null);
-    setNome(''); setCpf(''); setEmail(''); setTelefone(''); setDataMatricula(''); setPrimeiraAula(''); setMensalidade(''); setHorario('');
-    setInstrumento(''); setStatus('Ativo'); setDiaAula('Segunda'); setQuantidadeAulas(''); setAulasMesEntrada('4');
+    setNome(''); setCpf(''); setEmail(''); setTelefone(''); setDataMatricula(''); setPrimeiraAula(''); setMensalidade('');
+    setInstrumento(''); setStatus('Ativo'); setHorariosAula([{ dia: 'Segunda', horario: '' }]); setQuantidadeAulas(''); setAulasMesEntrada('4');
     setStatusMensalidade('Pendente');
     setProfessorId('');
     setResponsavelId('');
@@ -745,7 +766,7 @@ export default function Alunos() {
                               <GraduationCap size={18} />
                             </button>
                             <button
-                              onClick={(e) => { e.stopPropagation(); handleDeletarAluno(aluno.id, aluno.nome); }}
+                              onClick={(e) => { e.stopPropagation(); handleAbrirDeleteConfirmacao(aluno); }}
                               className="text-rose-400 hover:text-rose-300 p-2 rounded transition-all cursor-pointer hover:bg-rose-500/10"
                               title="Excluir aluno definitivamente"
                             >
@@ -1057,30 +1078,8 @@ export default function Alunos() {
                     ))}
                   </select>
                 </div>
-                {/* LINHA 1: Dia da aula, Horário da aula, Data de matrícula */}
+                {/* LINHA 1: Datas de Matrícula e Primeira Aula */}
                 <div className="col-span-2 grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="text-xs font-bold text-zinc-500 uppercase">Dia da Aula</label>
-                    <select value={diaAula} onChange={e => setDiaAula(e.target.value)} className="w-full bg-zinc-950 border border-zinc-800 rounded-lg p-2 mt-1 outline-none text-white text-sm cursor-pointer">
-                      <option value="Segunda">Segunda</option>
-                      <option value="Terça">Terça</option>
-                      <option value="Quarta">Quarta</option>
-                      <option value="Quinta">Quinta</option>
-                      <option value="Sexta">Sexta</option>
-                      <option value="Sábado">Sábado</option>
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="text-xs font-bold text-zinc-500 uppercase">Horário da Aula</label>
-                    <input
-                      type="time"
-                      value={horario}
-                      onChange={e => setHorario(e.target.value)}
-                      className="w-full bg-zinc-950 border border-zinc-800 rounded-lg p-2 mt-1 outline-none [color-scheme:dark] text-white text-sm"
-                    />
-                  </div>
-
                   <div>
                     <label className="text-xs font-bold text-zinc-500 uppercase">Data de Matrícula</label>
                     <input type="date" value={dataMatricula} onChange={e => setDataMatricula(e.target.value)} className="w-full bg-zinc-950 border border-zinc-800 rounded-lg p-2 mt-1 outline-none [color-scheme:dark] text-white text-sm" />
@@ -1089,6 +1088,52 @@ export default function Alunos() {
                   <div>
                     <label className="text-xs font-bold text-zinc-500 uppercase">📅 Primeira Aula</label>
                     <input type="date" value={primeiraAula} onChange={e => setPrimeiraAula(e.target.value)} className="w-full bg-zinc-950 border border-zinc-800 rounded-lg p-2 mt-1 outline-none [color-scheme:dark] text-white text-sm" />
+                  </div>
+                </div>
+
+                {/* HORÁRIOS DA SEMANA */}
+                <div className="col-span-2 bg-zinc-900/50 p-4 rounded-lg border border-zinc-800">
+                  <div className="flex justify-between items-center mb-3">
+                    <label className="text-xs font-bold text-zinc-500 uppercase">Dias e Horários da Aula</label>
+                    <button type="button" onClick={() => setHorariosAula([...horariosAula, { dia: 'Segunda', horario: '' }])} className="text-xs bg-emerald-600/20 text-emerald-400 px-3 py-1.5 rounded-lg hover:bg-emerald-600/40 transition-colors font-medium">
+                      + Adicionar Aula
+                    </button>
+                  </div>
+                  <div className="flex flex-col gap-3">
+                    {horariosAula.map((item, index) => (
+                      <div key={index} className="flex gap-3 items-center">
+                        <select value={item.dia} onChange={e => {
+                          const novos = [...horariosAula];
+                          novos[index].dia = e.target.value;
+                          setHorariosAula(novos);
+                        }} className="flex-1 bg-zinc-950 border border-zinc-700 rounded-lg p-2.5 outline-none text-white text-sm cursor-pointer">
+                          <option value="Segunda">Segunda</option>
+                          <option value="Terça">Terça</option>
+                          <option value="Quarta">Quarta</option>
+                          <option value="Quinta">Quinta</option>
+                          <option value="Sexta">Sexta</option>
+                          <option value="Sábado">Sábado</option>
+                        </select>
+                        <input
+                          type="time"
+                          value={item.horario}
+                          onChange={e => {
+                            const novos = [...horariosAula];
+                            novos[index].horario = e.target.value;
+                            setHorariosAula(novos);
+                          }}
+                          className="flex-1 bg-zinc-950 border border-zinc-700 rounded-lg p-2.5 outline-none [color-scheme:dark] text-white text-sm"
+                        />
+                        {horariosAula.length > 1 && (
+                          <button type="button" onClick={() => {
+                            const novos = horariosAula.filter((_, i) => i !== index);
+                            setHorariosAula(novos);
+                          }} className="text-rose-400 p-2.5 hover:bg-rose-500/10 rounded-lg transition-colors" title="Remover horário">
+                            ❌
+                          </button>
+                        )}
+                      </div>
+                    ))}
                   </div>
                 </div>
 
@@ -1104,7 +1149,7 @@ export default function Alunos() {
                   </div>
                   <div>
                     <label className="text-xs font-bold text-zinc-500 uppercase">Proporcionais</label>
-                    <input type="number" min="1" max="4" value={aulasMesEntrada} onChange={e => setAulasMesEntrada(e.target.value)} placeholder="Qtd..." className="w-full bg-zinc-950 border border-zinc-800 rounded-lg p-2 mt-1 outline-none focus:border-emerald-500 text-white text-sm" />
+                    <input type="number" min="1" value={aulasMesEntrada} onChange={e => setAulasMesEntrada(e.target.value)} placeholder="Qtd..." className="w-full bg-zinc-950 border border-zinc-800 rounded-lg p-2 mt-1 outline-none focus:border-emerald-500 text-white text-sm" />
                   </div>
                 </div>
 
@@ -1180,6 +1225,22 @@ export default function Alunos() {
         isOpen={modalHistoricoAberto}
         onClose={fecharModalHistorico}
         aluno={alunoHistoricoSelecionado}
+      />
+
+      {/* Modal de Confirmação de Deleção */}
+      <ModalConfirmacao
+        aberto={modalDeleteAberto}
+        titulo="Deletar Aluno"
+        mensagem={alunoDeletando ? `Tem certeza que deseja remover permanentemente o aluno "${alunoDeletando.nome}"? Esta ação é irreversível.` : ''}
+        textoBotaoConfirmar="Deletar"
+        textoBotaoCancelar="Cancelar"
+        carregando={carregandoDelete}
+        onConfirmar={handleConfirmarDelete}
+        onCancelar={() => {
+          setModalDeleteAberto(false);
+          setAlunoDeletando(null);
+        }}
+        tipo="danger"
       />
 
       {/* Modal de Visualização da Ficha */}
@@ -1272,7 +1333,8 @@ function ModalVisualizacaoAluno({ aluno, onClose, onEditar }) {
   const loginAcesso = aluno.email || aluno.cpf || null;
   const telefoneZap = (aluno.telefone || '').replace(/\D/g, '');
   
-  const mensagemWhatsApp = `Olá, ${aluno.nome}! Seu Portal do Aluno na Sonatta está pronto! Por lá você poderá ver sua agenda, materiais de estudo e o financeiro.\n\nAcesse: ${urlPortal}\nLogin: ${loginAcesso}\nSenha provisória: sonatta123\n\nVocê pode alterar essa senha no primeiro acesso.`;
+  // ✅ CORRIGIDO: Não incluir senha na mensagem (será enviada por email seguro)
+  const mensagemWhatsApp = `Olá, ${aluno.nome}! Seu Portal do Aluno na Sonatta está pronto! Por lá você poderá ver sua agenda, materiais de estudo e o financeiro.\n\nAcesse: ${urlPortal}\nLogin: ${loginAcesso}\n\nUma senha provisória foi enviada para seu email. Você pode alterá-la no primeiro acesso.`;
   const urlWhatsApp = `https://wa.me/55${telefoneZap}?text=${encodeURIComponent(mensagemWhatsApp)}`;
 
   return (
@@ -1390,9 +1452,9 @@ function ModalVisualizacaoAluno({ aluno, onClose, onEditar }) {
                   <p className="text-emerald-500/70 text-xs">Login</p>
                   <p className="text-zinc-200 font-medium">{loginAcesso || <span className="text-rose-400 text-xs">⚠️ Cadastre Email ou CPF</span>}</p>
                 </div>
-                <div>
-                  <p className="text-emerald-500/70 text-xs">Senha Padrão (Provisória)</p>
-                  <p className="text-zinc-200 font-medium font-mono text-sm tracking-wider">sonatta123</p>
+                <div className="col-span-1 sm:col-span-2">
+                  <p className="text-emerald-500/70 text-xs">🔐 Senha Provisória</p>
+                  <p className="text-zinc-300 text-sm">Uma senha segura será gerada e enviada por email. Altere na primeira vez que acessar.</p>
                 </div>
               </div>
 

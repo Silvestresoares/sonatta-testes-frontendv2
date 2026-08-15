@@ -9,13 +9,6 @@ import SolicitarAjustePontoModal from '../components/SolicitarAjustePontoModal';
 
 
 import { API_URL } from '../utils/api';
-const MESES = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
-
-const formatarData = (dataStr) => {
-  if (!dataStr) return '';
-  const [ano, mes, dia] = dataStr.substring(0, 10).split('-');
-  return `${dia}/${mes}`;
-};
 
 const formatarDataISO = (data) => {
   if (!data) return '';
@@ -277,7 +270,7 @@ export default function MinhaAgenda({ professorId }) {
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
             <h1 className="text-2xl font-bold text-emerald-400">📅 Minha Agenda</h1>
-            <p className="text-xs text-zinc-500 mt-1">Visualize e registre suas aulas com o mesmo layout do administrador.</p>
+            <p className="text-xs text-zinc-500 mt-1">Visualize e registre suas aulas.</p>
           </div>
           <div className="flex flex-wrap gap-2 items-center">
             {carregandoPonto ? (

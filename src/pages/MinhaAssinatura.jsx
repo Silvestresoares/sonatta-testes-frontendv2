@@ -116,7 +116,6 @@ export default function MinhaAssinatura() {
 
   useEffect(() => {
     carregarDados();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const carregarDados = async () => {
@@ -149,7 +148,7 @@ export default function MinhaAssinatura() {
       } else {
         setErro(dataFaturas.erro || 'Erro ao carregar faturas.');
       }
-    } catch (e) { // eslint-disable-line no-unused-vars
+    } catch {
       setErro('Erro de conexão ao carregar dados da assinatura.');
     } finally {
       setLoading(false);

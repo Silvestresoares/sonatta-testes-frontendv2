@@ -1,11 +1,11 @@
 import React, { useState } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
-import { LogOut, PlusCircle, Repeat, RotateCcw, Lightbulb, X, Folder, Settings, CreditCard, Search, CheckSquare } from 'lucide-react';
+import { LogOut, PlusCircle, Repeat, RotateCcw, Lightbulb, X, Folder, Settings, CreditCard, CheckSquare } from 'lucide-react';
 import { FaGraduationCap, FaUserGraduate, FaCalendarAlt, FaMoneyBillWave } from 'react-icons/fa';
-import { ChartBarIcon, UsersIcon, UserGroupIcon, AcademicCapIcon, BookOpenIcon, CalendarIcon, BanknotesIcon, Cog6ToothIcon, IdentificationIcon, MapPinIcon, ShoppingCartIcon } from '@heroicons/react/24/outline';
+import { ChartBarIcon, UsersIcon, UserGroupIcon, AcademicCapIcon, BookOpenIcon, CalendarIcon, BanknotesIcon, MapPinIcon, ShoppingCartIcon } from '@heroicons/react/24/outline';
 import AgendamentoAulaModal from './AgendamentoAulaModal';
 
-export default function Sidebar({ onLogout, tipoUsuario, professorId, isOpen, onClose, isSuperAdmin }) {
+export default function Sidebar({ onLogout, tipoUsuario, isOpen, onClose }) {
   const navigate = useNavigate();
 
   const _envApi = import.meta.env.VITE_API_URL;
@@ -67,7 +67,7 @@ export default function Sidebar({ onLogout, tipoUsuario, professorId, isOpen, on
       const texto = await resposta.text();
       try {
         dados = texto ? JSON.parse(texto) : {};
-      } catch (_parseErr) {
+      } catch {
         throw new Error('Resposta inválida do servidor. Tente novamente.');
       }
 

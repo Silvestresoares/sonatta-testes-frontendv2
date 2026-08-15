@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Settings, Save, MapPin, Phone, Mail, Link, AlertCircle, Wallet, DollarSign, CheckCircle, Upload } from 'lucide-react';
+import { Settings, Save, MapPin, Phone, Mail, Link, AlertCircle, Wallet, DollarSign, CheckCircle, Upload, Calendar } from 'lucide-react';
 
 
 import { API_URL } from '../utils/api';
@@ -42,7 +42,8 @@ export default function Configuracoes() {
     config_pagar_5_semana: false,
     config_descontar_falta_prof: false,
     config_pagamento_substituto: 'valor_normal_professor',
-    config_valor_fixo_substituto: ''
+    config_valor_fixo_substituto: '',
+    dia_vencimento_mensalidade: 10
   });
 
   const token = localStorage.getItem('@sonatta:token');
@@ -84,7 +85,8 @@ export default function Configuracoes() {
           config_pagar_5_semana: !!data.config_pagar_5_semana,
           config_descontar_falta_prof: !!data.config_descontar_falta_prof,
           config_pagamento_substituto: data.config_pagamento_substituto || 'valor_normal_professor',
-          config_valor_fixo_substituto: data.config_valor_fixo_substituto || ''
+          config_valor_fixo_substituto: data.config_valor_fixo_substituto || '',
+          dia_vencimento_mensalidade: data.dia_vencimento_mensalidade || 10
         });
 
         if (data.asaas_api_key) {
@@ -95,7 +97,7 @@ export default function Configuracoes() {
         const err = await res.json();
         setErro(err.erro || 'Erro ao carregar dados da escola.');
       }
-    } catch (err) {
+    } catch {
       setErro('Erro de conexão ao buscar dados da escola.');
     } finally {
       setLoading(false);
@@ -160,7 +162,7 @@ export default function Configuracoes() {
         setErro(data.erro || 'Erro ao ativar Asaas.');
         window.scrollTo(0, 0);
       }
-    } catch (err) {
+    } catch {
       setErro('Erro de conexão ao ativar Asaas.');
       window.scrollTo(0, 0);
     } finally {
@@ -216,7 +218,7 @@ export default function Configuracoes() {
         setErro(data.erro || 'Erro ao enviar logo.');
         window.scrollTo(0,0);
       }
-    } catch (err) {
+    } catch {
       setErro('Erro de conexão ao enviar logo.');
       window.scrollTo(0,0);
     } finally {
@@ -249,7 +251,7 @@ export default function Configuracoes() {
       } else {
         setErro(data.erro || 'Erro ao salvar configurações.');
       }
-    } catch (err) {
+    } catch {
       setErro('Erro de conexão ao salvar.');
     } finally {
       setSalvando(false);
@@ -379,6 +381,30 @@ export default function Configuracoes() {
                   </p>
                 </div>
               )}
+            </div>
+
+            {/* Configurações de Mensalidades */}
+            <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-6">
+              <h2 className="text-lg font-semibold text-white mb-4 border-b border-zinc-800 pb-2 flex items-center gap-2">
+                <Calendar size={20} className="text-emerald-500" />
+                Configurações de Mensalidades
+              </h2>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-zinc-400 mb-1">Dia Padrão de Vencimento</label>
+                  <select
+                    name="dia_vencimento_mensalidade"
+                    value={formData.dia_vencimento_mensalidade}
+                    onChange={handleChange}
+                    className="w-full px-4 py-2 bg-zinc-950 border border-zinc-800 rounded-lg text-white focus:outline-none focus:border-emerald-500 transition-colors"
+                  >
+                    {Array.from({ length: 30 }, (_, i) => i + 1).map(dia => (
+                      <option key={dia} value={dia}>Dia {dia}</option>
+                    ))}
+                  </select>
+                  <p className="text-xs text-zinc-500 mt-1">Este dia será usado como padrão ao gerar as mensalidades mensais e primeiras faturas.</p>
+                </div>
+              </div>
             </div>
 
             {/* Integração Pix Direto */}
