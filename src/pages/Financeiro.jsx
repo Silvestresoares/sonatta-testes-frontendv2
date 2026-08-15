@@ -969,7 +969,9 @@ export default function Financeiro() {
                         <td className="p-4 text-zinc-200">
                           {aluno.isGroup ? (
                             <div className="flex flex-col">
-                              <span className="font-semibold text-sky-400">Responsável: {aluno.nome}</span>
+                              <span className="font-semibold text-sky-400">
+                                {aluno.alunos?.[0]?.responsavel_nome ? `${aluno.alunos[0].responsavel_nome} - ` : ''}{aluno.nome}
+                              </span>
                               <span className="text-[10px] text-zinc-500 uppercase tracking-widest mt-1">Fatura Unificada</span>
                             </div>
                           ) : (
