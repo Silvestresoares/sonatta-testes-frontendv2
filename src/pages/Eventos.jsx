@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { API_URL } from '../utils/api';
-import { Calendar, Plus, MapPin, Users, Music, Trash2, Edit, X, Check, Eye } from 'lucide-react';
+import { Calendar, Plus, MapPin, Users, Music, Trash2, Edit, X } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import ptBR from 'date-fns/locale/pt-BR';
 

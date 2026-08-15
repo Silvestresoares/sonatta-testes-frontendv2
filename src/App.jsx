@@ -69,18 +69,23 @@ function LayoutComSidebar({ children, onLogout, tipoUsuario, professorId, isBloc
     
     const diffTime = venc - hoje;
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    const diasTolerancia = 3;
     
     if (plano === 'Trial 10 dias') {
-      if (diffDays < 0) {
+      if (diffDays < -diasTolerancia) {
         avisoBanner = <div className="bg-red-500/20 border-b border-red-500/50 text-red-200 p-3 text-center text-sm font-semibold">⚠️ Seu período de teste expirou há {Math.abs(diffDays)} dia(s). Escolha um plano para restaurar o acesso!</div>;
+      } else if (diffDays < 0) {
+        avisoBanner = <div className="bg-amber-500/20 border-b border-amber-500/50 text-amber-200 p-3 text-center text-sm font-semibold">⚠️ Sua assinatura venceu há {Math.abs(diffDays)} dia(s), mas ainda está dentro da tolerância do sistema. Regularize para evitar o bloqueio.</div>;
       } else if (diffDays <= 3) {
         avisoBanner = <div className="bg-amber-500/20 border-b border-amber-500/50 text-amber-200 p-3 text-center text-sm font-semibold">⚠️ Seu período de teste acaba em {diffDays === 0 ? 'hoje' : `${diffDays} dia(s)`}. Vá em "Minha Assinatura" e escolha um plano.</div>;
       } else {
         avisoBanner = <div className="bg-blue-500/20 border-b border-blue-500/50 text-blue-200 p-3 text-center text-sm font-semibold">🎉 Você está no período de teste grátis (Restam {diffDays} dias). Aproveite todas as funcionalidades!</div>;
       }
     } else {
-      if (diffDays < 0) {
+      if (diffDays < -diasTolerancia) {
         avisoBanner = <div className="bg-red-500/20 border-b border-red-500/50 text-red-200 p-3 text-center text-sm font-semibold">⚠️ Sua assinatura venceu há {Math.abs(diffDays)} dia(s). Regularize o pagamento para evitar o bloqueio total do sistema.</div>;
+      } else if (diffDays < 0) {
+        avisoBanner = <div className="bg-amber-500/20 border-b border-amber-500/50 text-amber-200 p-3 text-center text-sm font-semibold">⚠️ Sua assinatura venceu há {Math.abs(diffDays)} dia(s), mas ainda está dentro da tolerância do sistema. Regularize para evitar o bloqueio.</div>;
       } else if (diffDays <= 3) {
         avisoBanner = <div className="bg-amber-500/20 border-b border-amber-500/50 text-amber-200 p-3 text-center text-sm font-semibold">⚠️ Atenção! Sua assinatura vence em {diffDays === 0 ? 'hoje' : `${diffDays} dia(s)`}. Regularize o pagamento para evitar a suspensão.</div>;
       }
@@ -170,6 +175,17 @@ export default function App() {
   // Verifica token ao montar
   useEffect(() => {
     const verificarToken = async () => {
+      // 🕵️ Limpa a sessão se vier com a flag clearSession (links do email)
+      const params = new URLSearchParams(window.location.search);
+      if (params.get('clearSession') === '1') {
+        localStorage.clear();
+        setEstaLogado(false);
+        setCarregando(false);
+        // Limpa a URL
+        window.history.replaceState({}, document.title, window.location.pathname);
+        return;
+      }
+
       const token = localStorage.getItem('@sonatta:token');
       
       if (!token) {
@@ -251,7 +267,8 @@ export default function App() {
     venc.setHours(0,0,0,0);
     const diffTime = venc - hoje;
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-    if (diffDays < 0) {
+    const diasTolerancia = 3;
+    if (diffDays < -diasTolerancia) {
       isExpiredLocally = true;
     }
   }

@@ -1,5 +1,18 @@
-import { useEffect, useCallback, useRef } from 'react';
+import { useEffect, useRef } from 'react';
 import { useAulasFrequencia } from '../contexts/AulasFrequenciaContext';
+
+const parseDataLocal = (dataString) => {
+  if (!dataString) return null;
+  if (dataString instanceof Date) return dataString;
+
+  if (typeof dataString === 'string' && /^\d{4}-\d{2}-\d{2}/.test(dataString)) {
+    const [year, month, day] = dataString.split('-');
+    return new Date(Number(year), Number(month) - 1, Number(day));
+  }
+
+  const parsed = new Date(dataString);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+};
 
 /**
  * 🔄 Hook: useSincronizacaoAulas
@@ -7,12 +20,7 @@ import { useAulasFrequencia } from '../contexts/AulasFrequenciaContext';
  * Escuta mudanças no BroadcastChannel e atualiza dados
  */
 export function useSincronizacaoAulas(alunoId, mes = null, ano = null) {
-  const {
-    sincronizarDados,
-    carregarAulasPorAluno,
-    carregarFrequenciaAluno,
-    atualizacoes
-  } = useAulasFrequencia();
+  const { sincronizarDados, atualizacoes } = useAulasFrequencia();
 
   const primeiroCarregamentoRef = useRef(false);
   const timerRef = useRef(null);
@@ -37,8 +45,6 @@ export function useSincronizacaoAulas(alunoId, mes = null, ano = null) {
   // Monitorar atualizações e sincronizar
   useEffect(() => {
     if (atualizacoes.length === 0) return;
-
-    const ultimaAtualizacao = atualizacoes[atualizacoes.length - 1];
 
     // Limpar timer anterior
     if (timerRef.current) {
@@ -69,7 +75,7 @@ export function useSincronizacaoAulas(alunoId, mes = null, ano = null) {
  * Obter aulas filtradas de um aluno com sincronização
  */
 export function useAulasAluno(alunoId, mes = null, ano = null) {
-  const { obterAulasPorAluno, aulas } = useAulasFrequencia();
+  const { obterAulasPorAluno } = useAulasFrequencia();
   const { recarregar } = useSincronizacaoAulas(alunoId, mes, ano);
 
   // Filtrar aulas por mês e ano se fornecidos

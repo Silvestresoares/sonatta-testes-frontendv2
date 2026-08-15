@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useMemo } from 'react';
-import { Calendar, DollarSign, User, CheckCircle2, AlertCircle, BookOpen, Headphones, FileAudio, FileImage, FileText, Download, Folder, Music, Star, Award } from 'lucide-react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import { Calendar, DollarSign, User, CheckCircle2, AlertCircle, BookOpen, Headphones, FileImage, FileText, Download, Folder, Music, Star, Award } from 'lucide-react';
 import PortalLayout from '../../components/PortalLayout';
 import { useNavigate } from 'react-router-dom';
 import { QRCodeSVG } from 'qrcode.react';
@@ -7,16 +7,14 @@ import { generatePixPayload } from '../../utils/pixPayload';
 
 
 import { API_URL } from '../../utils/api';
-const getStatusInfo = (item) => {
-  if (item.status === 'Pago') {
-    return { text: 'Pago', colorClass: 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20' };
+const getStatusInfo = (fatura) => {
+  if (fatura.status === 'Pago' || fatura.status === 'concluido') {
+    return { text: 'Pago', colorClass: 'text-emerald-400 bg-emerald-500/20 border-emerald-500/30' };
   }
 
-  if (!item.data_vencimento) {
-    return { text: 'Pendente', colorClass: 'text-amber-400 bg-amber-500/10 border-amber-500/20' };
-  }
+  if (!fatura.data_vencimento) return { hidden: true };
 
-  const vencimentoDate = new Date(item.data_vencimento);
+  const vencimentoDate = new Date(fatura.data_vencimento);
   vencimentoDate.setUTCHours(0, 0, 0, 0);
 
   const hojeUTC = new Date();
@@ -49,7 +47,6 @@ export default function DashboardPortal() {
   const [modalRegistrosAberto, setModalRegistrosAberto] = useState(false);
   const [alunoSelecionado, setAlunoSelecionado] = useState(null);
   const [carregando, setCarregando] = useState(true);
-  const [erro, setErro] = useState(''); // eslint-disable-line no-unused-vars
 
   // Estados do Contrato
   const [contratoPendente, setContratoPendente] = useState(false);
@@ -64,7 +61,7 @@ export default function DashboardPortal() {
     if (tipo.includes('image')) return <FileImage size={18} className="text-blue-400" />;
     if (tipo.includes('pdf')) return <FileText size={18} className="text-rose-400" />;
     return <FileText size={18} className="text-teal-400" />;
-  }; // eslint-disable-line no-unused-vars
+  };
 
   // Estado para Modal do Pix
   const [faturaPix, setFaturaPix] = useState(null);
@@ -93,14 +90,121 @@ export default function DashboardPortal() {
     });
   }, [financeiro]);
 
+  const verificarContrato = useCallback(async (alunoId) => {
+    try {
+      const res = await fetch(`${API_URL}/api/contratos/meus-contratos/pendencias?alunoId=${alunoId}`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.exigeAssinatura) {
+          setContratoPendente(true);
+          setDadosContrato(data);
+        } else {
+          setContratoPendente(false);
+          setDadosContrato(null);
+        }
+      }
+    } catch (err) {
+      console.error('Erro ao verificar contrato:', err);
+    }
+  }, [token]);
+
+  const carregarPerfil = useCallback(async () => {
+    try {
+      const res = await fetch(`${API_URL}/api/portal/me`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (!res.ok) {
+        if (res.status === 401 || res.status === 403) navigate('/portal/login');
+        throw new Error('Erro ao carregar perfil');
+      }
+      const data = await res.json();
+      setDados(data);
+      if (data.tipo_usuario === 'responsavel' && data.dependentes.length > 0) {
+        setAlunoSelecionado(data.dependentes[0].id);
+      }
+    } catch (err) {
+      console.error('Erro ao carregar perfil do portal:', err);
+    } finally {
+      setCarregando(false);
+    }
+  }, [token, navigate]);
+
+  const carregarAgendaEFinanceiro = useCallback(async (id) => {
+    try {
+      const resAgenda = await fetch(`${API_URL}/api/portal/agenda?aluno_id=${id}`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (resAgenda.ok) {
+        setAgenda(await resAgenda.json());
+      }
+
+      const resFin = await fetch(`${API_URL}/api/portal/financeiro?aluno_id=${id}`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (resFin.ok) {
+        setFinanceiro(await resFin.json());
+      } else {
+        setFinanceiro([]);
+      }
+
+      const resMat = await fetch(`${API_URL}/api/portal/materiais?aluno_id=${id}`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (resMat.ok) {
+        setMateriais(await resMat.json());
+      } else {
+        setMateriais([]);
+      }
+
+      const resRegistros = await fetch(`${API_URL}/api/portal/registros-aula?aluno_id=${id}`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (resRegistros.ok) {
+        setRegistros(await resRegistros.json());
+      } else {
+        setRegistros([]);
+      }
+
+      const resRep = await fetch(`${API_URL}/api/repertorio/aluno/${id}`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (resRep.ok) {
+        setRepertorio(await resRep.json());
+      } else {
+        setRepertorio([]);
+      }
+
+      const resAv = await fetch(`${API_URL}/api/avaliacoes/aluno/${id}`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (resAv.ok) {
+        setAvaliacoes(await resAv.json());
+      } else {
+        setAvaliacoes([]);
+      }
+
+      const resEventos = await fetch(`${API_URL}/api/portal/eventos/${id}`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (resEventos.ok) {
+        setEventos(await resEventos.json());
+      } else {
+        setEventos([]);
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  }, [token]);
+
   useEffect(() => {
     if (!token) {
       navigate('/portal/login');
       return;
     }
     carregarPerfil();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [token, navigate]);
+  }, [token, navigate, carregarPerfil]);
 
   useEffect(() => {
     if (agenda && agenda.length > 0 && dados) {
@@ -147,28 +251,7 @@ export default function DashboardPortal() {
       carregarAgendaEFinanceiro(alunoSelecionado);
       verificarContrato(alunoSelecionado);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [dados, alunoSelecionado]);
-
-  const verificarContrato = async (alunoId) => {
-    try {
-      const res = await fetch(`${API_URL}/api/contratos/meus-contratos/pendencias?alunoId=${alunoId}`, {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      if (res.ok) {
-        const data = await res.json();
-        if (data.exigeAssinatura) {
-          setContratoPendente(true);
-          setDadosContrato(data);
-        } else {
-          setContratoPendente(false);
-          setDadosContrato(null);
-        }
-      }
-    } catch (err) {
-      console.error('Erro ao verificar contrato:', err);
-    }
-  };
+  }, [dados, alunoSelecionado, carregarAgendaEFinanceiro, verificarContrato]);
 
   const assinarContrato = async () => {
     if (!cpfAssinatura || cpfAssinatura.length < 11) {
@@ -200,104 +283,10 @@ export default function DashboardPortal() {
         setErroContrato(result.erro || 'Erro ao assinar o contrato.');
       }
     } catch (err) {
+      console.error('Erro ao assinar contrato:', err);
       setErroContrato('Falha na comunicação com o servidor.');
     } finally {
       setAssinandoContrato(false);
-    }
-  };
-
-  const carregarPerfil = async () => {
-    try {
-      const res = await fetch(`${API_URL}/api/portal/me`, {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      if (!res.ok) {
-        if (res.status === 401 || res.status === 403) navigate('/portal/login');
-        throw new Error('Erro ao carregar perfil');
-      }
-      const data = await res.json();
-      setDados(data);
-      if (data.tipo_usuario === 'responsavel' && data.dependentes.length > 0) {
-        setAlunoSelecionado(data.dependentes[0].id);
-      }
-    } catch (err) {
-      setErro(err.message);
-    } finally {
-      setCarregando(false);
-    }
-  };
-
-  const carregarAgendaEFinanceiro = async (id) => {
-    try {
-      // Agenda
-      const resAgenda = await fetch(`${API_URL}/api/portal/agenda?aluno_id=${id}`, {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      if (resAgenda.ok) {
-        setAgenda(await resAgenda.json());
-      }
-
-      // Financeiro
-      const resFin = await fetch(`${API_URL}/api/portal/financeiro?aluno_id=${id}`, {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      if (resFin.ok) {
-        setFinanceiro(await resFin.json());
-      } else {
-        setFinanceiro([]);
-      }
-
-      // Materiais
-      const resMat = await fetch(`${API_URL}/api/portal/materiais?aluno_id=${id}`, {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      if (resMat.ok) {
-        setMateriais(await resMat.json());
-      } else {
-        setMateriais([]);
-      }
-
-      // Registros Pedagógicos
-      const resRegistros = await fetch(`${API_URL}/api/portal/registros-aula?aluno_id=${id}`, {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      if (resRegistros.ok) {
-        setRegistros(await resRegistros.json());
-      } else {
-        setRegistros([]);
-      }
-
-      // Repertório
-      const resRep = await fetch(`${API_URL}/api/repertorio/aluno/${id}`, {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      if (resRep.ok) {
-        setRepertorio(await resRep.json());
-      } else {
-        setRepertorio([]);
-      }
-
-      // Avaliações
-      const resAv = await fetch(`${API_URL}/api/avaliacoes/aluno/${id}`, {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      if (resAv.ok) {
-        setAvaliacoes(await resAv.json());
-      } else {
-        setAvaliacoes([]);
-      }
-
-      // Eventos
-      const resEventos = await fetch(`${API_URL}/api/portal/eventos/${id}`, {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      if (resEventos.ok) {
-        setEventos(await resEventos.json());
-      } else {
-        setEventos([]);
-      }
-    } catch (err) {
-      console.error(err);
     }
   };
 
@@ -555,6 +544,16 @@ export default function DashboardPortal() {
                   <DollarSign className="text-emerald-400" size={24} />
                   <h3 className="text-lg font-bold text-white">Financeiro</h3>
                 </div>
+                {dados?.tipo_usuario === 'aluno' && dados?.usuario?.mensalidade !== undefined && (
+                  <div className="text-sm font-medium text-emerald-400/80 bg-emerald-500/10 px-3 py-1 rounded-full border border-emerald-500/20">
+                    Mensalidade: R$ {Number(dados.usuario.mensalidade || 0).toFixed(2).replace('.', ',')}
+                  </div>
+                )}
+                {dados?.tipo_usuario === 'responsavel' && alunoSelecionado && (
+                  <div className="text-sm font-medium text-emerald-400/80 bg-emerald-500/10 px-3 py-1 rounded-full border border-emerald-500/20">
+                    Mensalidade: R$ {Number(dados.dependentes?.find(d => d.id === alunoSelecionado)?.mensalidade || 0).toFixed(2).replace('.', ',')}
+                  </div>
+                )}
               </div>
 
               <div className="p-4">
@@ -585,7 +584,7 @@ export default function DashboardPortal() {
                           <div className="text-lg font-bold text-white">
                             R$ {Number(item.valor).toFixed(2).replace('.', ',')}
                           </div>
-                          {item.status === 'Pago' ? (
+                          {item.status === 'Pago' || item.status === 'concluido' ? (
                             <span className={`flex items-center gap-1 text-xs font-medium border px-2 py-1 rounded ${getStatusInfo(item).colorClass}`}>
                               <CheckCircle2 size={12} /> {getStatusInfo(item).text}
                             </span>

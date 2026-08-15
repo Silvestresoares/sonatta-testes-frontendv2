@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Search, PlusCircle, Eye, Edit, Trash2 } from 'lucide-react';
-
+import ModalConfirmacao from '../components/ModalConfirmacao';
 
 import { API_URL } from '../utils/api';
 export default function Responsaveis() {
@@ -10,6 +10,11 @@ export default function Responsaveis() {
   const [modalAberto, setModalAberto] = useState(false);
   const [idSendoEditado, setIdSendoEditado] = useState(null);
   const [visualizarResponsavel, setVisualizarResponsavel] = useState(null);
+
+  // Controle do Modal de Confirmação de Deleção
+  const [modalDeleteAberto, setModalDeleteAberto] = useState(false);
+  const [respDeletando, setRespDeletando] = useState(null);
+  const [carregandoDelete, setCarregandoDelete] = useState(false);
 
   const [nome, setNome] = useState('');
   const [cpf, setCpf] = useState('');
@@ -120,18 +125,27 @@ export default function Responsaveis() {
     }
   };
 
-  const handleDeletar = async (id, nomeResponsavel) => {
-    if (!window.confirm(`Tem certeza que deseja excluir o responsável "${nomeResponsavel}"? Esta ação não pode ser desfeita.`)) return;
+  const handleDeletar = async (responsavel) => {
+    // ✅ Abre modal de confirmação
+    setRespDeletando(responsavel);
+    setModalDeleteAberto(true);
+  };
+
+  // ✅ Executa deleção após confirmação do modal
+  const handleConfirmarDelete = async () => {
+    if (!respDeletando) return;
 
     const token = localStorage.getItem('@sonatta:token');
+    setCarregandoDelete(true);
     try {
-      const resposta = await fetch(`${API_URL}/api/responsaveis/${id}`, {
+      const resposta = await fetch(`${API_URL}/api/responsaveis/${respDeletando.id}`, {
         method: 'DELETE',
         headers: { 'Authorization': `Bearer ${token}` }
       });
 
       if (resposta.ok) {
         carregarResponsaveis();
+        alert('Responsável excluído com sucesso!');
       } else {
         const erro = await resposta.json();
         alert(erro.erro || 'Erro ao excluir responsável');
@@ -139,6 +153,10 @@ export default function Responsaveis() {
     } catch (erro) {
       console.error(erro);
       alert('Erro interno ao excluir responsável');
+    } finally {
+      setCarregandoDelete(false);
+      setModalDeleteAberto(false);
+      setRespDeletando(null);
     }
   };
 
@@ -234,7 +252,7 @@ export default function Responsaveis() {
                           <Edit size={18} />
                         </button>
                         <button
-                          onClick={() => handleDeletar(resp.id, resp.nome)}
+                          onClick={() => handleDeletar(resp)}
                           className="text-rose-400 hover:text-rose-300 p-2 rounded transition-all cursor-pointer hover:bg-rose-500/10"
                           title="Excluir Responsável"
                         >
@@ -420,6 +438,22 @@ export default function Responsaveis() {
           </div>
         </div>
       )}
+
+      {/* Modal de Confirmação de Deleção */}
+      <ModalConfirmacao
+        aberto={modalDeleteAberto}
+        titulo="Deletar Responsável"
+        mensagem={respDeletando ? `Tem certeza que deseja remover permanentemente o responsável "${respDeletando.nome}"? Esta ação é irreversível.` : ''}
+        textoBotaoConfirmar="Deletar"
+        textoBotaoCancelar="Cancelar"
+        carregando={carregandoDelete}
+        onConfirmar={handleConfirmarDelete}
+        onCancelar={() => {
+          setModalDeleteAberto(false);
+          setRespDeletando(null);
+        }}
+        tipo="danger"
+      />
     </div>
   );
 }

@@ -19,8 +19,8 @@ export default defineConfig({
 
   /* Configurações compartilhadas para os testes */
   use: {
-    /* URL base ajustada para o IP padrão do Vite */
-    baseURL: 'http://127.0.0.1:5173',
+    /* URL base ajustada para a porta usada no ambiente local */
+    baseURL: 'http://127.0.0.1:5175',
 
     /* Coleta rastreamento se o teste falhar */
     trace: 'on-first-retry',
@@ -44,9 +44,9 @@ export default defineConfig({
 
  /* BLOCO ÚNICO: Inicializa o Vite automaticamente de forma segura */
   webServer: {
-    // Força o Vite a escutar no IP 127.0.0.1 e na porta 5173
-    command: 'npm run dev -- --host 127.0.0.1 --port 5173',
-    url: 'http://127.0.0.1:5173',
+    // Força o Vite a escutar no IP 127.0.0.1 e na porta 5175
+    command: 'npm run dev -- --host 127.0.0.1 --port 5175',
+    url: 'http://127.0.0.1:5175',
     reuseExistingServer: !process.env.CI,
     timeout: 120 * 1000,
   },

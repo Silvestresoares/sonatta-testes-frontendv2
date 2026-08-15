@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { exportarParaCSV, exportarParaPDF } from '../utils/exportar';
 import { Receipt, Plus, Edit, Trash2 } from 'lucide-react';
+import ModalConfirmacaoLote from '../components/ModalConfirmacaoLote';
+import ToastFeedback from '../components/ToastFeedback';
 
 import { API_URL } from '../utils/api';
 const canalComunicacao = new BroadcastChannel('sonatta_updates');
@@ -23,6 +25,7 @@ export default function Financeiro() {
   const [carregandoProfessores, setCarregandoProfessores] = useState(false);
   const [resumoFinanceiro, setResumoFinanceiro] = useState({ receitas: 0, despesas: 0, saldo: 0, total_lancamentos: 0 });
   const [asaasConfigurado, setAsaasConfigurado] = useState(false);
+  const [gerandoLote, setGerandoLote] = useState(false);
 
   // Paginação Frontend
   const [paginaAlunos, setPaginaAlunos] = useState(1);
@@ -56,10 +59,6 @@ export default function Financeiro() {
     return (Number(anoFiltro) < anoAtualReal) || (Number(anoFiltro) === anoAtualReal && Number(mesFiltro) < mesAtualReal);
   }, [mesFiltro, anoFiltro]);
 
-  // Verifica se o mês selecionado é um mês futuro
-  const isMesFuturo = useMemo(() => {
-    return (Number(anoFiltro) > anoAtualReal) || (Number(anoFiltro) === anoAtualReal && Number(mesFiltro) > mesAtualReal);
-  }, [mesFiltro, anoFiltro]);
 
   const meses = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
   const anos = Array.from({ length: 5 }, (_, i) => new Date().getFullYear() - 2 + i);
@@ -68,6 +67,12 @@ export default function Financeiro() {
 
   // Estados do Modal
   const [modalAberto, setModalAberto] = useState(false);
+  const [modalLoteAberto, setModalLoteAberto] = useState(false);
+  const [modalDesmembrarAberto, setModalDesmembrarAberto] = useState(false);
+  const [faturaParaDesmembrar, setFaturaParaDesmembrar] = useState(null);
+  const [desmembrandoId, setDesmembrandoId] = useState(null);
+
+  const [toastFeedback, setToastFeedback] = useState({ isVisible: false, message: '', type: 'sucesso' });
   const [submetendo, setSubmetendo] = useState(false);
   const [erro, setErro] = useState('');
   const [formData, setFormData] = useState({
@@ -257,10 +262,10 @@ export default function Financeiro() {
         canalComunicacao.postMessage('atualizar_dados');
       } else {
         const err = await resposta.json();
-        alert(err.erro || 'Erro ao registrar pagamento.');
+        setToastFeedback({ isVisible: true, message: err.erro || 'Erro ao registrar pagamento.', type: 'erro' });
       }
     } catch (erro) {
-      alert('Erro de conexão ao registrar pagamento.');
+      setToastFeedback({ isVisible: true, message: 'Erro de conexão ao registrar pagamento.', type: 'erro' });
     } finally {
       setSalvandoRepasse(false);
     }
@@ -345,9 +350,67 @@ export default function Financeiro() {
         canalComunicacao.postMessage('atualizar_dados');
       } else {
         const erroData = await resposta.json();
-        alert(`Erro ao atualizar status: ${erroData.erro || 'Erro desconhecido'}`);
+        setToastFeedback({ isVisible: true, message: `Erro ao atualizar status: ${erroData.erro || 'Erro desconhecido'}`, type: 'erro' });
       }
     } catch (erro) { console.error(erro); }
+  };
+
+  const confirmarDesmembramento = (idFatura) => {
+    setFaturaParaDesmembrar(idFatura);
+    setModalDesmembrarAberto(true);
+  };
+
+  const executarDesmembramento = async () => {
+    if (!faturaParaDesmembrar) return;
+    const idFatura = faturaParaDesmembrar;
+    setModalDesmembrarAberto(false);
+    setDesmembrandoId(idFatura);
+    
+    const token = localStorage.getItem('@sonatta:token');
+    try {
+      const resposta = await fetch(`${API_URL}/api/financeiro/${idFatura}/desmembrar`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (resposta.ok) {
+        setToastFeedback({ isVisible: true, message: 'Lote desmembrado com sucesso!', type: 'sucesso' });
+        carregarFinanceiro();
+        carregarAlunos();
+      } else {
+        const erroData = await resposta.json();
+        setToastFeedback({ isVisible: true, message: `Erro ao desmembrar lote: ${erroData.erro || 'Erro desconhecido'}`, type: 'erro' });
+      }
+    } catch (erro) {
+      console.error(erro);
+      setToastFeedback({ isVisible: true, message: 'Erro de conexão ao desmembrar lote.', type: 'erro' });
+    } finally {
+      setDesmembrandoId(null);
+      setFaturaParaDesmembrar(null);
+    }
+  };
+
+  const deletarLancamento = async (id, nome) => {
+    if (!window.confirm(`Tem certeza que deseja excluir a fatura de ${nome || 'este lançamento'}? Se houver cobrança no Asaas, ela será cancelada.`)) return;
+
+    const token = localStorage.getItem('@sonatta:token');
+    try {
+      const resposta = await fetch(`${API_URL}/api/financeiro/${id}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (resposta.ok) {
+        setToastFeedback({ isVisible: true, message: 'Lançamento excluído com sucesso!', type: 'sucesso' });
+        carregarFinanceiro();
+        carregarAlunos();
+        canalComunicacao.postMessage('atualizar_dados');
+      } else {
+        const erroData = await resposta.json();
+        setToastFeedback({ isVisible: true, message: `Erro ao excluir: ${erroData.erro || 'Erro desconhecido'}`, type: 'erro' });
+      }
+    } catch (erro) {
+      console.error(erro);
+      setToastFeedback({ isVisible: true, message: 'Erro de conexão ao excluir.', type: 'erro' });
+    }
   };
 
   const alternarStatusLancamento = async (id, statusAtual) => {
@@ -375,15 +438,15 @@ export default function Financeiro() {
       });
       const data = await resposta.json();
       if (resposta.ok) {
-        alert('Cobrança gerada com sucesso!');
+        setToastFeedback({ isVisible: true, message: 'Cobrança gerada com sucesso!', type: 'sucesso' });
         carregarFinanceiro();
         carregarAlunos();
       } else {
-        alert(`Erro ao gerar cobrança: ${data.erro}`);
+        setToastFeedback({ isVisible: true, message: `Erro ao gerar cobrança: ${data.erro}`, type: 'erro' });
       }
     } catch (erro) {
       console.error(erro);
-      alert('Erro de conexão ao gerar cobrança no Asaas.');
+      setToastFeedback({ isVisible: true, message: 'Erro de conexão ao gerar cobrança no Asaas.', type: 'erro' });
     }
   };
 
@@ -396,21 +459,22 @@ export default function Financeiro() {
       });
       const data = await resposta.json();
       if (resposta.ok) {
-        alert('Mensalidade gerada com sucesso! O aluno já pode ver no portal.');
+        setToastFeedback({ isVisible: true, message: 'Mensalidade gerada com sucesso! O aluno já pode ver no portal.', type: 'sucesso' });
         carregarFinanceiro();
         carregarAlunos();
       } else {
-        alert(`Erro ao gerar mensalidade: ${data.erro}`);
+        setToastFeedback({ isVisible: true, message: `Erro ao gerar mensalidade: ${data.erro}`, type: 'erro' });
       }
     } catch (erro) {
       console.error(erro);
-      alert('Erro de conexão ao gerar mensalidade.');
+      setToastFeedback({ isVisible: true, message: 'Erro de conexão ao gerar mensalidade.', type: 'erro' });
     }
   };
 
   const gerarLoteMensalidades = async () => {
-    if (!window.confirm(`Tem certeza que deseja gerar mensalidades em lote para o mês ${mesFiltro}/${anoFiltro}? O sistema irá agrupar cobranças de alunos do mesmo responsável.`)) return;
     const token = localStorage.getItem('@sonatta:token');
+    if (!token || gerandoLote) return;
+    setGerandoLote(true);
     try {
       const resposta = await fetch(`${API_URL}/api/financeiro/gerar-lote`, {
         method: 'POST',
@@ -419,15 +483,18 @@ export default function Financeiro() {
       });
       const data = await resposta.json();
       if (resposta.ok) {
-        alert('Lote gerado com sucesso! Os responsáveis já podem acessar a fatura única.');
+        setToastFeedback({ isVisible: true, message: 'Lote gerado com sucesso! Os responsáveis já podem acessar a fatura única.', type: 'sucesso' });
+        setModalLoteAberto(false);
         carregarFinanceiro();
         carregarAlunos();
       } else {
-        alert(`Erro ao gerar lote: ${data.erro}`);
+        setToastFeedback({ isVisible: true, message: `Erro ao gerar lote: ${data.erro}`, type: 'erro' });
       }
     } catch (erro) {
       console.error(erro);
-      alert('Erro de conexão ao gerar lote.');
+      setToastFeedback({ isVisible: true, message: 'Erro de conexão ao gerar lote.', type: 'erro' });
+    } finally {
+      setGerandoLote(false);
     }
   };
 
@@ -492,7 +559,7 @@ export default function Financeiro() {
   // Deletar lançamento
   const handleDeletarLancamento = async (id, descricao) => {
     const token = localStorage.getItem('@sonatta:token');
-    if (!token) return alert("Sessão expirada.");
+    if (!token) return setToastFeedback({ isVisible: true, message: "Sessão expirada.", type: 'erro' });
 
     if (window.confirm(`Tem certeza que deseja remover o lançamento "${descricao}"?`)) {
       try {
@@ -504,13 +571,13 @@ export default function Financeiro() {
         if (resposta.ok) {
           setTransacoes(prev => prev.filter(t => t.id !== id));
           canalComunicacao.postMessage('atualizar_dados');
-          alert('Lançamento excluído com sucesso!');
+          setToastFeedback({ isVisible: true, message: 'Lançamento excluído com sucesso!', type: 'sucesso' });
         } else {
-          alert('Erro ao excluir lançamento.');
+          setToastFeedback({ isVisible: true, message: 'Erro ao excluir lançamento.', type: 'erro' });
         }
       } catch (erro) {
         console.error('Erro ao deletar lançamento:', erro);
-        alert('Erro de conexão ao deletar.');
+        setToastFeedback({ isVisible: true, message: 'Erro de conexão ao deletar.', type: 'erro' });
       }
     }
   };
@@ -560,7 +627,6 @@ export default function Financeiro() {
 
   const saldoTotal = receitasOutros + mensalidadesPagas - despesasOutros;
 
-  // Filtragem Local e Agrupamento de Alunos (Fatura Unificada)
   const alunosFiltrados = useMemo(() => {
     const filtrados = alunos.filter(a => {
       const matchBusca = a.nome.toLowerCase().includes(buscaAlunos.toLowerCase());
@@ -572,7 +638,14 @@ export default function Financeiro() {
     const resultado = [];
 
     filtrados.forEach(aluno => {
-      if (aluno.responsavel_id) {
+      // Verifica se este aluno já possui uma fatura individual no mês atual (desmembrada ou avulsa)
+      const faturaIndividual = transacoes.find(t => 
+        t.aluno_id === aluno.id && 
+        t.tipo === 'Receita' && 
+        (isMesAtual ? t.status !== 'Cancelado' : true)
+      );
+
+      if (aluno.responsavel_id && !faturaIndividual) {
         if (!grupos[aluno.responsavel_id]) {
           grupos[aluno.responsavel_id] = {
             isGroup: true,
@@ -581,12 +654,38 @@ export default function Financeiro() {
             alunos: [],
             valor_calculado: 0
           };
-          resultado.push(grupos[aluno.responsavel_id]);
         }
         grupos[aluno.responsavel_id].alunos.push(aluno);
         grupos[aluno.responsavel_id].valor_calculado += Number(aluno.valor_calculado || 0);
       } else {
-        resultado.push({ ...aluno, isGroup: false });
+        // Se já tem fatura individual ou não tem responsável, exibe solto
+        resultado.push({ 
+          ...aluno, 
+          isGroup: false,
+          fatura_id: faturaIndividual ? faturaIndividual.id : null
+        });
+      }
+    });
+
+    // Desmembrar grupos que possuem apenas 1 aluno
+    const chavesGrupos = Object.keys(grupos);
+    chavesGrupos.forEach(chave => {
+      const grupo = grupos[chave];
+      if (grupo.alunos.length > 1) {
+        resultado.push(grupo);
+      } else if (grupo.alunos.length === 1) {
+        // Se tem só 1 aluno, não exibe como Lote/Fatura Unificada
+        const alunoSolto = grupo.alunos[0];
+        const faturaAlunoSolto = transacoes.find(t => 
+          t.aluno_id === alunoSolto.id && 
+          t.tipo === 'Receita' && 
+          (isMesAtual ? t.status !== 'Cancelado' : true)
+        );
+        resultado.push({ 
+          ...alunoSolto, 
+          isGroup: false,
+          fatura_id: faturaAlunoSolto ? faturaAlunoSolto.id : null
+        });
       }
     });
 
@@ -598,10 +697,11 @@ export default function Financeiro() {
         
         // Find corresponding Fatura Unificada in transacoes
         const fatura = transacoes.find(t => 
+          !t.aluno_id &&
           t.responsavel_id != null && item.responsavel_id != null &&
           String(t.responsavel_id) === String(item.responsavel_id) && 
           t.tipo === 'Receita' && 
-          (isMesAtual ? (t.status === 'Pendente' || t.status === 'Pago') : true)
+          (isMesAtual ? t.status !== 'Cancelado' : true)
         );
 
         if (fatura) {
@@ -727,10 +827,11 @@ export default function Financeiro() {
       {abaSelecionada === 'mensalidades' && (
         <div className="flex justify-end mb-4">
           <button 
-            onClick={gerarLoteMensalidades} 
-            className="bg-sky-600 hover:bg-sky-700 text-white text-xs font-bold py-2 px-4 rounded transition-colors shadow-lg"
+            onClick={() => setModalLoteAberto(true)} 
+            disabled={gerandoLote}
+            className="bg-sky-600 hover:bg-sky-700 disabled:opacity-50 disabled:cursor-not-allowed text-white text-xs font-bold py-2 px-4 rounded transition-colors shadow-lg"
           >
-            ⚡ GERAR MENSALIDADES EM LOTE
+            {gerandoLote ? 'GERANDO...' : '⚡ GERAR MENSALIDADES EM LOTE'}
           </button>
         </div>
       )}
@@ -911,6 +1012,27 @@ export default function Financeiro() {
                               >
                                 {statusRender === 'Pago' ? 'Desfazer Pago' : 'Marcar Pago'}
                               </button>
+                              {aluno.isGroup && statusRender === 'Pendente' && (
+                                <button
+                                  onClick={() => confirmarDesmembramento(aluno.fatura_id)}
+                                  disabled={desmembrandoId === aluno.fatura_id}
+                                  title="Desmembrar Lote em Faturas Individuais"
+                                  className={`px-3 py-1.5 text-xs font-medium rounded transition-all flex items-center justify-center min-w-[100px] ${
+                                    desmembrandoId === aluno.fatura_id 
+                                      ? 'bg-zinc-700/50 text-zinc-400 cursor-not-allowed'
+                                      : 'bg-rose-600/30 hover:bg-rose-600/50 text-rose-300 cursor-pointer'
+                                  }`}
+                                >
+                                  {desmembrandoId === aluno.fatura_id ? (
+                                    <span className="flex items-center gap-2">
+                                      <div className="w-3 h-3 border-2 border-zinc-400 border-t-transparent rounded-full animate-spin"></div>
+                                      Carregando
+                                    </span>
+                                  ) : (
+                                    'Desmembrar'
+                                  )}
+                                </button>
+                              )}
                               {statusRender !== 'Pago' && (
                                 asaasConfigurado ? (
                                   <button
@@ -926,16 +1048,26 @@ export default function Financeiro() {
                                     Gerar Asaas
                                   </button>
                                 ) : (
-                                  !aluno.isGroup && (
-                                    <button
-                                      onClick={() => gerarMensalidadeManual(aluno.id)}
-                                      className="bg-zinc-700 hover:bg-zinc-600 px-3 py-1.5 text-xs font-medium rounded text-white transition-all shadow-lg cursor-pointer"
-                                      title="Gerar mensalidade pendente manualmente para o aluno ver no portal"
-                                    >
-                                      Gerar Mensalidade
-                                    </button>
-                                  )
+                                  <span className="text-xs text-zinc-500 italic px-2">Asaas não configurado</span>
                                 )
+                              )}
+                              {/* Botão de Excluir Fatura (Para apagar duplicadas ou cancelar) */}
+                              <button
+                                onClick={() => deletarLancamento(aluno.fatura_id || aluno.id, aluno.nome)}
+                                title="Excluir Fatura e Cancelar no Asaas"
+                                className="p-1.5 text-zinc-400 hover:text-rose-400 hover:bg-rose-500/10 rounded transition-colors cursor-pointer ml-1"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                              
+                              {statusRender !== 'Pago' && !aluno.isGroup && (
+                                <button
+                                  onClick={() => gerarMensalidadeManual(aluno.id)}
+                                  className="bg-zinc-700 hover:bg-zinc-600 px-3 py-1.5 text-xs font-medium rounded text-white transition-all shadow-lg cursor-pointer ml-1"
+                                  title="Gerar mensalidade pendente manualmente para o aluno ver no portal"
+                                >
+                                  Gerar Mensalidade
+                                </button>
                               )}
                             </div>
                           )}
@@ -1753,6 +1885,65 @@ export default function Financeiro() {
           </div>
         </div>
       )}
+
+      {/* Modal Confirmar Desmembramento */}
+      {modalDesmembrarAberto && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-in fade-in duration-200">
+          <div className="bg-zinc-900 border border-zinc-800 rounded-xl shadow-2xl max-w-md w-full overflow-hidden">
+            <div className="p-6">
+              <div className="w-12 h-12 rounded-full bg-rose-500/20 flex items-center justify-center mx-auto mb-4">
+                <Receipt className="w-6 h-6 text-rose-400" />
+              </div>
+              
+              <h3 className="text-xl font-bold text-white text-center mb-2">
+                Desmembrar Fatura Unificada?
+              </h3>
+              
+              <p className="text-zinc-400 text-sm text-center mb-6 leading-relaxed">
+                Essa fatura será cancelada e dividida em faturas individuais para cada aluno. Caso já exista uma cobrança no Asaas, ela será cancelada e as novas faturas serão recriadas separadamente.
+                <br /><br />
+                <span className="font-semibold text-rose-400">Esta ação não pode ser desfeita automaticamente.</span>
+              </p>
+              
+              <div className="flex gap-3">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setModalDesmembrarAberto(false);
+                    setFaturaParaDesmembrar(null);
+                  }}
+                  className="flex-1 px-4 py-2 bg-zinc-800 hover:bg-zinc-700 text-white rounded-lg transition-colors font-medium"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="button"
+                  onClick={executarDesmembramento}
+                  className="flex-1 px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-lg transition-colors font-medium shadow-lg shadow-rose-900/20"
+                >
+                  Sim, desmembrar
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <ModalConfirmacaoLote
+        isOpen={modalLoteAberto}
+        onClose={() => setModalLoteAberto(false)}
+        onConfirm={gerarLoteMensalidades}
+        isLoading={gerandoLote}
+        mes={mesFiltro}
+        ano={anoFiltro}
+      />
+
+      <ToastFeedback
+        isVisible={toastFeedback.isVisible}
+        message={toastFeedback.message}
+        type={toastFeedback.type}
+        onClose={() => setToastFeedback((prev) => ({ ...prev, isVisible: false }))}
+      />
     </div>
   );
 }

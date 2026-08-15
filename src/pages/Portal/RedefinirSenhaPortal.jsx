@@ -55,7 +55,7 @@ export default function RedefinirSenhaPortal({ aoSucesso }) {
       } else {
         setMensagem({ tipo: 'erro', texto: dados.erro || 'Erro ao redefinir senha.' });
       }
-    } catch (erro) {
+    } catch {
       setMensagem({ tipo: 'erro', texto: 'Não foi possível conectar ao servidor.' });
     } finally {
       setCarregando(false);

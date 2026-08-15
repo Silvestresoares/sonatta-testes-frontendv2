@@ -6,6 +6,7 @@ import { UserPlus, Search, Download, Printer, X,
 import { API_URL } from '../utils/api';
 import HistoricoPontoModal from '../components/HistoricoPontoModal';
 import SolicitacoesPontoModal from '../components/SolicitacoesPontoModal';
+import ModalConfirmacao from '../components/ModalConfirmacao';
 
 const canalComunicacao = new BroadcastChannel('sonatta_updates');
 
@@ -149,7 +150,9 @@ function AbaAlunos({ professorId, token }) {
       ]);
       if (r1.ok) setAlunos(await r1.json());
       if (r2.ok) setTodosAlunos(await r2.json());
-    } catch {}
+    } catch (erro) {
+      console.warn('Falha ao carregar alunos do professor:', erro);
+    }
     setCarregando(false);
   };
 
@@ -256,7 +259,9 @@ function AbaAgenda({ professorId, token }) {
         const d = await r.json();
         if (d) setAgenda(d);
       }
-    } catch {}
+    } catch (erro) {
+      console.warn('Falha ao carregar agenda do professor:', erro);
+    }
     setCarregando(false);
   };
 
@@ -357,7 +362,9 @@ function AbaFinanceiro({ professorId, token }) {
         { headers: { Authorization: `Bearer ${token}` } }
       );
       if (r.ok) setDados(await r.json());
-    } catch {}
+    } catch (erro) {
+      console.warn('Falha ao carregar financeiro do professor:', erro);
+    }
     setCarregando(false);
   };
 
@@ -1310,6 +1317,11 @@ export default function Professores() {
   const [profSelecionadoHistorico, setProfSelecionadoHistorico] = useState(null);
   const [solicitacoesPontoAberto, setSolicitacoesPontoAberto] = useState(false);
 
+  // Controle do Modal de Confirmação de Deleção
+  const [modalDeleteAberto, setModalDeleteAberto] = useState(false);
+  const [profDeletando, setProfDeletando] = useState(null);
+  const [carregandoDelete, setCarregandoDelete] = useState(false);
+
   const token = localStorage.getItem('@sonatta:token');
 
   const carregar = async () => {
@@ -1317,7 +1329,9 @@ export default function Professores() {
     try {
       const r = await fetch(`${API_URL}/api/professores`, { headers: { Authorization: `Bearer ${token}` } });
       if (r.ok) setProfessores(await r.json());
-    } catch {}
+    } catch (erro) {
+      console.warn('Falha ao carregar professores:', erro);
+    }
     setCarregando(false);
   };
 
@@ -1329,10 +1343,18 @@ export default function Professores() {
   }, []);
 
   const excluir = async (prof) => {
-    if (!window.confirm(`Tem certeza que deseja excluir o professor "${prof.nome}"?`)) return;
+    // ✅ Abre modal de confirmação
+    setProfDeletando(prof);
+    setModalDeleteAberto(true);
+  };
 
+  // ✅ Executa deleção após confirmação do modal
+  const handleConfirmarDeleteProfessor = async () => {
+    if (!profDeletando) return;
+
+    setCarregandoDelete(true);
     try {
-      const r = await fetch(`${API_URL}/api/professores/${prof.id}`, {
+      const r = await fetch(`${API_URL}/api/professores/${profDeletando.id}`, {
         method: 'DELETE',
         headers: { Authorization: `Bearer ${token}` }
       });
@@ -1346,6 +1368,10 @@ export default function Professores() {
       alert('Professor excluído com sucesso.');
     } catch {
       alert('Erro de conexão ao excluir o professor.');
+    } finally {
+      setCarregandoDelete(false);
+      setModalDeleteAberto(false);
+      setProfDeletando(null);
     }
   };
 
@@ -1606,6 +1632,22 @@ export default function Professores() {
         isOpen={solicitacoesPontoAberto}
         onClose={() => setSolicitacoesPontoAberto(false)}
         token={token}
+      />
+
+      {/* Modal de Confirmação de Deleção */}
+      <ModalConfirmacao
+        aberto={modalDeleteAberto}
+        titulo="Deletar Professor"
+        mensagem={profDeletando ? `Tem certeza que deseja remover permanentemente o professor "${profDeletando.nome}"? Esta ação é irreversível.` : ''}
+        textoBotaoConfirmar="Deletar"
+        textoBotaoCancelar="Cancelar"
+        carregando={carregandoDelete}
+        onConfirmar={handleConfirmarDeleteProfessor}
+        onCancelar={() => {
+          setModalDeleteAberto(false);
+          setProfDeletando(null);
+        }}
+        tipo="danger"
       />
     </div>
   );

@@ -9,7 +9,7 @@ const API_URL = (typeof window !== 'undefined' && window.location && window.loca
 function urlBase64ToUint8Array(base64String) {
   const padding = '='.repeat((4 - base64String.length % 4) % 4);
   const base64 = (base64String + padding)
-    .replace(/\-/g, '+')
+    .replace(/-/g, '+')
     .replace(/_/g, '/');
 
   const rawData = window.atob(base64);
@@ -74,7 +74,6 @@ export default function NotificationBanner() {
           return;
         }
 
-        const urlParams = new URLSearchParams(window.location.search);
         // Se for o portal que chamou (pelo portalToken ser o principal ou a rota ser de portal)
         const isPortal = !token && portalToken;
         const urlEndpoint = isPortal ? '/api/portal/notificacoes/subscribe' : '/api/notificacoes/subscribe';

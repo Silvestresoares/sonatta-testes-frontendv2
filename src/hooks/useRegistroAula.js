@@ -211,7 +211,9 @@ export function useRegistroAula(aula, aluno, isOpen, onClose, onSave) {
         try {
           const data = await response.json();
           errorMessage = data.erro || data.message || errorMessage;
-        } catch (err) {}
+        } catch (parseError) {
+          console.warn('Resposta de erro sem JSON válido ao salvar registro:', parseError);
+        }
         throw new Error(errorMessage);
       }
 

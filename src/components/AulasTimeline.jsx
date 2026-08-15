@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { Clock, User, Clipboard, Music, ShieldAlert, CheckCircle, Info, Edit, Trash2, Users, AlertCircle, CheckCircle2, XCircle, Tag } from 'lucide-react';
+import React from 'react';
+import { Clock, User, Clipboard, Music, Edit, Trash2, Users, AlertCircle, CheckCircle2, XCircle, Tag } from 'lucide-react';
 import { Virtuoso } from 'react-virtuoso';
 
 export default function AulasTimeline({ aulas = [], onAbrirRegistro = null, onEditAula = null, onDeleteAula = null, showActions = true }) {
