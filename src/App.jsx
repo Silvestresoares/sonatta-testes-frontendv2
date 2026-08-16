@@ -197,7 +197,7 @@ export default function App() {
       try {
         const resposta = await fetch(`${API_URL}/api/auth/me`, {
           method: 'GET',
-          headers: { 'Authorization': `Bearer ${token}` }
+          headers: { 'Authorization': `Bearer ${localStorage.getItem('@sonatta:token')}` }
         });
 
         if (resposta.ok) {

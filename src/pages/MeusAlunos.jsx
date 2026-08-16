@@ -28,7 +28,7 @@ export default function MeusAlunos() {
       const resposta = await fetch(url, {
         method: 'GET',
         headers: {
-          'Authorization': `Bearer ${token}`
+          'Authorization': `Bearer ${localStorage.getItem('@sonatta:token')}`
         }
       });
 

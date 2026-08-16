@@ -74,7 +74,7 @@ export default function Agenda() {
     setCarregando(true);
     try {
       const resposta = await fetch(`${API_URL}/api/alunos`, {
-        headers: { 'Authorization': `Bearer ${token}` }
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('@sonatta:token')}` }
       });
       if (resposta.ok) {
         const dados = await resposta.json();
@@ -95,7 +95,7 @@ export default function Agenda() {
     const queryAno = anoParam !== undefined ? anoParam : mesVisivel.ano;
     try {
       const resposta = await fetch(`${API_URL}/api/registros-aula?mes=${queryMes}&ano=${queryAno}`, {
-        headers: { 'Authorization': `Bearer ${token}` }
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('@sonatta:token')}` }
       });
       if (resposta.ok) {
         const dados = await resposta.json();
@@ -119,7 +119,7 @@ export default function Agenda() {
   const carregarAulasAgendadas = useCallback(async () => {
     try {
       const resposta = await fetch(`${API_URL}/api/aulas?mes=${mesVisivel.mes}&ano=${mesVisivel.ano}`, {
-        headers: { 'Authorization': `Bearer ${token}` }
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('@sonatta:token')}` }
       });
       if (resposta.ok) {
         const dados = await resposta.json();
@@ -134,7 +134,7 @@ export default function Agenda() {
   const carregarExperimentais = useCallback(async () => {
     try {
       const resposta = await fetch(`${API_URL}/api/aulas-experimentais?mes=${mesVisivel.mes}&ano=${mesVisivel.ano}`, {
-        headers: { 'Authorization': `Bearer ${token}` }
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('@sonatta:token')}` }
       });
       if (resposta.ok) {
         const dados = await resposta.json();
@@ -149,7 +149,7 @@ export default function Agenda() {
   const carregarProfessores = useCallback(async () => {
     try {
       const resposta = await fetch(`${API_URL}/api/professores`, {
-        headers: { 'Authorization': `Bearer ${token}` }
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('@sonatta:token')}` }
       });
       if (resposta.ok) {
         const dados = await resposta.json();
@@ -164,7 +164,7 @@ export default function Agenda() {
   const carregarTurmas = useCallback(async () => {
     try {
       const resposta = await fetch(`${API_URL}/api/turmas`, {
-        headers: { 'Authorization': `Bearer ${token}` }
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('@sonatta:token')}` }
       });
       if (resposta.ok) {
         const dados = await resposta.json();
@@ -471,7 +471,7 @@ export default function Agenda() {
       const response = await fetch(`${API_URL}/api/${endpoint}/${cleanId}`, {
         method: 'DELETE',
         headers: {
-          'Authorization': `Bearer ${token}`
+          'Authorization': `Bearer ${localStorage.getItem('@sonatta:token')}`
         }
       });
 

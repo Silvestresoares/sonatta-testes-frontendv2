@@ -98,7 +98,7 @@ export default function Alunos() {
       if (dataFimMov) url.searchParams.append('dataFim', dataFimMov);
 
       const resposta = await fetch(url, {
-        headers: { 'Authorization': `Bearer ${token}` }
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('@sonatta:token')}` }
       });
       if (resposta.ok) {
         const dados = await resposta.json();
@@ -172,7 +172,7 @@ export default function Alunos() {
       const resposta = await fetch(url, {
         method: 'GET',
         headers: {
-          'Authorization': `Bearer ${token}`
+          'Authorization': `Bearer ${localStorage.getItem('@sonatta:token')}`
         }
       });
 
@@ -204,7 +204,7 @@ export default function Alunos() {
       const resposta = await fetch(`${API_URL}/api/professores`, {
         method: 'GET',
         headers: {
-          'Authorization': `Bearer ${token}`
+          'Authorization': `Bearer ${localStorage.getItem('@sonatta:token')}`
         }
       });
 
@@ -221,7 +221,7 @@ export default function Alunos() {
     const token = localStorage.getItem('@sonatta:token');
     if (!token) return;
     try {
-      const resposta = await fetch(`${API_URL}/api/responsaveis`, { headers: { 'Authorization': `Bearer ${token}` } });
+      const resposta = await fetch(`${API_URL}/api/responsaveis`, { headers: { 'Authorization': `Bearer ${localStorage.getItem('@sonatta:token')}` } });
       if (resposta.ok) {
         const dados = await resposta.json();
         setResponsaveis(dados || []);
@@ -304,7 +304,7 @@ export default function Alunos() {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
+          'Authorization': `Bearer ${localStorage.getItem('@sonatta:token')}`
         },
         body: JSON.stringify(payload)
       });
@@ -374,7 +374,7 @@ export default function Alunos() {
         method: metodo,
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
+          'Authorization': `Bearer ${localStorage.getItem('@sonatta:token')}`
         },
         body: JSON.stringify(dadosAluno)
       });
@@ -422,7 +422,7 @@ export default function Alunos() {
       const resposta = await fetch(`${API_URL}/api/alunos/${alunoDeletando.id}`, {
         method: 'DELETE',
         headers: {
-          'Authorization': `Bearer ${token}`
+          'Authorization': `Bearer ${localStorage.getItem('@sonatta:token')}`
         }
       });
 
@@ -498,7 +498,7 @@ export default function Alunos() {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
+          'Authorization': `Bearer ${localStorage.getItem('@sonatta:token')}`
         },
         body: JSON.stringify({
           aluno_id: alunoCertificado.id,

@@ -27,7 +27,7 @@ export default function RepertorioAluno({ alunoId, token }: { alunoId: number, t
     try {
       setCarregando(true);
       const res = await fetch(`${API_URL}/api/repertorio/aluno/${alunoId}`, {
-        headers: { 'Authorization': `Bearer ${token}` }
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('@sonatta:token')}` }
       });
       if (res.ok) {
         setMusicas(await res.json());
@@ -49,7 +49,7 @@ export default function RepertorioAluno({ alunoId, token }: { alunoId: number, t
 
       const res = await fetch(url, {
         method,
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('@sonatta:token')}` },
         body: JSON.stringify({ ...form, aluno_id: alunoId })
       });
 
@@ -71,7 +71,7 @@ export default function RepertorioAluno({ alunoId, token }: { alunoId: number, t
     try {
       const res = await fetch(`${API_URL}/api/repertorio/${id}`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('@sonatta:token')}` },
         body: JSON.stringify({ status: novoStatus })
       });
       if (res.ok) carregarRepertorio();
@@ -85,7 +85,7 @@ export default function RepertorioAluno({ alunoId, token }: { alunoId: number, t
     try {
       const res = await fetch(`${API_URL}/api/repertorio/${id}`, {
         method: 'DELETE',
-        headers: { 'Authorization': `Bearer ${token}` }
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('@sonatta:token')}` }
       });
       if (res.ok) carregarRepertorio();
     } catch (err) {

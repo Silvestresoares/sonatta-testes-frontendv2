@@ -24,7 +24,7 @@ export default function MinhasTurmas() {
     try {
       setCarregando(true);
       const res = await fetch(`${API_URL}/api/turmas`, {
-        headers: { 'Authorization': `Bearer ${token}` }
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('@sonatta:token')}` }
       });
       if (!res.ok) throw new Error('Erro ao carregar turmas');
       const data = await res.json();
@@ -42,7 +42,7 @@ export default function MinhasTurmas() {
     setCarregandoAlunos(true);
     try {
       const res = await fetch(`${API_URL}/api/turmas/${turma.id}/alunos`, {
-        headers: { 'Authorization': `Bearer ${token}` }
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('@sonatta:token')}` }
       });
       if (!res.ok) throw new Error('Erro ao carregar alunos');
       const data = await res.json();

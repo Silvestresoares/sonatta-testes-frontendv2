@@ -25,7 +25,7 @@ export default function MinhaAssinatura() {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`
+          Authorization: `Bearer ${localStorage.getItem('@sonatta:token')}`
         },
         body: JSON.stringify({ plano_nome: planoNome, valor, limite_desejado })
       });
@@ -92,7 +92,7 @@ export default function MinhaAssinatura() {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`
+          Authorization: `Bearer ${localStorage.getItem('@sonatta:token')}`
         },
         body: JSON.stringify(payload)
       });
@@ -124,7 +124,7 @@ export default function MinhaAssinatura() {
       
       // Carregar os dados da escola (para pegar informações do plano)
       const resEscola = await fetch(`${API_URL}/api/escola`, {
-        headers: { Authorization: `Bearer ${token}` }
+        headers: { Authorization: `Bearer ${localStorage.getItem('@sonatta:token')}` }
       });
       const dataEscola = await resEscola.json();
       
@@ -139,7 +139,7 @@ export default function MinhaAssinatura() {
 
       // Carregar o histórico de faturas
       const resFaturas = await fetch(`${API_URL}/api/escola/faturas`, {
-        headers: { Authorization: `Bearer ${token}` }
+        headers: { Authorization: `Bearer ${localStorage.getItem('@sonatta:token')}` }
       });
       const dataFaturas = await resFaturas.json();
       

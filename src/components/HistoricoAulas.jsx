@@ -47,7 +47,7 @@ export default function HistoricoAulas({ aluno_id }) {
       }
 
       const response = await fetch(url, {
-        headers: { 'Authorization': `Bearer ${token}` }
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('@sonatta:token')}` }
       });
 
       if (!response.ok) throw new Error('Erro ao carregar registros');
@@ -83,7 +83,7 @@ export default function HistoricoAulas({ aluno_id }) {
     try {
       const response = await fetch(`${API_URL}/api/registros-aula/${registroId}`, {
         method: 'DELETE',
-        headers: { 'Authorization': `Bearer ${token}` }
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('@sonatta:token')}` }
       });
 
       if (!response.ok) throw new Error('Erro ao excluir');

@@ -141,7 +141,7 @@ export function AulasFrequenciaProvider({ children }) {
       }
 
       const response = await fetch(url, {
-        headers: { 'Authorization': `Bearer ${token}` }
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('@sonatta:token')}` }
       });
 
       if (!response.ok) throw new Error('Erro ao carregar aulas');
@@ -176,7 +176,7 @@ export function AulasFrequenciaProvider({ children }) {
       }
 
       const response = await fetch(url, {
-        headers: { 'Authorization': `Bearer ${token}` }
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('@sonatta:token')}` }
       });
 
       if (!response.ok) throw new Error('Erro ao carregar frequência');
@@ -208,7 +208,7 @@ export function AulasFrequenciaProvider({ children }) {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
+          'Authorization': `Bearer ${localStorage.getItem('@sonatta:token')}`
         },
         body: JSON.stringify(dadosAula)
       });
@@ -257,7 +257,7 @@ export function AulasFrequenciaProvider({ children }) {
 
       const response = await fetch(`${API_URL}/api/${endpoint}/${aulaId}`, {
         method: 'DELETE',
-        headers: { 'Authorization': `Bearer ${token}` }
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('@sonatta:token')}` }
       });
 
       if (!response.ok) throw new Error('Erro ao deletar aula');
@@ -293,7 +293,7 @@ export function AulasFrequenciaProvider({ children }) {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
+          'Authorization': `Bearer ${localStorage.getItem('@sonatta:token')}`
         },
         body: JSON.stringify({ comparecimento })
       });

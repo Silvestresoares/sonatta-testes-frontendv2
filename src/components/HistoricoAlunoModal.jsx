@@ -25,7 +25,7 @@ export default function HistoricoAlunoModal({ isOpen, onClose, aluno }) {
     try {
       setCarregando(true);
       const resposta = await fetch(`${API_URL}/api/registros-aula/aluno/${aluno.id}`, {
-        headers: { 'Authorization': `Bearer ${token}` }
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('@sonatta:token')}` }
       });
       if (resposta.ok) {
         const dados = await resposta.json();

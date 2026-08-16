@@ -36,7 +36,7 @@ export default function CursosTurmas() {
   const carregarCursos = async () => {
     const token = localStorage.getItem('@sonatta:token');
     try {
-      const res = await fetch(`${API_URL}/api/cursos`, { headers: { 'Authorization': `Bearer ${token}` } });
+      const res = await fetch(`${API_URL}/api/cursos`, { headers: { 'Authorization': `Bearer ${localStorage.getItem('@sonatta:token')}` } });
       if (res.ok) setCursos(await res.json());
     } catch (e) { console.error(e); }
   };
@@ -44,7 +44,7 @@ export default function CursosTurmas() {
   const carregarTurmas = async () => {
     const token = localStorage.getItem('@sonatta:token');
     try {
-      const res = await fetch(`${API_URL}/api/turmas`, { headers: { 'Authorization': `Bearer ${token}` } });
+      const res = await fetch(`${API_URL}/api/turmas`, { headers: { 'Authorization': `Bearer ${localStorage.getItem('@sonatta:token')}` } });
       if (res.ok) setTurmas(await res.json());
     } catch (e) { console.error(e); }
   };
@@ -52,7 +52,7 @@ export default function CursosTurmas() {
   const carregarProfessores = async () => {
     const token = localStorage.getItem('@sonatta:token');
     try {
-      const res = await fetch(`${API_URL}/api/professores`, { headers: { 'Authorization': `Bearer ${token}` } });
+      const res = await fetch(`${API_URL}/api/professores`, { headers: { 'Authorization': `Bearer ${localStorage.getItem('@sonatta:token')}` } });
       if (res.ok) setProfessores(await res.json());
     } catch (e) { console.error(e); }
   };
@@ -60,7 +60,7 @@ export default function CursosTurmas() {
   const carregarTodosAlunos = async () => {
     const token = localStorage.getItem('@sonatta:token');
     try {
-      const res = await fetch(`${API_URL}/api/alunos?paginated=false`, { headers: { 'Authorization': `Bearer ${token}` } });
+      const res = await fetch(`${API_URL}/api/alunos?paginated=false`, { headers: { 'Authorization': `Bearer ${localStorage.getItem('@sonatta:token')}` } });
       if (res.ok) setTodosAlunos(await res.json());
     } catch (e) { console.error(e); }
   };
@@ -68,7 +68,7 @@ export default function CursosTurmas() {
   const carregarAlunosDaTurma = async (turmaId) => {
     const token = localStorage.getItem('@sonatta:token');
     try {
-      const res = await fetch(`${API_URL}/api/turmas/${turmaId}/alunos`, { headers: { 'Authorization': `Bearer ${token}` } });
+      const res = await fetch(`${API_URL}/api/turmas/${turmaId}/alunos`, { headers: { 'Authorization': `Bearer ${localStorage.getItem('@sonatta:token')}` } });
       if (res.ok) setAlunosDaTurma(await res.json());
     } catch (e) { console.error(e); }
   };
@@ -88,7 +88,7 @@ export default function CursosTurmas() {
     
     try {
       const res = await fetch(url, {
-        method, headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        method, headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('@sonatta:token')}` },
         body: JSON.stringify({ nome: cursoNome, descricao: cursoDesc })
       });
       if (res.ok) {
@@ -101,7 +101,7 @@ export default function CursosTurmas() {
   const deletarCurso = async (id) => {
     if(!window.confirm('Excluir curso? (Pode afetar turmas)')) return;
     const token = localStorage.getItem('@sonatta:token');
-    await fetch(`${API_URL}/api/cursos/${id}`, { method: 'DELETE', headers: { 'Authorization': `Bearer ${token}` } });
+    await fetch(`${API_URL}/api/cursos/${id}`, { method: 'DELETE', headers: { 'Authorization': `Bearer ${localStorage.getItem('@sonatta:token')}` } });
     carregarCursos();
   };
 
@@ -113,7 +113,7 @@ export default function CursosTurmas() {
     
     try {
       const res = await fetch(url, {
-        method, headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        method, headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('@sonatta:token')}` },
         body: JSON.stringify({ 
           curso_id: Number(tCursoId), professor_id: tProfId ? Number(tProfId) : null,
           nome: tNome, dia_semana: tDia, horario_inicio: tHoraIni, horario_fim: tHoraFim, capacidade: Number(tCap)
@@ -129,7 +129,7 @@ export default function CursosTurmas() {
   const deletarTurma = async (id) => {
     if(!window.confirm('Excluir turma? (Alunos serão desvinculados)')) return;
     const token = localStorage.getItem('@sonatta:token');
-    await fetch(`${API_URL}/api/turmas/${id}`, { method: 'DELETE', headers: { 'Authorization': `Bearer ${token}` } });
+    await fetch(`${API_URL}/api/turmas/${id}`, { method: 'DELETE', headers: { 'Authorization': `Bearer ${localStorage.getItem('@sonatta:token')}` } });
     carregarTurmas();
   };
 
@@ -147,7 +147,7 @@ export default function CursosTurmas() {
     try {
       const res = await fetch(`${API_URL}/api/turmas/${turmaSelecionada.id}/alunos`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('@sonatta:token')}` },
         body: JSON.stringify({ aluno_id: Number(alunoSelecionadoId) })
       });
       if (res.ok) {
@@ -167,7 +167,7 @@ export default function CursosTurmas() {
     try {
       const res = await fetch(`${API_URL}/api/turmas/${turmaSelecionada.id}/alunos/${alunoId}`, {
         method: 'DELETE',
-        headers: { 'Authorization': `Bearer ${token}` }
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('@sonatta:token')}` }
       });
       if (res.ok) {
         carregarAlunosDaTurma(turmaSelecionada.id);

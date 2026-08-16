@@ -32,7 +32,7 @@ export default function WhatsAppConfig({ token }: { token: string }) {
     try {
       setLoading(true);
       const res = await fetch(`${API_URL}/api/whatsapp/config`, {
-        headers: { 'Authorization': `Bearer ${token}` }
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('@sonatta:token')}` }
       });
       if (res.ok) {
         const data = await res.json();
@@ -55,7 +55,7 @@ export default function WhatsAppConfig({ token }: { token: string }) {
       const res = await fetch(`${API_URL}/api/whatsapp/config`, {
         method: 'PUT',
         headers: {
-          'Authorization': `Bearer ${token}`,
+          'Authorization': `Bearer ${localStorage.getItem('@sonatta:token')}`,
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({ provider, apiUrl, apiKey, instanceName })
@@ -76,7 +76,7 @@ export default function WhatsAppConfig({ token }: { token: string }) {
   const verificarStatusNativo = async () => {
     try {
       const res = await fetch(`${API_URL}/api/whatsapp/status`, {
-        headers: { 'Authorization': `Bearer ${token}` }
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('@sonatta:token')}` }
       });
       if (res.ok) {
         const data = await res.json();
@@ -93,7 +93,7 @@ export default function WhatsAppConfig({ token }: { token: string }) {
     try {
       await fetch(`${API_URL}/api/whatsapp/start`, {
         method: 'POST',
-        headers: { 'Authorization': `Bearer ${token}` }
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('@sonatta:token')}` }
       });
       setMensagem({ tipo: 'success', texto: 'Iniciando sessão, aguarde o QR Code...' });
     } catch (err) {
@@ -106,7 +106,7 @@ export default function WhatsAppConfig({ token }: { token: string }) {
     try {
       await fetch(`${API_URL}/api/whatsapp/logout`, {
         method: 'POST',
-        headers: { 'Authorization': `Bearer ${token}` }
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('@sonatta:token')}` }
       });
       setStatusNativo('disconnected');
       setQrCodeUrl('');

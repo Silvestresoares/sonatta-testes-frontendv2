@@ -58,7 +58,7 @@ export default function Sidebar({ onLogout, tipoUsuario, isOpen, onClose }) {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`
+          Authorization: `Bearer ${localStorage.getItem('@sonatta:token')}`
         },
         body: JSON.stringify({ senhaAtual, novaSenha, confirmarNovaSenha })
       });

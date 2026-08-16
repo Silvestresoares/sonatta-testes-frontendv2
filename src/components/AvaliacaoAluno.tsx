@@ -54,7 +54,7 @@ export default function AvaliacaoAluno({ alunoId, token }: { alunoId: number, to
     try {
       setCarregando(true);
       const res = await fetch(`${API_URL}/api/avaliacoes/aluno/${alunoId}`, {
-        headers: { 'Authorization': `Bearer ${token}` }
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('@sonatta:token')}` }
       });
       if (res.ok) {
         setAvaliacoes(await res.json());
@@ -75,7 +75,7 @@ export default function AvaliacaoAluno({ alunoId, token }: { alunoId: number, to
 
       const res = await fetch(url, {
         method,
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('@sonatta:token')}` },
         body: JSON.stringify({ ...form, aluno_id: alunoId })
       });
 
@@ -99,7 +99,7 @@ export default function AvaliacaoAluno({ alunoId, token }: { alunoId: number, to
     try {
       const res = await fetch(`${API_URL}/api/avaliacoes/${id}`, {
         method: 'DELETE',
-        headers: { 'Authorization': `Bearer ${token}` }
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('@sonatta:token')}` }
       });
       if (res.ok) carregarAvaliacoes();
     } catch (err) {

@@ -56,7 +56,7 @@ export default function Configuracoes() {
     try {
       setLoading(true);
       const res = await fetch(`${API_URL}/api/escola`, {
-        headers: { 'Authorization': `Bearer ${token}` }
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('@sonatta:token')}` }
       });
       
       if (res.ok) {
@@ -108,7 +108,7 @@ export default function Configuracoes() {
     try {
       setCarregandoSaldo(true);
       const res = await fetch(`${API_URL}/api/escola/saldo-asaas`, {
-        headers: { 'Authorization': `Bearer ${token}` }
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('@sonatta:token')}` }
       });
       if (res.ok) {
         const data = await res.json();
@@ -147,7 +147,7 @@ export default function Configuracoes() {
         method: 'POST',
         headers: { 
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
+          'Authorization': `Bearer ${localStorage.getItem('@sonatta:token')}`
         },
         body: JSON.stringify(payload)
       });
@@ -206,7 +206,7 @@ export default function Configuracoes() {
     try {
       const res = await fetch(`${API_URL}/api/escola/upload-logo`, {
         method: 'POST',
-        headers: { 'Authorization': `Bearer ${token}` },
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('@sonatta:token')}` },
         body: formDataUpload
       });
       const data = await res.json();
@@ -238,7 +238,7 @@ export default function Configuracoes() {
         method: 'PUT',
         headers: { 
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
+          'Authorization': `Bearer ${localStorage.getItem('@sonatta:token')}`
         },
         body: JSON.stringify(formData)
       });

@@ -93,7 +93,7 @@ export default function DashboardPortal() {
   const verificarContrato = useCallback(async (alunoId) => {
     try {
       const res = await fetch(`${API_URL}/api/contratos/meus-contratos/pendencias?alunoId=${alunoId}`, {
-        headers: { 'Authorization': `Bearer ${token}` }
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('@sonatta:token')}` }
       });
       if (res.ok) {
         const data = await res.json();
@@ -113,7 +113,7 @@ export default function DashboardPortal() {
   const carregarPerfil = useCallback(async () => {
     try {
       const res = await fetch(`${API_URL}/api/portal/me`, {
-        headers: { 'Authorization': `Bearer ${token}` }
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('@sonatta:token')}` }
       });
       if (!res.ok) {
         if (res.status === 401 || res.status === 403) navigate('/portal/login');
@@ -134,14 +134,14 @@ export default function DashboardPortal() {
   const carregarAgendaEFinanceiro = useCallback(async (id) => {
     try {
       const resAgenda = await fetch(`${API_URL}/api/portal/agenda?aluno_id=${id}`, {
-        headers: { 'Authorization': `Bearer ${token}` }
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('@sonatta:token')}` }
       });
       if (resAgenda.ok) {
         setAgenda(await resAgenda.json());
       }
 
       const resFin = await fetch(`${API_URL}/api/portal/financeiro?aluno_id=${id}`, {
-        headers: { 'Authorization': `Bearer ${token}` }
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('@sonatta:token')}` }
       });
       if (resFin.ok) {
         setFinanceiro(await resFin.json());
@@ -150,7 +150,7 @@ export default function DashboardPortal() {
       }
 
       const resMat = await fetch(`${API_URL}/api/portal/materiais?aluno_id=${id}`, {
-        headers: { 'Authorization': `Bearer ${token}` }
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('@sonatta:token')}` }
       });
       if (resMat.ok) {
         setMateriais(await resMat.json());
@@ -159,7 +159,7 @@ export default function DashboardPortal() {
       }
 
       const resRegistros = await fetch(`${API_URL}/api/portal/registros-aula?aluno_id=${id}`, {
-        headers: { 'Authorization': `Bearer ${token}` }
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('@sonatta:token')}` }
       });
       if (resRegistros.ok) {
         setRegistros(await resRegistros.json());
@@ -168,7 +168,7 @@ export default function DashboardPortal() {
       }
 
       const resRep = await fetch(`${API_URL}/api/repertorio/aluno/${id}`, {
-        headers: { 'Authorization': `Bearer ${token}` }
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('@sonatta:token')}` }
       });
       if (resRep.ok) {
         setRepertorio(await resRep.json());
@@ -177,7 +177,7 @@ export default function DashboardPortal() {
       }
 
       const resAv = await fetch(`${API_URL}/api/avaliacoes/aluno/${id}`, {
-        headers: { 'Authorization': `Bearer ${token}` }
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('@sonatta:token')}` }
       });
       if (resAv.ok) {
         setAvaliacoes(await resAv.json());
@@ -186,7 +186,7 @@ export default function DashboardPortal() {
       }
 
       const resEventos = await fetch(`${API_URL}/api/portal/eventos/${id}`, {
-        headers: { 'Authorization': `Bearer ${token}` }
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('@sonatta:token')}` }
       });
       if (resEventos.ok) {
         setEventos(await resEventos.json());
@@ -270,7 +270,7 @@ export default function DashboardPortal() {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
+          'Authorization': `Bearer ${localStorage.getItem('@sonatta:token')}`
         },
         body: JSON.stringify(payload)
       });

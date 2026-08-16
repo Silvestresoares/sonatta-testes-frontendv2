@@ -29,8 +29,8 @@ export default function Materiais() {
     try {
       setCarregando(true);
       const [resMateriais, resAlunos] = await Promise.all([
-        fetch(`${API_URL}/api/materiais`, { headers: { 'Authorization': `Bearer ${token}` } }),
-        fetch(`${API_URL}/api/alunos`, { headers: { 'Authorization': `Bearer ${token}` } })
+        fetch(`${API_URL}/api/materiais`, { headers: { 'Authorization': `Bearer ${localStorage.getItem('@sonatta:token')}` } }),
+        fetch(`${API_URL}/api/alunos`, { headers: { 'Authorization': `Bearer ${localStorage.getItem('@sonatta:token')}` } })
       ]);
 
       if (!resMateriais.ok || !resAlunos.ok) throw new Error('Erro ao carregar dados');
@@ -87,7 +87,7 @@ export default function Materiais() {
     try {
       const res = await fetch(`${API_URL}/api/materiais`, {
         method: 'POST',
-        headers: { 'Authorization': `Bearer ${token}` }, // Sem Content-Type, o browser define para multipart
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('@sonatta:token')}` }, // Sem Content-Type, o browser define para multipart
         body: formData
       });
 
@@ -119,7 +119,7 @@ export default function Materiais() {
     try {
       const res = await fetch(`${API_URL}/api/materiais/${id}`, {
         method: 'DELETE',
-        headers: { 'Authorization': `Bearer ${token}` }
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('@sonatta:token')}` }
       });
 
       const data = await res.json();

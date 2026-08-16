@@ -35,7 +35,7 @@ export default function PortalLayout({ children }) {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
+          'Authorization': `Bearer ${localStorage.getItem('@sonatta:token')}`
         },
         body: JSON.stringify({ senhaAtual, novaSenha })
       });

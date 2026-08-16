@@ -145,8 +145,8 @@ function AbaAlunos({ professorId, token }) {
     setCarregando(true);
     try {
       const [r1, r2] = await Promise.all([
-        fetch(`${API_URL}/api/professores/${professorId}/alunos`, { headers: { Authorization: `Bearer ${token}` } }),
-        fetch(`${API_URL}/api/alunos`, { headers: { Authorization: `Bearer ${token}` } }),
+        fetch(`${API_URL}/api/professores/${professorId}/alunos`, { headers: { Authorization: `Bearer ${localStorage.getItem('@sonatta:token')}` } }),
+        fetch(`${API_URL}/api/alunos`, { headers: { Authorization: `Bearer ${localStorage.getItem('@sonatta:token')}` } }),
       ]);
       if (r1.ok) setAlunos(await r1.json());
       if (r2.ok) setTodosAlunos(await r2.json());
@@ -162,7 +162,7 @@ function AbaAlunos({ professorId, token }) {
     if (!alunoSelecionado) return;
     await fetch(`${API_URL}/api/professores/${professorId}/alunos`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('@sonatta:token')}` },
       body: JSON.stringify({ aluno_id: Number(alunoSelecionado) }),
     });
     setAlunoSelecionado('');
@@ -172,7 +172,7 @@ function AbaAlunos({ professorId, token }) {
   const desvincular = async (alunoId, nome) => {
     if (!window.confirm(`Remover "${nome}" deste professor?`)) return;
     await fetch(`${API_URL}/api/professores/${professorId}/alunos/${alunoId}`, {
-      method: 'DELETE', headers: { Authorization: `Bearer ${token}` },
+      method: 'DELETE', headers: { Authorization: `Bearer ${localStorage.getItem('@sonatta:token')}` },
     });
     carregar();
   };
@@ -253,7 +253,7 @@ function AbaAgenda({ professorId, token }) {
     setCarregando(true);
     try {
       const r = await fetch(`${API_URL}/api/professores/${professorId}/agenda?mes=${mesFiltro}&ano=${anoFiltro}`, {
-        headers: { Authorization: `Bearer ${token}` }
+        headers: { Authorization: `Bearer ${localStorage.getItem('@sonatta:token')}` }
       });
       if (r.ok) {
         const d = await r.json();
@@ -359,7 +359,7 @@ function AbaFinanceiro({ professorId, token }) {
     try {
       const r = await fetch(
         `${API_URL}/api/professores/${professorId}/financeiro?mes=${mesFiltro}&ano=${anoFiltro}`,
-        { headers: { Authorization: `Bearer ${token}` } }
+        { headers: { Authorization: `Bearer ${localStorage.getItem('@sonatta:token')}` } }
       );
       if (r.ok) setDados(await r.json());
     } catch (erro) {
@@ -376,7 +376,7 @@ function AbaFinanceiro({ professorId, token }) {
         `${API_URL}/api/professores/${professorId}/repasse/pagar`,
         {
           method: 'PATCH',
-          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('@sonatta:token')}` },
           body: JSON.stringify({
             mes: mesFiltro,
             ano: anoFiltro,
@@ -825,7 +825,7 @@ function ModalProfessor({ professor, onClose, onSalvo, token, todosAlunos }) {
       const metodo = editando ? 'PUT' : 'POST';
       const r = await fetch(url, {
         method: metodo,
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('@sonatta:token')}` },
         body: JSON.stringify({
           ...form,
           valor_hora: Number(form.valor_hora) || 0,
@@ -1327,7 +1327,7 @@ export default function Professores() {
   const carregar = async () => {
     setCarregando(true);
     try {
-      const r = await fetch(`${API_URL}/api/professores`, { headers: { Authorization: `Bearer ${token}` } });
+      const r = await fetch(`${API_URL}/api/professores`, { headers: { Authorization: `Bearer ${localStorage.getItem('@sonatta:token')}` } });
       if (r.ok) setProfessores(await r.json());
     } catch (erro) {
       console.warn('Falha ao carregar professores:', erro);
@@ -1356,7 +1356,7 @@ export default function Professores() {
     try {
       const r = await fetch(`${API_URL}/api/professores/${profDeletando.id}`, {
         method: 'DELETE',
-        headers: { Authorization: `Bearer ${token}` }
+        headers: { Authorization: `Bearer ${localStorage.getItem('@sonatta:token')}` }
       });
       const data = await r.json().catch(() => ({}));
       if (!r.ok) {

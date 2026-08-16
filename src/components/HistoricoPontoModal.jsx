@@ -20,7 +20,7 @@ export default function HistoricoPontoModal({ isOpen, onClose, professorId }) {
     setErro(null);
     try {
       const res = await fetch(`${API_URL}/api/professores/${professorId}/ponto/historico?mes=${mesAtual}&ano=${anoAtual}`, {
-        headers: { Authorization: `Bearer ${token}` }
+        headers: { Authorization: `Bearer ${localStorage.getItem('@sonatta:token')}` }
       });
       if (!res.ok) {
         throw new Error('Erro ao buscar histórico de ponto');

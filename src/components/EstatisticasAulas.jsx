@@ -19,7 +19,7 @@ export default function EstatisticasAulas({ aluno_id }) {
       try {
         setCarregando(true);
         const response = await fetch(`${API_URL}/api/registros-aula/estatisticas/aluno/${aluno_id}`, {
-          headers: { 'Authorization': `Bearer ${token}` }
+          headers: { 'Authorization': `Bearer ${localStorage.getItem('@sonatta:token')}` }
         });
 
         if (!response.ok) throw new Error('Erro ao carregar estatísticas');

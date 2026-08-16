@@ -25,7 +25,7 @@ export default function AssinaturaSuspensa() {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`
+          Authorization: `Bearer ${localStorage.getItem('@sonatta:token')}`
         },
         body: JSON.stringify({ plano_nome: planoNome, valor, limite_desejado })
       });
@@ -92,7 +92,7 @@ export default function AssinaturaSuspensa() {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`
+          Authorization: `Bearer ${localStorage.getItem('@sonatta:token')}`
         },
         body: JSON.stringify(payload)
       });
@@ -122,7 +122,7 @@ export default function AssinaturaSuspensa() {
     try {
       const token = localStorage.getItem('@sonatta:token');
       const res = await fetch(`${API_URL}/api/escola/faturas`, {
-        headers: { Authorization: `Bearer ${token}` }
+        headers: { Authorization: `Bearer ${localStorage.getItem('@sonatta:token')}` }
       });
       if (res.ok) {
         const data = await res.json();
@@ -136,7 +136,7 @@ export default function AssinaturaSuspensa() {
       }
       
       const resEscola = await fetch(`${API_URL}/api/escola`, {
-        headers: { Authorization: `Bearer ${token}` }
+        headers: { Authorization: `Bearer ${localStorage.getItem('@sonatta:token')}` }
       });
       if (resEscola.ok) {
         const escolaJson = await resEscola.json();
@@ -158,7 +158,7 @@ export default function AssinaturaSuspensa() {
       const token = localStorage.getItem('@sonatta:token');
       const res = await fetch(`${API_URL}/api/escola/cancelar-assinatura`, {
         method: 'POST',
-        headers: { Authorization: `Bearer ${token}` }
+        headers: { Authorization: `Bearer ${localStorage.getItem('@sonatta:token')}` }
       });
       if (res.ok) {
         alert('Assinatura cancelada com sucesso. Obrigado por testar o Sonatta!');
