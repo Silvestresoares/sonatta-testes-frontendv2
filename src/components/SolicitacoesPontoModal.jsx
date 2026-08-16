@@ -13,7 +13,7 @@ export default function SolicitacoesPontoModal({ isOpen, onClose, token }) {
     setErro(null);
     try {
       const res = await fetch(`${API_URL}/api/professores/ponto/ajustes/pendentes`, {
-        headers: { Authorization: `Bearer ${token}` }
+        headers: { Authorization: `Bearer ${localStorage.getItem('@sonatta:token')}` }
       });
       if (!res.ok) throw new Error('Erro ao buscar solicitações');
       const data = await res.json();
@@ -38,7 +38,7 @@ export default function SolicitacoesPontoModal({ isOpen, onClose, token }) {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`
+          Authorization: `Bearer ${localStorage.getItem('@sonatta:token')}`
         },
         body: JSON.stringify({ status })
       });

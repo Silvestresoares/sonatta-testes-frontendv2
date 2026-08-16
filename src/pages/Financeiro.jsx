@@ -93,7 +93,7 @@ export default function Financeiro() {
     try {
       const resposta = await fetch(`${API_URL}/api/alunos`, {
         method: 'GET',
-        headers: { 'Authorization': `Bearer ${token}` }
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('@sonatta:token')}` }
       });
       const dados = await resposta.json();
       setAlunos(Array.isArray(dados) ? dados.filter(a => a.status === 'Ativo' && a.mensalidade) : []);
@@ -126,11 +126,11 @@ export default function Financeiro() {
       const [resposta, resumoResp] = await Promise.all([
         fetch(`${API_URL}/api/financeiro?${params.toString()}`, {
           method: 'GET',
-          headers: { 'Authorization': `Bearer ${token}` }
+          headers: { 'Authorization': `Bearer ${localStorage.getItem('@sonatta:token')}` }
         }),
         fetch(`${API_URL}/api/financeiro/resumo?${params.toString()}`, {
           method: 'GET',
-          headers: { 'Authorization': `Bearer ${token}` }
+          headers: { 'Authorization': `Bearer ${localStorage.getItem('@sonatta:token')}` }
         })
       ]);
 
@@ -184,7 +184,7 @@ export default function Financeiro() {
     const token = localStorage.getItem('@sonatta:token');
     if (token) {
       fetch(`${API_URL}/api/escola`, {
-        headers: { 'Authorization': `Bearer ${token}` }
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('@sonatta:token')}` }
       })
         .then(r => r.json())
         .then(data => {
@@ -201,7 +201,7 @@ export default function Financeiro() {
     try {
       const resProfs = await fetch(`${API_URL}/api/professores`, {
         method: 'GET',
-        headers: { 'Authorization': `Bearer ${token}` }
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('@sonatta:token')}` }
       });
       if (!resProfs.ok) throw new Error();
       const profs = await resProfs.json();
@@ -209,7 +209,7 @@ export default function Financeiro() {
       const promessas = profs.map(async (prof) => {
         const resFin = await fetch(`${API_URL}/api/professores/${prof.id}/financeiro?mes=${mesFiltro}&ano=${anoFiltro}`, {
           method: 'GET',
-          headers: { 'Authorization': `Bearer ${token}` }
+          headers: { 'Authorization': `Bearer ${localStorage.getItem('@sonatta:token')}` }
         });
         if (resFin.ok) {
           return await resFin.json();
@@ -244,7 +244,7 @@ export default function Financeiro() {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
+          'Authorization': `Bearer ${localStorage.getItem('@sonatta:token')}`
         },
         body: JSON.stringify({
           mes: mesFiltro,
@@ -326,7 +326,7 @@ export default function Financeiro() {
     try {
       const resposta = await fetch(`${API_URL}/api/financeiro/aluno-${alunoId}/status`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('@sonatta:token')}` },
         body: JSON.stringify({ status: novoStatus, mes: mesFiltro, ano: anoFiltro })
       });
       if (resposta.ok) {
@@ -370,7 +370,7 @@ export default function Financeiro() {
     try {
       const resposta = await fetch(`${API_URL}/api/financeiro/${idFatura}/desmembrar`, {
         method: 'POST',
-        headers: { 'Authorization': `Bearer ${token}` }
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('@sonatta:token')}` }
       });
       if (resposta.ok) {
         setToastFeedback({ isVisible: true, message: 'Lote desmembrado com sucesso!', type: 'sucesso' });
@@ -396,7 +396,7 @@ export default function Financeiro() {
     try {
       const resposta = await fetch(`${API_URL}/api/financeiro/${id}`, {
         method: 'DELETE',
-        headers: { 'Authorization': `Bearer ${token}` }
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('@sonatta:token')}` }
       });
       if (resposta.ok) {
         setToastFeedback({ isVisible: true, message: 'Lançamento excluído com sucesso!', type: 'sucesso' });
@@ -419,7 +419,7 @@ export default function Financeiro() {
     try {
       const resposta = await fetch(`${API_URL}/api/financeiro/${id}/status`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('@sonatta:token')}` },
         body: JSON.stringify({ status: novoStatus })
       });
       if (resposta.ok) {
@@ -434,7 +434,7 @@ export default function Financeiro() {
     try {
       const resposta = await fetch(`${API_URL}/api/financeiro/${id}/gerar-asaas`, {
         method: 'POST',
-        headers: { 'Authorization': `Bearer ${token}` }
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('@sonatta:token')}` }
       });
       const data = await resposta.json();
       if (resposta.ok) {
@@ -455,7 +455,7 @@ export default function Financeiro() {
     try {
       const resposta = await fetch(`${API_URL}/api/financeiro/aluno-${alunoId}/gerar-mensalidade`, {
         method: 'POST',
-        headers: { 'Authorization': `Bearer ${token}` }
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('@sonatta:token')}` }
       });
       const data = await resposta.json();
       if (resposta.ok) {
@@ -478,7 +478,7 @@ export default function Financeiro() {
     try {
       const resposta = await fetch(`${API_URL}/api/financeiro/gerar-lote`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('@sonatta:token')}` },
         body: JSON.stringify({ mes: mesFiltro, ano: anoFiltro })
       });
       const data = await resposta.json();
@@ -526,7 +526,7 @@ export default function Financeiro() {
         // Editar lançamento existente
         const resposta = await fetch(`${API_URL}/api/financeiro/${editandoId}`, {
           method: 'PUT',
-          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('@sonatta:token')}` },
           body: JSON.stringify(payload)
         });
 
@@ -539,7 +539,7 @@ export default function Financeiro() {
         // Criar novo lançamento
         const resposta = await fetch(`${API_URL}/api/financeiro`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('@sonatta:token')}` },
           body: JSON.stringify(payload)
         });
 
@@ -565,7 +565,7 @@ export default function Financeiro() {
       try {
         const resposta = await fetch(`${API_URL}/api/financeiro/${id}`, {
           method: 'DELETE',
-          headers: { 'Authorization': `Bearer ${token}` }
+          headers: { 'Authorization': `Bearer ${localStorage.getItem('@sonatta:token')}` }
         });
 
         if (resposta.ok) {

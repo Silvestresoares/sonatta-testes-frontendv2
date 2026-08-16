@@ -77,7 +77,7 @@ export default function AgendamentoAulaModal({ isOpen, onClose, initialData = nu
     setCarregandoSalas(true);
     try {
       const resposta = await fetch(`${API_URL}/api/salas`, {
-        headers: { 'Authorization': `Bearer ${token}` }
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('@sonatta:token')}` }
       });
       if (resposta.ok) {
         const dados = await resposta.json();
@@ -98,7 +98,7 @@ export default function AgendamentoAulaModal({ isOpen, onClose, initialData = nu
     setCarregandoTurmas(true);
     try {
       const resposta = await fetch(`${API_URL}/api/turmas`, {
-        headers: { 'Authorization': `Bearer ${token}` }
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('@sonatta:token')}` }
       });
       if (resposta.ok) {
         const dados = await resposta.json();
@@ -115,7 +115,7 @@ export default function AgendamentoAulaModal({ isOpen, onClose, initialData = nu
     setCarregandoAlunos(true);
     try {
       const resposta = await fetch(`${API_URL}/api/alunos`, {
-        headers: { 'Authorization': `Bearer ${token}` }
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('@sonatta:token')}` }
       });
       if (resposta.ok) {
         const dados = await resposta.json();
@@ -131,7 +131,7 @@ export default function AgendamentoAulaModal({ isOpen, onClose, initialData = nu
   const carregarProfessores = async () => {
     try {
       const resposta = await fetch(`${API_URL}/api/professores`, {
-        headers: { 'Authorization': `Bearer ${token}` }
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('@sonatta:token')}` }
       });
       if (resposta.ok) {
         const dados = await resposta.json();
@@ -207,7 +207,7 @@ export default function AgendamentoAulaModal({ isOpen, onClose, initialData = nu
         method: method,
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
+          'Authorization': `Bearer ${localStorage.getItem('@sonatta:token')}`
         },
         body: JSON.stringify(payload)
       });
@@ -222,7 +222,7 @@ export default function AgendamentoAulaModal({ isOpen, onClose, initialData = nu
               method: method,
               headers: {
                 'Content-Type': 'application/json',
-                'Authorization': `Bearer ${token}`
+                'Authorization': `Bearer ${localStorage.getItem('@sonatta:token')}`
               },
               body: JSON.stringify(payload)
             });

@@ -68,7 +68,7 @@ export default function MinhaAgenda({ professorId }) {
 
     try {
       const resposta = await fetch(`${API_URL}/api/professores/${profId}/agenda?mes=${mesAtual}&ano=${anoAtual}`, {
-        headers: { Authorization: `Bearer ${token}` }
+        headers: { Authorization: `Bearer ${localStorage.getItem('@sonatta:token')}` }
       });
 
       if (!resposta.ok) {
@@ -90,7 +90,7 @@ export default function MinhaAgenda({ professorId }) {
     setCarregandoPonto(true);
     try {
       const res = await fetch(`${API_URL}/api/professores/${profId}/ponto/hoje`, {
-        headers: { Authorization: `Bearer ${token}` }
+        headers: { Authorization: `Bearer ${localStorage.getItem('@sonatta:token')}` }
       });
       if (res.ok) {
         const json = await res.json();
@@ -109,7 +109,7 @@ export default function MinhaAgenda({ professorId }) {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`
+          Authorization: `Bearer ${localStorage.getItem('@sonatta:token')}`
         },
         body: JSON.stringify({ tipo })
       });

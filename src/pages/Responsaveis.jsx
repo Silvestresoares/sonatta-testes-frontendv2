@@ -31,7 +31,7 @@ export default function Responsaveis() {
 
     try {
       const resposta = await fetch(`${API_URL}/api/responsaveis`, {
-        headers: { 'Authorization': `Bearer ${token}` }
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('@sonatta:token')}` }
       });
       if (resposta.ok) {
         const dados = await resposta.json();
@@ -106,7 +106,7 @@ export default function Responsaveis() {
         method: metodo,
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
+          'Authorization': `Bearer ${localStorage.getItem('@sonatta:token')}`
         },
         body: JSON.stringify(payload)
       });
@@ -140,7 +140,7 @@ export default function Responsaveis() {
     try {
       const resposta = await fetch(`${API_URL}/api/responsaveis/${respDeletando.id}`, {
         method: 'DELETE',
-        headers: { 'Authorization': `Bearer ${token}` }
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('@sonatta:token')}` }
       });
 
       if (resposta.ok) {

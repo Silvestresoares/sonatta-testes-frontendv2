@@ -28,7 +28,7 @@ export default function LocacaoSalas() {
   const { data: locacoes = [], isLoading } = useQuery({
     queryKey: ['locacoesSalas'],
     queryFn: async () => {
-      const res = await fetch(`${API_URL}/api/locacoes`, { headers: { 'Authorization': `Bearer ${token}` } });
+      const res = await fetch(`${API_URL}/api/locacoes`, { headers: { 'Authorization': `Bearer ${localStorage.getItem('@sonatta:token')}` } });
       if (!res.ok) throw new Error('Erro ao carregar locações');
       return res.json();
     },
@@ -39,7 +39,7 @@ export default function LocacaoSalas() {
   const { data: salas = [] } = useQuery({
     queryKey: ['salas'],
     queryFn: async () => {
-      const res = await fetch(`${API_URL}/api/salas`, { headers: { 'Authorization': `Bearer ${token}` } });
+      const res = await fetch(`${API_URL}/api/salas`, { headers: { 'Authorization': `Bearer ${localStorage.getItem('@sonatta:token')}` } });
       if (!res.ok) throw new Error('Erro ao carregar salas');
       const json = await res.json();
       return Array.isArray(json) ? json : (json.dados || []);
@@ -53,7 +53,7 @@ export default function LocacaoSalas() {
       const metodo = idSendoEditado ? 'PUT' : 'POST';
       const res = await fetch(url, {
         method: metodo,
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('@sonatta:token')}` },
         body: JSON.stringify(dados)
       });
       if (!res.ok) throw new Error('Erro ao salvar');
@@ -71,7 +71,7 @@ export default function LocacaoSalas() {
     mutationFn: async (id: number) => {
       const res = await fetch(`${API_URL}/api/locacoes/${id}`, {
         method: 'DELETE',
-        headers: { 'Authorization': `Bearer ${token}` }
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('@sonatta:token')}` }
       });
       if (!res.ok) throw new Error('Erro ao excluir');
     },
@@ -86,7 +86,7 @@ export default function LocacaoSalas() {
     mutationFn: async ({ id, status_pagamento }: { id: number, status_pagamento: string }) => {
       const res = await fetch(`${API_URL}/api/locacoes/${id}/pagamento`, {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('@sonatta:token')}` },
         body: JSON.stringify({ status_pagamento })
       });
       if (!res.ok) throw new Error('Erro ao atualizar status');

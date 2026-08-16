@@ -20,7 +20,7 @@ export default function MeusRecebimentos({ professorId }) {
     setErro(null);
     try {
       const resposta = await fetch(`${API_URL}/api/professores/${professorId}/financeiro?mes=${mesAtual}&ano=${anoAtual}`, {
-        headers: { 'Authorization': `Bearer ${token}` }
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('@sonatta:token')}` }
       });
       if (!resposta.ok) throw new Error('Erro ao carregar recebimentos');
       const json = await resposta.json();

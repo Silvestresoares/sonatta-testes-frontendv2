@@ -34,7 +34,7 @@ export default function AulasExperimentais() {
   const { data: aulas = [], isLoading: carregandoAulas } = useQuery({
     queryKey: ['aulasExperimentais'],
     queryFn: async () => {
-      const res = await fetch(`${API_URL}/api/aulas-experimentais?arquivados=${mostrarArquivados}`, { headers: { 'Authorization': `Bearer ${token}` } });
+      const res = await fetch(`${API_URL}/api/aulas-experimentais?arquivados=${mostrarArquivados}`, { headers: { 'Authorization': `Bearer ${localStorage.getItem('@sonatta:token')}` } });
       if (!res.ok) throw new Error('Erro ao carregar aulas');
       const json = await res.json();
       return json.dados || [];
@@ -51,7 +51,7 @@ export default function AulasExperimentais() {
   const { data: professores = [] } = useQuery({
     queryKey: ['professores'],
     queryFn: async () => {
-      const res = await fetch(`${API_URL}/api/professores`, { headers: { 'Authorization': `Bearer ${token}` } });
+      const res = await fetch(`${API_URL}/api/professores`, { headers: { 'Authorization': `Bearer ${localStorage.getItem('@sonatta:token')}` } });
       if (!res.ok) throw new Error('Erro ao carregar professores');
       const json = await res.json();
       return Array.isArray(json) ? json : (json.dados || []);
@@ -62,7 +62,7 @@ export default function AulasExperimentais() {
   const { data: salas = [] } = useQuery({
     queryKey: ['salasFisicas'],
     queryFn: async () => {
-      const res = await fetch(`${API_URL}/api/salas`, { headers: { 'Authorization': `Bearer ${token}` } });
+      const res = await fetch(`${API_URL}/api/salas`, { headers: { 'Authorization': `Bearer ${localStorage.getItem('@sonatta:token')}` } });
       if (!res.ok) throw new Error('Erro ao carregar salas');
       return await res.json();
     },
@@ -76,7 +76,7 @@ export default function AulasExperimentais() {
       const url = idSendoEditado ? `${API_URL}/api/aulas-experimentais/${idSendoEditado}` : `${API_URL}/api/aulas-experimentais`;
       const res = await fetch(url, {
         method: metodo,
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('@sonatta:token')}` },
         body: JSON.stringify(dados)
       });
       if (!res.ok) {
@@ -97,7 +97,7 @@ export default function AulasExperimentais() {
     mutationFn: async ({ id, status }) => {
       const res = await fetch(`${API_URL}/api/aulas-experimentais/${id}/status`, {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('@sonatta:token')}` },
         body: JSON.stringify({ status })
       });
       if (!res.ok) throw new Error('Erro ao mover contato');
@@ -125,7 +125,7 @@ export default function AulasExperimentais() {
     mutationFn: async ({ id, situacao_aula }) => {
       const res = await fetch(`${API_URL}/api/aulas-experimentais/${id}/situacao`, {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('@sonatta:token')}` },
         body: JSON.stringify({ situacao_aula })
       });
       if (!res.ok) throw new Error('Erro ao atualizar situação');
@@ -138,7 +138,7 @@ export default function AulasExperimentais() {
     mutationFn: async (id) => {
       const res = await fetch(`${API_URL}/api/aulas-experimentais/${id}`, {
         method: 'DELETE',
-        headers: { 'Authorization': `Bearer ${token}` }
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('@sonatta:token')}` }
       });
       if (!res.ok) throw new Error('Erro ao excluir');
     },
@@ -153,7 +153,7 @@ export default function AulasExperimentais() {
     mutationFn: async ({ id, arquivado }) => {
       const res = await fetch(`${API_URL}/api/aulas-experimentais/${id}/arquivar`, {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('@sonatta:token')}` },
         body: JSON.stringify({ arquivado })
       });
       if (!res.ok) throw new Error('Erro ao arquivar');
@@ -168,7 +168,7 @@ export default function AulasExperimentais() {
     mutationFn: async (id) => {
       const res = await fetch(`${API_URL}/api/aulas-experimentais/${id}/converter`, {
         method: 'POST',
-        headers: { 'Authorization': `Bearer ${token}` }
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('@sonatta:token')}` }
       });
       if (!res.ok) throw new Error('Erro ao converter lead');
       return res.json();
@@ -185,7 +185,7 @@ export default function AulasExperimentais() {
     mutationFn: async (aulaModificada) => {
       const res = await fetch(`${API_URL}/api/aulas-experimentais/${aulaModificada.id}`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('@sonatta:token')}` },
         body: JSON.stringify(aulaModificada)
       });
       if (!res.ok) throw new Error('Erro ao salvar anotação');

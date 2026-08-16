@@ -30,7 +30,7 @@ export default function SuperAdmin({ onLogout }) {
     try {
       setLoading(true);
       await fetch(`${API_URL}/api/super-admin/escolas`, {
-        headers: { 'Authorization': `Bearer ${token}` }
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('@sonatta:token')}` }
       })
         .then(res => res.json())
         .then(data => {
@@ -53,7 +53,7 @@ export default function SuperAdmin({ onLogout }) {
   const buscarAvisos = () => {
     const token = localStorage.getItem('@sonatta:token');
     fetch(`${API_URL}/api/super-admin/avisos`, {
-      headers: { 'Authorization': `Bearer ${token}` }
+      headers: { 'Authorization': `Bearer ${localStorage.getItem('@sonatta:token')}` }
     })
       .then(res => res.json())
       .then(data => setAvisos(data))
@@ -71,7 +71,7 @@ export default function SuperAdmin({ onLogout }) {
     try {
       const res = await fetch(`${API_URL}/api/super-admin/avisos`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('@sonatta:token')}` },
         body: JSON.stringify({ mensagem: novoAvisoTexto, tipo: novoAvisoTipo })
       });
       if (res.ok) {
@@ -87,7 +87,7 @@ export default function SuperAdmin({ onLogout }) {
     try {
       await fetch(`${API_URL}/api/super-admin/avisos/${id}/alternar`, {
         method: 'PATCH',
-        headers: { 'Authorization': `Bearer ${token}` }
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('@sonatta:token')}` }
       });
       buscarAvisos();
     } catch (err) { // eslint-disable-line no-unused-vars
@@ -137,7 +137,7 @@ export default function SuperAdmin({ onLogout }) {
   const buscarFaturas = async (escolaId) => {
     try {
       const res = await fetch(`${API_URL}/api/super-admin/escolas/${escolaId}/assinaturas`, {
-        headers: { 'Authorization': `Bearer ${token}` }
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('@sonatta:token')}` }
       });
       if (res.ok) {
         const data = await res.json();
@@ -154,7 +154,7 @@ export default function SuperAdmin({ onLogout }) {
         method: 'PUT',
         headers: { 
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}` 
+          'Authorization': `Bearer ${localStorage.getItem('@sonatta:token')}` 
         },
         body: JSON.stringify({
           plano: planoSelecionado,
@@ -187,7 +187,7 @@ export default function SuperAdmin({ onLogout }) {
         method: 'POST',
         headers: { 
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}` 
+          'Authorization': `Bearer ${localStorage.getItem('@sonatta:token')}` 
         },
         body: JSON.stringify({ data_vencimento: dataVencimento })
       });
@@ -216,7 +216,7 @@ export default function SuperAdmin({ onLogout }) {
         method: 'POST',
         headers: { 
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}` 
+          'Authorization': `Bearer ${localStorage.getItem('@sonatta:token')}` 
         },
         body: JSON.stringify({ data_vencimento: dataVencimento })
       });
@@ -250,7 +250,7 @@ export default function SuperAdmin({ onLogout }) {
     try {
       const res = await fetch(`${API_URL}/api/super-admin/escolas/faturas/${faturaId}/marcar-pago`, {
         method: 'PATCH',
-        headers: { 'Authorization': `Bearer ${token}` }
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('@sonatta:token')}` }
       });
       
       const data = await res.json();
@@ -272,7 +272,7 @@ export default function SuperAdmin({ onLogout }) {
     try {
       const res = await fetch(`${API_URL}/api/super-admin/escolas/faturas/${faturaId}`, {
         method: 'DELETE',
-        headers: { 'Authorization': `Bearer ${token}` }
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('@sonatta:token')}` }
       });
       
       const data = await res.json();
@@ -290,7 +290,7 @@ export default function SuperAdmin({ onLogout }) {
     try {
       const res = await fetch(`${API_URL}/api/super-admin/escolas/${id}/alternar-status`, {
         method: 'PATCH',
-        headers: { 'Authorization': `Bearer ${token}` }
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('@sonatta:token')}` }
       });
       if (res.ok) {
         buscarEscolas();

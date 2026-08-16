@@ -55,7 +55,7 @@ export default function Dashboard() {
     try {
       const resposta = await fetch(`${API_URL}/api/dashboard/forcar-virada-mes`, {
         method: 'POST',
-        headers: { 'Authorization': `Bearer ${token}` }
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('@sonatta:token')}` }
       });
       
       const dados = await resposta.json();
@@ -83,7 +83,7 @@ export default function Dashboard() {
       
       // Carregar métricas gerais
       const resposta = await fetch(`${API_URL}/api/dashboard`, {
-        headers: { 'Authorization': `Bearer ${token}` }
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('@sonatta:token')}` }
       });
       
       if (!resposta.ok) throw new Error("Falha ao buscar métricas");
@@ -94,7 +94,7 @@ export default function Dashboard() {
       // Carrega indicadores de professores em paralelo
       try {
         const resProf = await fetch(`${API_URL}/api/dashboard/professores`, {
-          headers: { 'Authorization': `Bearer ${token}` }
+          headers: { 'Authorization': `Bearer ${localStorage.getItem('@sonatta:token')}` }
         });
         if (resProf.ok) setMetricasProfessores(await resProf.json());
       } catch (erroProfessores) {
@@ -104,7 +104,7 @@ export default function Dashboard() {
       // Carrega alertas de frequência em paralelo
       try {
         const resFreq = await fetch(`${API_URL}/api/frequencia-turma`, {
-          headers: { 'Authorization': `Bearer ${token}` }
+          headers: { 'Authorization': `Bearer ${localStorage.getItem('@sonatta:token')}` }
         });
         if (resFreq.ok) {
           const dadosFreq = await resFreq.json();
