@@ -426,14 +426,16 @@ export default function Alunos() {
         }
       });
 
-      if (resposta.ok) {
+      if (resposta.ok || resposta.status === 404) {
+        // 404 = aluno já foi removido diretamente do banco — objetivo alcançado
         // Filtra e remove da tela imediatamente
         setAlunos(prev => prev.filter(aluno => aluno.id !== alunoDeletando.id));
         // 📢 Notifica todas as páginas sobre a exclusão
         canalComunicacao.postMessage('atualizar_dados');
         alert("Aluno excluído com sucesso!");
       } else {
-        alert("Erro ao excluir aluno do banco.");
+        const corpo = await resposta.json().catch(() => ({}));
+        alert(corpo.erro || "Erro ao excluir aluno do banco.");
       }
     } catch (error) {
       console.error("Erro na requisição de exclusão:", error);
