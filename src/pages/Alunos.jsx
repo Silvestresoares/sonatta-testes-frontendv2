@@ -1454,10 +1454,7 @@ function ModalVisualizacaoAluno({ aluno, onClose, onEditar }) {
                   <p className="text-emerald-500/70 text-xs">Login</p>
                   <p className="text-zinc-200 font-medium">{loginAcesso || <span className="text-rose-400 text-xs">⚠️ Cadastre Email ou CPF</span>}</p>
                 </div>
-                <div className="col-span-1 sm:col-span-2">
-                  <p className="text-emerald-500/70 text-xs">🔐 Senha Provisória</p>
-                  <p className="text-zinc-300 text-sm">Uma senha segura será gerada e enviada por email. Altere na primeira vez que acessar.</p>
-                </div>
+
               </div>
 
               <div className="pt-3 border-t border-emerald-900/30 relative z-10">
