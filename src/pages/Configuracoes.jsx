@@ -18,6 +18,10 @@ export default function Configuracoes() {
   const [fazendoUpload, setFazendoUpload] = useState(false);
   const fileInputRef = useRef(null);
   
+  const [calendarLink, setCalendarLink] = useState('');
+  const [gerandoLink, setGerandoLink] = useState(false);
+  const [linkCopiado, setLinkCopiado] = useState(false);
+  
   const [formData, setFormData] = useState({
     nome_escola: '',
     documento: '',
@@ -50,7 +54,36 @@ export default function Configuracoes() {
 
   useEffect(() => {
     carregarDadosEscola();
+    // (ICS via webcal não usa redirect de oauth)
   }, []);
+
+  const gerarLinkCalendario = async () => {
+    try {
+      setGerandoLink(true);
+      const res = await fetch(`${API_URL}/api/calendar/generate-link`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('@sonatta:token')}` }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setCalendarLink(data.link);
+      } else {
+        setErro('Erro ao gerar link do calendário.');
+        window.scrollTo(0, 0);
+      }
+    } catch (err) {
+      setErro('Falha na comunicação com o servidor.');
+      window.scrollTo(0, 0);
+    } finally {
+      setGerandoLink(false);
+    }
+  };
+
+  const copiarLink = () => {
+    navigator.clipboard.writeText(calendarLink);
+    setLinkCopiado(true);
+    setTimeout(() => setLinkCopiado(false), 2000);
+  };
 
   const carregarDadosEscola = async () => {
     try {
@@ -453,6 +486,8 @@ export default function Configuracoes() {
               </div>
             </div>
 
+
+
             {/* Configuração de Contratos */}
             <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-6">
               <h2 className="text-lg font-semibold text-white mb-4 border-b border-zinc-800 pb-2 flex items-center gap-2">
@@ -790,6 +825,54 @@ export default function Configuracoes() {
                         step="0.01"
                       />
                     </div>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Sincronização de Calendário */}
+            <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-6">
+              <h2 className="text-lg font-semibold text-white mb-4 border-b border-zinc-800 pb-2 flex items-center gap-2">
+                <Calendar size={20} className="text-zinc-400"/>
+                Sincronização de Calendário
+              </h2>
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                <div className="flex-1">
+                  <p className="text-sm text-zinc-300">
+                    Gere um link para adicionar todas as aulas da escola diretamente no seu <b>Google Agenda</b>, <b>Apple Calendar</b> ou <b>Outlook</b>.
+                  </p>
+                  <p className="text-xs text-zinc-500 mt-1">Este link não expira e é exclusivo para sua conta de administrador.</p>
+                </div>
+                
+                <div className="shrink-0 w-full sm:w-auto">
+                  {calendarLink ? (
+                    <div className="flex flex-col gap-2 w-full">
+                      <div className="flex items-center bg-zinc-950 border border-zinc-700 rounded-lg overflow-hidden w-full sm:w-[350px]">
+                        <input 
+                          type="text" 
+                          readOnly 
+                          value={calendarLink} 
+                          className="bg-transparent text-zinc-300 text-xs px-3 py-2 w-full focus:outline-none"
+                        />
+                        <button 
+                          onClick={copiarLink}
+                          type="button"
+                          className="bg-zinc-800 hover:bg-zinc-700 p-2 text-white transition-colors border-l border-zinc-700"
+                          title="Copiar Link"
+                        >
+                          {linkCopiado ? <CheckCircle size={16} className="text-emerald-400" /> : <Link size={16} />}
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <button 
+                      onClick={gerarLinkCalendario}
+                      disabled={gerandoLink}
+                      type="button"
+                      className="w-full sm:w-auto px-5 py-2 bg-emerald-500 hover:bg-emerald-600 disabled:opacity-50 text-zinc-950 font-bold rounded-lg transition-colors flex items-center justify-center shadow-lg"
+                    >
+                      {gerandoLink ? 'Gerando...' : 'Sincronizar com minha agenda pessoal'}
+                    </button>
                   )}
                 </div>
               </div>

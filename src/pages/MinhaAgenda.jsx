@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { RefreshCw, Calendar as CalendarIcon, Clock, LogIn, LogOut } from 'lucide-react';
+import { RefreshCw, Calendar as CalendarIcon, Clock, LogIn, LogOut, CheckCircle2, Copy } from 'lucide-react';
 import RegistroAulaModal from '../components/RegistroAulaModal';
 import RegistroTurmaModal from '../components/RegistroTurmaModal';
 import CalendarioVisual from '../components/CalendarioVisual';
@@ -53,8 +53,40 @@ export default function MinhaAgenda({ professorId }) {
   const [historicoAberto, setHistoricoAberto] = useState(false);
   const [ajusteAberto, setAjusteAberto] = useState(false);
 
+  const [calendarLink, setCalendarLink] = useState('');
+  const [gerandoLink, setGerandoLink] = useState(false);
+  const [erroCalendar, setErroCalendar] = useState(null);
+  const [linkCopiado, setLinkCopiado] = useState(false);
+
   const token = localStorage.getItem('@sonatta:token');
   const profId = professorId && professorId !== '' ? Number(professorId) : null;
+
+  const gerarLinkCalendario = async () => {
+    setGerandoLink(true);
+    setErroCalendar(null);
+    try {
+      const res = await fetch(`${API_URL}/api/calendar/generate-link`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setCalendarLink(data.link);
+      } else {
+        setErroCalendar('Erro ao gerar link do calendário.');
+      }
+    } catch (err) {
+      setErroCalendar('Falha na comunicação com o servidor.');
+    } finally {
+      setGerandoLink(false);
+    }
+  };
+
+  const copiarLink = () => {
+    navigator.clipboard.writeText(calendarLink);
+    setLinkCopiado(true);
+    setTimeout(() => setLinkCopiado(false), 2000);
+  };
 
   const carregarAgenda = async () => {
     if (!profId) {
@@ -268,9 +300,37 @@ export default function MinhaAgenda({ professorId }) {
     <div className="flex-1 flex flex-col h-full bg-slate-50 dark:bg-zinc-950 text-zinc-900 dark:text-white overflow-hidden">
       <div className="border-b border-zinc-200 dark:border-zinc-800 p-6">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <div>
-            <h1 className="text-2xl font-bold text-emerald-400">📅 Minha Agenda</h1>
-            <p className="text-xs text-zinc-500 mt-1">Visualize e registre suas aulas.</p>
+          <div className="flex items-center gap-4">
+            <div>
+              <h1 className="text-2xl font-bold text-emerald-400">📅 Minha Agenda</h1>
+              <p className="text-xs text-zinc-500 mt-1">Visualize e registre suas aulas.</p>
+            </div>
+            
+            <div className="ml-2 sm:ml-4 border-l border-zinc-200 dark:border-zinc-800 pl-4">
+              {calendarLink ? (
+                <div className="flex items-center bg-white dark:bg-black/40 border border-zinc-300 dark:border-zinc-700 rounded-lg overflow-hidden max-w-[180px] sm:max-w-[220px]">
+                  <input
+                    type="text"
+                    readOnly
+                    value={calendarLink}
+                    className="bg-transparent text-zinc-700 dark:text-zinc-300 text-[10px] px-2 py-1.5 w-full focus:outline-none"
+                  />
+                  <button onClick={copiarLink} className="bg-zinc-200 dark:bg-zinc-800 hover:bg-zinc-300 dark:hover:bg-zinc-700 p-1.5 text-zinc-700 dark:text-white transition-colors" title="Copiar Link">
+                    {linkCopiado ? <CheckCircle2 size={12} className="text-emerald-500" /> : <Copy size={12} />}
+                  </button>
+                </div>
+              ) : (
+                <button
+                  onClick={gerarLinkCalendario}
+                  disabled={gerandoLink}
+                  className="flex items-center gap-1.5 bg-emerald-500/10 text-emerald-600 dark:text-emerald-500 hover:bg-emerald-500/20 border border-emerald-500/20 rounded-lg px-3 py-1.5 text-xs font-medium transition-colors disabled:opacity-50"
+                  title="Sincronizar com Google Agenda / Apple Calendar"
+                >
+                  <CalendarIcon size={14} />
+                  {gerandoLink ? 'Gerando...' : 'Sincronizar com minha agenda pessoal'}
+                </button>
+              )}
+            </div>
           </div>
           <div className="flex flex-wrap gap-2 items-center">
             {carregandoPonto ? (
@@ -319,6 +379,7 @@ export default function MinhaAgenda({ professorId }) {
           </div>
         </div>
       </div>
+
 
       <div className="flex-1 overflow-auto p-6">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">

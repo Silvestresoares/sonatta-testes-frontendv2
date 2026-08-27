@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { Calendar, DollarSign, User, CheckCircle2, AlertCircle, BookOpen, Headphones, FileImage, FileText, Download, Folder, Music, Star, Award } from 'lucide-react';
+import { Calendar, DollarSign, User, CheckCircle2, AlertCircle, BookOpen, Headphones, FileImage, FileText, Download, Folder, Music, Star, Award, Copy } from 'lucide-react';
 import PortalLayout from '../../components/PortalLayout';
 import { useNavigate } from 'react-router-dom';
 import { QRCodeSVG } from 'qrcode.react';
@@ -70,6 +70,12 @@ export default function DashboardPortal() {
   const [modalAvisoAulaAberto, setModalAvisoAulaAberto] = useState(false);
   const [aulasHoje, setAulasHoje] = useState([]);
 
+  // Estados para Google Agenda (ICS)
+  const [calendarLink, setCalendarLink] = useState('');
+  const [gerandoLink, setGerandoLink] = useState(false);
+  const [erroCalendar, setErroCalendar] = useState('');
+  const [linkCopiado, setLinkCopiado] = useState(false);
+
   const token = localStorage.getItem('@sonatta:portal_token');
 
   const isBloqueadoInadimplencia = useMemo(() => {
@@ -109,6 +115,33 @@ export default function DashboardPortal() {
       console.error('Erro ao verificar contrato:', err);
     }
   }, [token]);
+
+  const gerarLinkCalendario = async () => {
+    try {
+      setGerandoLink(true);
+      setErroCalendar('');
+      const res = await fetch(`${API_URL}/api/calendar/generate-link`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setCalendarLink(data.link);
+      } else {
+        setErroCalendar('Erro ao gerar link do calendário.');
+      }
+    } catch (err) {
+      setErroCalendar('Falha na comunicação com o servidor.');
+    } finally {
+      setGerandoLink(false);
+    }
+  };
+
+  const copiarLink = () => {
+    navigator.clipboard.writeText(calendarLink);
+    setLinkCopiado(true);
+    setTimeout(() => setLinkCopiado(false), 2000);
+  };
 
   const carregarPerfil = useCallback(async () => {
     try {
@@ -314,7 +347,7 @@ export default function DashboardPortal() {
               <p className="text-zinc-400">Leia atentamente os termos abaixo para liberar o acesso ao sistema.</p>
             </div>
           </div>
-          
+
           <div className="bg-zinc-950 border border-zinc-800 rounded-xl p-6 flex-1 overflow-y-auto mb-6 text-sm text-zinc-300 leading-relaxed custom-scrollbar whitespace-pre-wrap">
             {dadosContrato.textoContrato}
           </div>
@@ -345,11 +378,11 @@ export default function DashboardPortal() {
                 {assinandoContrato ? 'Assinando...' : 'Li, Concordo e Assino'}
               </button>
             </div>
-            <button 
+            <button
               onClick={() => {
                 localStorage.removeItem('@sonatta:portal_token');
                 window.location.href = '/portal/login';
-              }} 
+              }}
               className="text-sm text-zinc-500 hover:text-white transition-colors"
             >
               Sair do Sistema (Não aceitar)
@@ -472,6 +505,57 @@ export default function DashboardPortal() {
             </div>
           )}
         </div>
+
+        {/* Integração Calendário (ICS) */}
+        {dados?.tipo_usuario === 'aluno' && (
+          <div className="bg-zinc-900/60 backdrop-blur-md border border-white/10 rounded-xl p-6 shadow-lg flex flex-col sm:flex-row items-center justify-between gap-4">
+            <div className="flex items-start sm:items-center gap-4">
+              <div className="bg-emerald-500/20 text-emerald-400 p-3 rounded-full shrink-0 flex items-center justify-center shadow-md">
+                <Calendar size={28} />
+              </div>
+              <div>
+                <h3 className="text-white font-bold text-base flex items-center gap-2">
+                  Sincronizar com Meu Calendário
+                </h3>
+                <p className="text-zinc-400 text-xs sm:text-sm mt-1 max-w-xl">
+                  Gere um link para adicionar todas as suas aulas diretamente no <b>Google Agenda</b>, <b>Apple Calendar</b> ou <b>Outlook</b>.
+                </p>
+                {erroCalendar && <p className="text-rose-400 text-xs mt-2 font-semibold">{erroCalendar}</p>}
+              </div>
+            </div>
+
+            <div className="shrink-0 w-full sm:w-auto">
+              {calendarLink ? (
+                <div className="flex flex-col gap-2 w-full">
+                  <div className="flex items-center bg-black/40 border border-zinc-700 rounded-lg overflow-hidden w-full max-w-xs">
+                    <input
+                      type="text"
+                      readOnly
+                      value={calendarLink}
+                      className="bg-transparent text-zinc-300 text-xs px-3 py-2 w-full focus:outline-none"
+                    />
+                    <button
+                      onClick={copiarLink}
+                      className="bg-zinc-800 hover:bg-zinc-700 p-2 text-white transition-colors"
+                      title="Copiar Link"
+                    >
+                      {linkCopiado ? <CheckCircle2 size={16} className="text-emerald-400" /> : <Copy size={16} />}
+                    </button>
+                  </div>
+                  <p className="text-[10px] text-zinc-500 text-center sm:text-right">No Google Agenda: Configurações &gt; Adicionar agenda &gt; Do URL</p>
+                </div>
+              ) : (
+                <button
+                  onClick={gerarLinkCalendario}
+                  disabled={gerandoLink}
+                  className="w-full sm:w-auto px-5 py-2.5 bg-emerald-500 hover:bg-emerald-600 disabled:opacity-50 text-zinc-950 font-bold rounded-lg transition-colors flex items-center justify-center shadow-lg"
+                >
+                  {gerandoLink ? 'Gerando...' : 'Sincronizar com minha agenda pessoal'}
+                </button>
+              )}
+            </div>
+          </div>
+        )}
 
         {ehResponsavel && dados.dependentes.length > 0 && (
           <div className="bg-zinc-900/60 backdrop-blur-md border border-white/10 rounded-xl p-4 flex items-center justify-between shadow-lg">
@@ -664,12 +748,12 @@ export default function DashboardPortal() {
                           </div>
                           {item.descricao && <div className="text-xs text-zinc-500 mt-1 max-w-xs truncate">{item.descricao}</div>}
                           {item.professor_nome && <div className="text-xs text-teal-500/80 mt-1">Por: {item.professor_nome}</div>}
-                          
+
                           {item.tipo && item.tipo.includes('audio') && (
                             <div className="mt-2">
-                              <audio 
-                                controls 
-                                className="h-8 max-w-[200px] sm:max-w-xs w-full filter drop-shadow-md rounded outline-none" 
+                              <audio
+                                controls
+                                className="h-8 max-w-[200px] sm:max-w-xs w-full filter drop-shadow-md rounded outline-none"
                                 src={item.caminho_arquivo.startsWith('http') ? item.caminho_arquivo : `${API_URL}/uploads/${item.caminho_arquivo}`}
                               >
                                 O seu navegador não suporta áudio.
@@ -698,161 +782,161 @@ export default function DashboardPortal() {
 
           </div>
 
-            {/* Repertório Musical */}
-            <div className="bg-zinc-900/40 backdrop-blur-xl border border-white/10 rounded-2xl overflow-hidden shadow-2xl h-fit mt-6">
-              <div className="bg-fuchsia-500/10 border-b border-white/5 p-4 flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <Music className="text-fuchsia-400" size={24} />
-                  <h3 className="text-lg font-bold text-white">Repertório Musical</h3>
-                </div>
-              </div>
-
-              <div className="p-4">
-                {isBloqueadoInadimplencia ? (
-                  <div className="text-center py-6">
-                    <div className="text-3xl mb-2 text-red-500">🔒</div>
-                    <p className="text-red-400 text-sm font-bold">Acesso Suspenso</p>
-                    <p className="text-zinc-400 text-xs mt-1 px-4">Por favor, regularize as faturas pendentes na aba Financeiro para acessar o repertório.</p>
-                  </div>
-                ) : repertorio.length === 0 ? (
-                  <div className="text-center py-6">
-                    <div className="text-3xl mb-2">🎵</div>
-                    <p className="text-zinc-400 text-sm">Seu repertório aparecerá aqui.</p>
-                  </div>
-                ) : (
-                  <div className="space-y-3">
-                    {repertorio.map((musica) => (
-                      <div key={musica.id} className="bg-black/20 backdrop-blur-sm border border-white/5 rounded-xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:border-white/10 transition-colors shadow-inner">
-                        <div className="flex-1">
-                          <h4 className="font-bold text-zinc-200">{musica.nome_musica}</h4>
-                          <p className="text-xs text-zinc-400">{musica.artista || 'Desconhecido'}</p>
-                          {musica.link_partitura && (
-                            <a href={musica.link_partitura} target="_blank" rel="noreferrer" className="text-blue-400 text-xs hover:underline inline-block mt-1">Acessar Partitura/Áudio</a>
-                          )}
-                        </div>
-                        <span className={`text-[10px] uppercase font-bold px-2 py-1 rounded border ${musica.status === 'Concluído' ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' : musica.status === 'Praticando' ? 'bg-amber-500/10 text-amber-400 border-amber-500/20' : 'bg-zinc-500/10 text-zinc-400 border-zinc-500/20'}`}>
-                          {musica.status}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                )}
+          {/* Repertório Musical */}
+          <div className="bg-zinc-900/40 backdrop-blur-xl border border-white/10 rounded-2xl overflow-hidden shadow-2xl h-fit mt-6">
+            <div className="bg-fuchsia-500/10 border-b border-white/5 p-4 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <Music className="text-fuchsia-400" size={24} />
+                <h3 className="text-lg font-bold text-white">Repertório Musical</h3>
               </div>
             </div>
 
-            {/* Avaliações / Boletim */}
-            <div className="bg-zinc-900/40 backdrop-blur-xl border border-white/10 rounded-2xl overflow-hidden shadow-2xl h-fit mt-6">
-              <div className="bg-sky-500/10 border-b border-white/5 p-4 flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <Award className="text-sky-400" size={24} />
-                  <h3 className="text-lg font-bold text-white">Boletim Pedagógico</h3>
+            <div className="p-4">
+              {isBloqueadoInadimplencia ? (
+                <div className="text-center py-6">
+                  <div className="text-3xl mb-2 text-red-500">🔒</div>
+                  <p className="text-red-400 text-sm font-bold">Acesso Suspenso</p>
+                  <p className="text-zinc-400 text-xs mt-1 px-4">Por favor, regularize as faturas pendentes na aba Financeiro para acessar o repertório.</p>
                 </div>
-              </div>
-
-              <div className="p-4">
-                {isBloqueadoInadimplencia ? (
-                  <div className="text-center py-6">
-                    <div className="text-3xl mb-2 text-red-500">🔒</div>
-                    <p className="text-red-400 text-sm font-bold">Acesso Suspenso</p>
-                    <p className="text-zinc-400 text-xs mt-1 px-4">Por favor, regularize as faturas pendentes na aba Financeiro para acessar as avaliações.</p>
-                  </div>
-                ) : avaliacoes.length === 0 ? (
-                  <div className="text-center py-6">
-                    <div className="text-3xl mb-2">⭐</div>
-                    <p className="text-zinc-400 text-sm">Nenhum boletim lançado ainda.</p>
-                  </div>
-                ) : (
-                  <div className="space-y-4">
-                    {avaliacoes.map((av) => (
-                      <div key={av.id} className="bg-black/20 backdrop-blur-sm border border-white/5 rounded-xl p-5 hover:border-white/10 transition-colors shadow-inner">
-                        <div className="flex justify-between items-center mb-3">
-                          <h4 className="font-bold text-white">{av.periodo}</h4>
-                          <span className="text-xs text-zinc-500">{av.professor_nome}</span>
-                        </div>
-                        <div className="grid grid-cols-2 gap-2 text-sm mb-3">
-                          {[
-                            { l: 'Técnica', v: av.nota_tecnica },
-                            { l: 'Leitura', v: av.nota_leitura },
-                            { l: 'Repertório', v: av.nota_repertorio },
-                            { l: 'Musicalidade', v: av.nota_musicalidade }
-                          ].map(item => (
-                            <div key={item.l} className="bg-zinc-950 p-2 rounded flex justify-between items-center border border-zinc-800">
-                              <span className="text-xs text-zinc-400">{item.l}</span>
-                              {av.tipo_avaliacao === 'estrelas' ? (
-                                <div className="flex">
-                                  {[1,2,3,4,5].map(star => (
-                                    <Star key={star} size={12} className={star <= item.v ? 'text-amber-400 fill-amber-400' : 'text-zinc-600'} />
-                                  ))}
-                                </div>
-                              ) : (
-                                <span className="font-bold text-sky-400">{Number(item.v).toFixed(1)}</span>
-                              )}
-                            </div>
-                          ))}
-                        </div>
-                        {av.comentario_geral && (
-                          <div className="bg-sky-500/5 border border-sky-500/10 p-3 rounded text-sm text-zinc-300 italic">
-                            "{av.comentario_geral}"
-                          </div>
+              ) : repertorio.length === 0 ? (
+                <div className="text-center py-6">
+                  <div className="text-3xl mb-2">🎵</div>
+                  <p className="text-zinc-400 text-sm">Seu repertório aparecerá aqui.</p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {repertorio.map((musica) => (
+                    <div key={musica.id} className="bg-black/20 backdrop-blur-sm border border-white/5 rounded-xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:border-white/10 transition-colors shadow-inner">
+                      <div className="flex-1">
+                        <h4 className="font-bold text-zinc-200">{musica.nome_musica}</h4>
+                        <p className="text-xs text-zinc-400">{musica.artista || 'Desconhecido'}</p>
+                        {musica.link_partitura && (
+                          <a href={musica.link_partitura} target="_blank" rel="noreferrer" className="text-blue-400 text-xs hover:underline inline-block mt-1">Acessar Partitura/Áudio</a>
                         )}
                       </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* Eventos & Audições */}
-            <div className="bg-zinc-900/40 backdrop-blur-xl border border-white/10 rounded-2xl overflow-hidden shadow-2xl h-fit mt-6">
-              <div className="bg-fuchsia-500/10 border-b border-white/5 p-4 flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <Star className="text-fuchsia-400" size={24} />
-                  <h3 className="text-lg font-bold text-white">Próximos Eventos</h3>
+                      <span className={`text-[10px] uppercase font-bold px-2 py-1 rounded border ${musica.status === 'Concluído' ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' : musica.status === 'Praticando' ? 'bg-amber-500/10 text-amber-400 border-amber-500/20' : 'bg-zinc-500/10 text-zinc-400 border-zinc-500/20'}`}>
+                        {musica.status}
+                      </span>
+                    </div>
+                  ))}
                 </div>
-              </div>
+              )}
+            </div>
+          </div>
 
-              <div className="p-4">
-                {eventos.length === 0 ? (
-                  <div className="text-center py-6">
-                    <div className="text-3xl mb-2">🎭</div>
-                    <p className="text-zinc-400 text-sm">Nenhum evento agendado para você.</p>
-                  </div>
-                ) : (
-                  <div className="space-y-4">
-                    {eventos.map((ev) => {
-                      const dataFormatada = ev.data_evento ? new Date(ev.data_evento).toLocaleDateString('pt-BR') : '';
-                      return (
-                        <div key={ev.id} className="bg-black/20 backdrop-blur-sm border border-white/5 rounded-xl p-5 hover:border-white/10 transition-colors shadow-inner">
-                          <div className="flex justify-between items-start mb-3">
-                            <div>
-                              <h4 className="font-bold text-white text-lg">{ev.titulo}</h4>
-                              <div className="flex flex-wrap items-center gap-3 mt-1 text-xs text-zinc-400">
-                                <span className="flex items-center gap-1"><Calendar size={12} className="text-fuchsia-400"/> {dataFormatada} às {ev.horario}</span>
-                                {ev.local && <span>• {ev.local}</span>}
-                              </div>
-                            </div>
-                            <span className="text-[10px] font-bold px-2 py-1 rounded bg-fuchsia-500/10 text-fuchsia-400 uppercase tracking-wider">{ev.status}</span>
-                          </div>
-                          
-                          <div className="bg-zinc-950 p-3 rounded-lg border border-zinc-800 space-y-2 mt-4">
-                            <p className="text-xs text-zinc-500 uppercase tracking-wider font-bold mb-1">Sua Apresentação</p>
-                            <div className="flex flex-col gap-1 text-sm text-zinc-300">
-                              {ev.musica ? <span><strong className="text-zinc-500 font-normal">Música:</strong> {ev.musica}</span> : null}
-                              {ev.instrumento ? <span><strong className="text-zinc-500 font-normal">Instrumento:</strong> {ev.instrumento}</span> : null}
-                              {ev.ordem_apresentacao > 0 ? <span><strong className="text-zinc-500 font-normal">Sua entrada:</strong> Nº {ev.ordem_apresentacao}</span> : null}
-                            </div>
-                          </div>
-                          
-                          {ev.descricao && (
-                            <p className="text-xs text-zinc-400 mt-3 italic">"{ev.descricao}"</p>
-                          )}
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
+          {/* Avaliações / Boletim */}
+          <div className="bg-zinc-900/40 backdrop-blur-xl border border-white/10 rounded-2xl overflow-hidden shadow-2xl h-fit mt-6">
+            <div className="bg-sky-500/10 border-b border-white/5 p-4 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <Award className="text-sky-400" size={24} />
+                <h3 className="text-lg font-bold text-white">Boletim Pedagógico</h3>
               </div>
             </div>
+
+            <div className="p-4">
+              {isBloqueadoInadimplencia ? (
+                <div className="text-center py-6">
+                  <div className="text-3xl mb-2 text-red-500">🔒</div>
+                  <p className="text-red-400 text-sm font-bold">Acesso Suspenso</p>
+                  <p className="text-zinc-400 text-xs mt-1 px-4">Por favor, regularize as faturas pendentes na aba Financeiro para acessar as avaliações.</p>
+                </div>
+              ) : avaliacoes.length === 0 ? (
+                <div className="text-center py-6">
+                  <div className="text-3xl mb-2">⭐</div>
+                  <p className="text-zinc-400 text-sm">Nenhum boletim lançado ainda.</p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {avaliacoes.map((av) => (
+                    <div key={av.id} className="bg-black/20 backdrop-blur-sm border border-white/5 rounded-xl p-5 hover:border-white/10 transition-colors shadow-inner">
+                      <div className="flex justify-between items-center mb-3">
+                        <h4 className="font-bold text-white">{av.periodo}</h4>
+                        <span className="text-xs text-zinc-500">{av.professor_nome}</span>
+                      </div>
+                      <div className="grid grid-cols-2 gap-2 text-sm mb-3">
+                        {[
+                          { l: 'Técnica', v: av.nota_tecnica },
+                          { l: 'Leitura', v: av.nota_leitura },
+                          { l: 'Repertório', v: av.nota_repertorio },
+                          { l: 'Musicalidade', v: av.nota_musicalidade }
+                        ].map(item => (
+                          <div key={item.l} className="bg-zinc-950 p-2 rounded flex justify-between items-center border border-zinc-800">
+                            <span className="text-xs text-zinc-400">{item.l}</span>
+                            {av.tipo_avaliacao === 'estrelas' ? (
+                              <div className="flex">
+                                {[1, 2, 3, 4, 5].map(star => (
+                                  <Star key={star} size={12} className={star <= item.v ? 'text-amber-400 fill-amber-400' : 'text-zinc-600'} />
+                                ))}
+                              </div>
+                            ) : (
+                              <span className="font-bold text-sky-400">{Number(item.v).toFixed(1)}</span>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                      {av.comentario_geral && (
+                        <div className="bg-sky-500/5 border border-sky-500/10 p-3 rounded text-sm text-zinc-300 italic">
+                          "{av.comentario_geral}"
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Eventos & Audições */}
+          <div className="bg-zinc-900/40 backdrop-blur-xl border border-white/10 rounded-2xl overflow-hidden shadow-2xl h-fit mt-6">
+            <div className="bg-fuchsia-500/10 border-b border-white/5 p-4 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <Star className="text-fuchsia-400" size={24} />
+                <h3 className="text-lg font-bold text-white">Próximos Eventos</h3>
+              </div>
+            </div>
+
+            <div className="p-4">
+              {eventos.length === 0 ? (
+                <div className="text-center py-6">
+                  <div className="text-3xl mb-2">🎭</div>
+                  <p className="text-zinc-400 text-sm">Nenhum evento agendado para você.</p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {eventos.map((ev) => {
+                    const dataFormatada = ev.data_evento ? new Date(ev.data_evento).toLocaleDateString('pt-BR') : '';
+                    return (
+                      <div key={ev.id} className="bg-black/20 backdrop-blur-sm border border-white/5 rounded-xl p-5 hover:border-white/10 transition-colors shadow-inner">
+                        <div className="flex justify-between items-start mb-3">
+                          <div>
+                            <h4 className="font-bold text-white text-lg">{ev.titulo}</h4>
+                            <div className="flex flex-wrap items-center gap-3 mt-1 text-xs text-zinc-400">
+                              <span className="flex items-center gap-1"><Calendar size={12} className="text-fuchsia-400" /> {dataFormatada} às {ev.horario}</span>
+                              {ev.local && <span>• {ev.local}</span>}
+                            </div>
+                          </div>
+                          <span className="text-[10px] font-bold px-2 py-1 rounded bg-fuchsia-500/10 text-fuchsia-400 uppercase tracking-wider">{ev.status}</span>
+                        </div>
+
+                        <div className="bg-zinc-950 p-3 rounded-lg border border-zinc-800 space-y-2 mt-4">
+                          <p className="text-xs text-zinc-500 uppercase tracking-wider font-bold mb-1">Sua Apresentação</p>
+                          <div className="flex flex-col gap-1 text-sm text-zinc-300">
+                            {ev.musica ? <span><strong className="text-zinc-500 font-normal">Música:</strong> {ev.musica}</span> : null}
+                            {ev.instrumento ? <span><strong className="text-zinc-500 font-normal">Instrumento:</strong> {ev.instrumento}</span> : null}
+                            {ev.ordem_apresentacao > 0 ? <span><strong className="text-zinc-500 font-normal">Sua entrada:</strong> Nº {ev.ordem_apresentacao}</span> : null}
+                          </div>
+                        </div>
+
+                        {ev.descricao && (
+                          <p className="text-xs text-zinc-400 mt-3 italic">"{ev.descricao}"</p>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          </div>
 
         </div>
       </div>
