@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Eye, Edit, Trash2, History, Upload, GraduationCap } from 'lucide-react';
+import { Eye, Edit, Trash2, History, Upload, GraduationCap, Mail } from 'lucide-react';
 import HistoricoAlunoModal from '../components/HistoricoAlunoModal';
 import RepertorioAluno from '../components/RepertorioAluno';
 import AvaliacaoAluno from '../components/AvaliacaoAluno';
@@ -86,6 +86,24 @@ export default function Alunos() {
   const [professores, setProfessores] = useState([]);
   const [responsavelId, setResponsavelId] = useState('');
   const [responsaveis, setResponsaveis] = useState([]);
+  const reenviarEmailAcesso = async (id, nome) => {
+    if (!window.confirm(`Deseja reenviar o e-mail de acesso para o aluno ${nome}?`)) return;
+    try {
+      const resposta = await fetch(`${API_URL}/api/alunos/${id}/reenviar-email`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('@sonatta:token')}` }
+      });
+      const dados = await resposta.json();
+      if (resposta.ok) {
+        alert('E-mail enviado com sucesso!');
+      } else {
+        alert(dados.erro || 'Erro ao reenviar e-mail.');
+      }
+    } catch (err) {
+      console.error(err);
+      alert('Erro interno ao tentar reenviar o e-mail.');
+    }
+  };
 
   // 1. BUSCAR ALUNOS E PROFESSORES (GET)
   const buscarHistoricoMovimentacao = async () => {
@@ -766,6 +784,13 @@ export default function Alunos() {
                               title="Emitir Certificado"
                             >
                               <GraduationCap size={18} />
+                            </button>
+                            <button
+                              onClick={(e) => { e.stopPropagation(); reenviarEmailAcesso(aluno.id, aluno.nome); }}
+                              className="text-amber-400 hover:text-amber-300 p-2 rounded transition-all cursor-pointer hover:bg-amber-500/10"
+                              title="Reenviar E-mail de Acesso"
+                            >
+                              <Mail size={18} />
                             </button>
                             <button
                               onClick={(e) => { e.stopPropagation(); handleAbrirDeleteConfirmacao(aluno); }}

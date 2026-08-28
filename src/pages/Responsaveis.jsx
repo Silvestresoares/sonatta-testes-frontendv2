@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Search, PlusCircle, Eye, Edit, Trash2 } from 'lucide-react';
+import { Search, PlusCircle, Eye, Edit, Trash2, Mail } from 'lucide-react';
 import ModalConfirmacao from '../components/ModalConfirmacao';
 
 import { API_URL } from '../utils/api';
@@ -24,6 +24,25 @@ export default function Responsaveis() {
   const [cidade, setCidade] = useState('');
   const [estado, setEstado] = useState('');
   const [cep, setCep] = useState('');
+
+  const reenviarEmailAcesso = async (id, nome) => {
+    if (!window.confirm(`Deseja reenviar o e-mail de acesso para o responsável ${nome}?`)) return;
+    try {
+      const resposta = await fetch(`${API_URL}/api/responsaveis/${id}/reenviar-email`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('@sonatta:token')}` }
+      });
+      const dados = await resposta.json();
+      if (resposta.ok) {
+        alert('E-mail enviado com sucesso!');
+      } else {
+        alert(dados.erro || 'Erro ao reenviar e-mail.');
+      }
+    } catch (err) {
+      console.error(err);
+      alert('Erro interno ao tentar reenviar o e-mail.');
+    }
+  };
 
   const carregarResponsaveis = async () => {
     const token = localStorage.getItem('@sonatta:token');
@@ -250,6 +269,13 @@ export default function Responsaveis() {
                           title="Editar Responsável"
                         >
                           <Edit size={18} />
+                        </button>
+                        <button
+                          onClick={() => reenviarEmailAcesso(resp.id, resp.nome)}
+                          className="text-amber-400 hover:text-amber-300 p-2 rounded transition-all cursor-pointer hover:bg-amber-500/10"
+                          title="Reenviar E-mail de Acesso"
+                        >
+                          <Mail size={18} />
                         </button>
                         <button
                           onClick={() => handleDeletar(resp)}

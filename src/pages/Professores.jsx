@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { UserPlus, Search, Download, Printer, X,
 
          Users, Edit2, Plus, Minus, Clock,
-         ChevronLeft, ChevronRight, CheckCircle2, AlertCircle, CalendarClock, ShieldCheck, Eye, Edit, Trash2 } from 'lucide-react';
+         ChevronLeft, ChevronRight, CheckCircle2, AlertCircle, CalendarClock, ShieldCheck, Eye, Edit, Trash2, Mail } from 'lucide-react';
 import { API_URL } from '../utils/api';
 import HistoricoPontoModal from '../components/HistoricoPontoModal';
 import SolicitacoesPontoModal from '../components/SolicitacoesPontoModal';
@@ -1324,6 +1324,25 @@ export default function Professores() {
 
   const token = localStorage.getItem('@sonatta:token');
 
+  const reenviarEmailAcesso = async (id, nome) => {
+    if (!window.confirm(`Deseja reenviar o e-mail de acesso para o professor ${nome}?`)) return;
+    try {
+      const resposta = await fetch(`${API_URL}/api/professores/${id}/reenviar-email`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('@sonatta:token')}` }
+      });
+      const dados = await resposta.json();
+      if (resposta.ok) {
+        alert('E-mail enviado com sucesso!');
+      } else {
+        alert(dados.erro || 'Erro ao reenviar e-mail.');
+      }
+    } catch (err) {
+      console.error(err);
+      alert('Erro interno ao tentar reenviar o e-mail.');
+    }
+  };
+
   const carregar = async () => {
     setCarregando(true);
     try {
@@ -1589,6 +1608,13 @@ export default function Professores() {
                         title="Editar"
                       >
                         <Edit size={18} />
+                      </button>
+                      <button
+                        onClick={() => reenviarEmailAcesso(prof.id, prof.nome)}
+                        className="text-amber-400 hover:text-amber-300 p-2 rounded transition-all cursor-pointer hover:bg-amber-500/10"
+                        title="Reenviar E-mail de Acesso"
+                      >
+                        <Mail size={18} />
                       </button>
                       <button
                         onClick={() => excluir(prof)}
