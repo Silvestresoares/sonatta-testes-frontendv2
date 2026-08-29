@@ -79,7 +79,6 @@ export default function DashboardPortal() {
   // Estados LGPD Termos & Privacidade
   const [modalTermosAberto, setModalTermosAberto] = useState(false);
   const [aceitandoTermos, setAceitandoTermos] = useState(false);
-
   const token = localStorage.getItem('@sonatta:portal_token');
 
   const isBloqueadoInadimplencia = useMemo(() => {
