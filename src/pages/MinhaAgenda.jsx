@@ -327,7 +327,7 @@ export default function MinhaAgenda({ professorId }) {
                     )}
                   </button>
                   <a
-                    href={`https://calendar.google.com/calendar/render?cid=${encodeURIComponent(calendarLink.replace(/^https?:\/\//, 'http://'))}`}
+                    href={`https://calendar.google.com/calendar/render?cid=${encodeURIComponent(calendarLink.replace(/^https?:\/\//, 'webcal://'))}`}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="hidden sm:flex items-center gap-1.5 bg-blue-500/10 text-blue-600 dark:text-blue-400 hover:bg-blue-500/20 border border-blue-500/30 rounded-lg px-3 py-1.5 text-xs font-semibold transition-all"

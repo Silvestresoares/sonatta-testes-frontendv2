@@ -588,7 +588,7 @@ export default function DashboardPortal() {
                   </button>
 
                   <a
-                    href={`https://calendar.google.com/calendar/render?cid=${encodeURIComponent(calendarLink.replace(/^https?:\/\//, 'http://'))}`}
+                    href={`https://calendar.google.com/calendar/render?cid=${encodeURIComponent(calendarLink.replace(/^https?:\/\//, 'webcal://'))}`}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="px-4 py-2 bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 border border-blue-500/30 font-semibold text-xs rounded-lg transition-all flex items-center justify-center gap-2"
