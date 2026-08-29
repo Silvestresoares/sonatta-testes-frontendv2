@@ -846,23 +846,44 @@ export default function Configuracoes() {
                 
                 <div className="shrink-0 w-full sm:w-auto">
                   {calendarLink ? (
-                    <div className="flex flex-col gap-2 w-full">
-                      <div className="flex items-center bg-zinc-950 border border-zinc-700 rounded-lg overflow-hidden w-full sm:w-[350px]">
-                        <input 
-                          type="text" 
-                          readOnly 
-                          value={calendarLink} 
-                          className="bg-transparent text-zinc-300 text-xs px-3 py-2 w-full focus:outline-none"
-                        />
-                        <button 
-                          onClick={copiarLink}
-                          type="button"
-                          className="bg-zinc-800 hover:bg-zinc-700 p-2 text-white transition-colors border-l border-zinc-700"
-                          title="Copiar Link"
-                        >
-                          {linkCopiado ? <CheckCircle size={16} className="text-emerald-400" /> : <Link size={16} />}
-                        </button>
-                      </div>
+                    <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+                      <button 
+                        onClick={copiarLink}
+                        type="button"
+                        className="px-4 py-2 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 font-semibold text-xs rounded-lg transition-all flex items-center justify-center gap-2"
+                        title="Copiar Link para sincronizar"
+                      >
+                        {linkCopiado ? (
+                          <>
+                            <CheckCircle size={15} className="text-emerald-400" />
+                            <span>Link Copiado!</span>
+                          </>
+                        ) : (
+                          <>
+                            <Link size={15} />
+                            <span>Copiar Link da Agenda</span>
+                          </>
+                        )}
+                      </button>
+
+                      <a
+                        href={`https://calendar.google.com/calendar/render?cid=${encodeURIComponent(calendarLink.replace(/^https?:\/\//, 'http://'))}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="px-4 py-2 bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 border border-blue-500/30 font-semibold text-xs rounded-lg transition-all flex items-center justify-center gap-2"
+                        title="Adicionar diretamente ao Google Agenda"
+                      >
+                        <Calendar size={15} />
+                        <span>Google Agenda</span>
+                      </a>
+
+                      <a
+                        href={calendarLink.replace(/^https?:\/\//, 'webcal://')}
+                        className="px-4 py-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 border border-zinc-700 font-semibold text-xs rounded-lg transition-all flex items-center justify-center gap-2"
+                        title="Abrir no Calendário do Celular / Apple Calendar / Outlook"
+                      >
+                        <span>Apple / Celular</span>
+                      </a>
                     </div>
                   ) : (
                     <button 

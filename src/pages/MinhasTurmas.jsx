@@ -17,7 +17,6 @@ export default function MinhasTurmas() {
 
   useEffect(() => {
     carregarTurmas();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const carregarTurmas = async () => {

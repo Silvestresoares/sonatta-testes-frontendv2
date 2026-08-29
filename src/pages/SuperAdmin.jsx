@@ -63,7 +63,6 @@ export default function SuperAdmin({ onLogout }) {
   useEffect(() => {
     buscarEscolas();
     buscarAvisos();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const adicionarAviso = async (e) => {

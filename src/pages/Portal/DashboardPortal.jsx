@@ -76,6 +76,10 @@ export default function DashboardPortal() {
   const [erroCalendar, setErroCalendar] = useState('');
   const [linkCopiado, setLinkCopiado] = useState(false);
 
+  // Estados LGPD Termos & Privacidade
+  const [modalTermosAberto, setModalTermosAberto] = useState(false);
+  const [aceitandoTermos, setAceitandoTermos] = useState(false);
+
   const token = localStorage.getItem('@sonatta:portal_token');
 
   const isBloqueadoInadimplencia = useMemo(() => {
@@ -231,13 +235,52 @@ export default function DashboardPortal() {
     }
   }, [token]);
 
+  const verificarTermosPrivacidade = useCallback(async () => {
+    if (!token) return;
+    try {
+      const res = await fetch(`${API_URL}/api/lgpd/verificar-aceite?versao=v1.0`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (!data.aceito) {
+          setModalTermosAberto(true);
+        }
+      }
+    } catch (err) {
+      console.error('Erro ao verificar termos LGPD:', err);
+    }
+  }, [token]);
+
+  const handleAceitarTermos = async () => {
+    try {
+      setAceitandoTermos(true);
+      const res = await fetch(`${API_URL}/api/lgpd/aceite`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ versaoPolitica: 'v1.0', tipoTermo: 'politica_privacidade' })
+      });
+      if (res.ok) {
+        setModalTermosAberto(false);
+      }
+    } catch (err) {
+      console.error('Erro ao registrar aceite de termos:', err);
+    } finally {
+      setAceitandoTermos(false);
+    }
+  };
+
   useEffect(() => {
     if (!token) {
       navigate('/portal/login');
       return;
     }
     carregarPerfil();
-  }, [token, navigate, carregarPerfil]);
+    verificarTermosPrivacidade();
+  }, [token, navigate, carregarPerfil, verificarTermosPrivacidade]);
 
   useEffect(() => {
     if (agenda && agenda.length > 0 && dados) {
@@ -526,23 +569,43 @@ export default function DashboardPortal() {
 
             <div className="shrink-0 w-full sm:w-auto">
               {calendarLink ? (
-                <div className="flex flex-col gap-2 w-full">
-                  <div className="flex items-center bg-black/40 border border-zinc-700 rounded-lg overflow-hidden w-full max-w-xs">
-                    <input
-                      type="text"
-                      readOnly
-                      value={calendarLink}
-                      className="bg-transparent text-zinc-300 text-xs px-3 py-2 w-full focus:outline-none"
-                    />
-                    <button
-                      onClick={copiarLink}
-                      className="bg-zinc-800 hover:bg-zinc-700 p-2 text-white transition-colors"
-                      title="Copiar Link"
-                    >
-                      {linkCopiado ? <CheckCircle2 size={16} className="text-emerald-400" /> : <Copy size={16} />}
-                    </button>
-                  </div>
-                  <p className="text-[10px] text-zinc-500 text-center sm:text-right">No Google Agenda: Configurações &gt; Adicionar agenda &gt; Do URL</p>
+                <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+                  <button
+                    onClick={copiarLink}
+                    className="px-4 py-2 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 font-semibold text-xs rounded-lg transition-all flex items-center justify-center gap-2"
+                    title="Copiar Link para sincronizar"
+                  >
+                    {linkCopiado ? (
+                      <>
+                        <CheckCircle2 size={15} className="text-emerald-400" />
+                        <span>Link Copiado!</span>
+                      </>
+                    ) : (
+                      <>
+                        <Copy size={15} />
+                        <span>Copiar Link da Agenda</span>
+                      </>
+                    )}
+                  </button>
+
+                  <a
+                    href={`https://calendar.google.com/calendar/render?cid=${encodeURIComponent(calendarLink.replace(/^https?:\/\//, 'http://'))}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="px-4 py-2 bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 border border-blue-500/30 font-semibold text-xs rounded-lg transition-all flex items-center justify-center gap-2"
+                    title="Adicionar diretamente ao Google Agenda"
+                  >
+                    <Calendar size={15} />
+                    <span>Google Agenda</span>
+                  </a>
+
+                  <a
+                    href={calendarLink.replace(/^https?:\/\//, 'webcal://')}
+                    className="px-4 py-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 border border-zinc-700 font-semibold text-xs rounded-lg transition-all flex items-center justify-center gap-2"
+                    title="Abrir no Calendário do Celular / Apple Calendar / Outlook"
+                  >
+                    <span>Apple / Celular</span>
+                  </a>
                 </div>
               ) : (
                 <button
@@ -1067,6 +1130,66 @@ export default function DashboardPortal() {
                 className="w-full bg-emerald-500 hover:bg-emerald-400 text-black font-bold py-4 px-6 rounded-xl transition-all shadow-[0_0_15px_rgba(16,185,129,0.4)] hover:shadow-[0_0_25px_rgba(16,185,129,0.6)] transform hover:-translate-y-1"
               >
                 Tudo certo, estou preparado!
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL LGPD: TERMOS E PRIVACIDADE */}
+      {modalTermosAberto && (
+        <div className="fixed inset-0 bg-black/85 backdrop-blur-md flex items-center justify-center p-4 z-[80] animate-in fade-in zoom-in-95 duration-300">
+          <div className="bg-zinc-900 border border-emerald-500/30 rounded-3xl w-full max-w-xl overflow-hidden shadow-2xl flex flex-col max-h-[90vh]">
+            <div className="p-6 bg-gradient-to-r from-emerald-950/60 to-zinc-900 border-b border-zinc-800 flex items-center gap-4">
+              <div className="p-3 bg-emerald-500/20 text-emerald-400 rounded-2xl border border-emerald-500/30">
+                <Award size={28} />
+              </div>
+              <div>
+                <h2 className="text-xl font-bold text-white">Privacidade & Proteção de Dados</h2>
+                <p className="text-xs text-zinc-400">Termo de Ciência e Uso do Portal Sonatta (Lei 13.709/2018 - LGPD)</p>
+              </div>
+            </div>
+
+            <div className="p-6 overflow-y-auto custom-scrollbar flex-1 space-y-4 text-sm text-zinc-300">
+              <p>
+                Bem-vindo ao <strong>Portal do Aluno e Responsável</strong>. Para garantir total transparência no tratamento dos seus dados pessoais, informamos que:
+              </p>
+
+              <div className="space-y-3">
+                <div className="p-3.5 bg-black/40 rounded-xl border border-zinc-800/80">
+                  <h4 className="font-semibold text-emerald-400 mb-1">🎯 1. Finalidades do Tratamento (Art. 7º, V)</h4>
+                  <p className="text-xs text-zinc-400 leading-relaxed">
+                    Seus dados (nome, CPF, histórico pedagógico, presenças e contatos) são utilizados exclusivamente para prestação de serviços educacionais de música, envio de notificações de aula, disponibilização de partituras e gestão de mensalidades via parceiro bancário Asaas.
+                  </p>
+                </div>
+
+                <div className="p-3.5 bg-black/40 rounded-xl border border-zinc-800/80">
+                  <h4 className="font-semibold text-emerald-400 mb-1">🛡️ 2. Segurança e Direitos do Titular (Art. 18)</h4>
+                  <p className="text-xs text-zinc-400 leading-relaxed">
+                    Você pode, a qualquer momento, solicitar a exportação completa dos seus dados ou a exclusão/anonimização das suas informações pessoais diretamente à administração da escola.
+                  </p>
+                </div>
+
+                <div className="p-3.5 bg-black/40 rounded-xl border border-zinc-800/80">
+                  <h4 className="font-semibold text-emerald-400 mb-1">🔔 3. Notificações e Web Push</h4>
+                  <p className="text-xs text-zinc-400 leading-relaxed">
+                    O portal utiliza tecnologias criptografadas para enviar lembretes de aula e avisos pedagógicos no seu dispositivo.
+                  </p>
+                </div>
+              </div>
+
+              <p className="text-xs text-zinc-500 italic">
+                Ao clicar no botão abaixo, seu consentimento e ciência da versão vigente (v1.0) da Política de Privacidade serão registrados com data, hora e IP de conexão.
+              </p>
+            </div>
+
+            <div className="p-6 bg-zinc-950/70 border-t border-zinc-800 flex items-center justify-end">
+              <button
+                onClick={handleAceitarTermos}
+                disabled={aceitandoTermos}
+                className="w-full sm:w-auto px-8 py-3.5 bg-emerald-500 hover:bg-emerald-400 disabled:opacity-50 text-black font-bold rounded-xl transition-all shadow-[0_0_20px_rgba(16,185,129,0.3)] hover:shadow-[0_0_30px_rgba(16,185,129,0.5)] flex items-center justify-center gap-2"
+              >
+                {aceitandoTermos ? 'Registrando...' : 'Concordo e Desejo Prosseguir'}
               </button>
             </div>
           </div>

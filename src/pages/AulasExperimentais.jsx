@@ -353,6 +353,15 @@ export default function AulasExperimentais() {
                   <option value="Outros">Outros</option>
                 </select>
               </div>
+
+              {/* Banner LGPD */}
+              <div className="col-span-1 md:col-span-2 lg:col-span-3 p-3 bg-zinc-50 dark:bg-zinc-950/80 border border-zinc-200 dark:border-zinc-800 rounded-xl text-xs text-zinc-500 dark:text-zinc-400 flex items-start gap-2.5">
+                <span className="text-emerald-500 text-sm mt-0.5">🔒</span>
+                <div className="leading-relaxed">
+                  <strong className="text-zinc-700 dark:text-zinc-200">Consentimento para Contato (LGPD):</strong> O número de telefone/WhatsApp informado será utilizado exclusivamente para agendamento e confirmação da aula experimental solicitada.
+                </div>
+              </div>
+
             </div>
             <div className="flex justify-end gap-2 pt-4">
               <button type="button" onClick={limparEdicao} className="px-4 py-2 bg-zinc-200 dark:bg-zinc-800 text-zinc-700 dark:text-white rounded-lg">Cancelar</button>

@@ -378,6 +378,14 @@ export default function Responsaveis() {
                     <label className="block text-sm font-medium text-zinc-400 mb-1">Estado</label>
                     <input type="text" placeholder="SP" maxLength={2} value={estado} onChange={e => setEstado(e.target.value.toUpperCase())} className="w-full bg-zinc-950 border border-zinc-800 text-white px-3 py-2 rounded-lg focus:outline-none focus:border-emerald-500 transition-colors" />
                   </div>
+
+                  {/* Banner LGPD */}
+                  <div className="col-span-2 p-3 bg-zinc-950/80 border border-zinc-800 rounded-xl text-xs text-zinc-400 flex items-start gap-2.5 mt-2">
+                    <span className="text-emerald-400 text-sm mt-0.5">🔒</span>
+                    <div className="leading-relaxed">
+                      <strong className="text-zinc-200">Finalidade & Privacidade (LGPD):</strong> Os dados cadastrais do responsável são utilizados unicamente para vinculação de dependentes menores, faturamento e acesso ao Portal do Responsável.
+                    </div>
+                  </div>
                 </div>
               </form>
             </div>

@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { PlayCircle, CheckCircle, Guitar, ArrowRight, MessageCircle, Mail } from 'lucide-react';
 
 
@@ -275,8 +276,13 @@ export default function LandingPage() {
 
       {/* Footer */}
       <footer className="bg-zinc-950 py-10 border-t border-zinc-900">
-        <div className="max-w-7xl mx-auto px-6 flex flex-col md:flex-row items-center justify-between">
+        <div className="max-w-7xl mx-auto px-6 flex flex-col md:flex-row items-center justify-between gap-4">
           <div className="text-2xl font-bold text-zinc-500 mb-4 md:mb-0" style={{ fontFamily: "'Dancing Script', cursive" }}>Sonatta</div>
+          <div className="flex items-center gap-6 text-sm text-zinc-500">
+            <Link to="/privacidade" className="hover:text-emerald-400 transition-colors">Política de Privacidade (LGPD)</Link>
+            <span>•</span>
+            <Link to="/privacidade" className="hover:text-emerald-400 transition-colors">Canal do DPO</Link>
+          </div>
           <p className="text-zinc-600 text-sm">© {new Date().getFullYear()} Sonatta. Todos os direitos reservados.</p>
         </div>
       </footer>

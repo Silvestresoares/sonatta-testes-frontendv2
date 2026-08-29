@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { KeyRound, Mail, ArrowRight, Eye, EyeOff } from 'lucide-react';
 import EsqueciSenhaPortal from './EsqueciSenhaPortal';
 import RedefinirSenhaPortal from './RedefinirSenhaPortal';
@@ -162,13 +162,21 @@ export default function LoginPortal() {
                 {!carregando && <ArrowRight size={18} />}
               </button>
               
-              <button
-                type="button"
-                onClick={() => navigate('/')}
-                className="w-full text-center text-sm text-zinc-400 hover:text-white transition-colors mt-4"
-              >
-                Voltar para Área Administrativa
-              </button>
+              <div className="flex flex-col items-center gap-2 mt-4">
+                <button
+                  type="button"
+                  onClick={() => navigate('/')}
+                  className="text-center text-sm text-zinc-400 hover:text-white transition-colors"
+                >
+                  Voltar para Área Administrativa
+                </button>
+                <Link
+                  to="/privacidade"
+                  className="text-xs text-zinc-600 hover:text-emerald-400 underline transition-colors"
+                >
+                  Privacidade & Proteção de Dados (LGPD)
+                </Link>
+              </div>
             </form>
           </div>
         )}

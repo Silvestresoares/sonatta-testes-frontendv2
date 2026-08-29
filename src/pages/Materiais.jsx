@@ -15,7 +15,7 @@ export default function Materiais() {
   const [nome, setNome] = useState('');
   const [descricao, setDescricao] = useState('');
   const [alunoId, setAlunoId] = useState('');
-  const [arquivo, setArquivo] = useState(null);
+  const [arquivos, setArquivos] = useState([]);
   const [enviando, setEnviando] = useState(false);
   const fileInputRef = useRef(null);
 
@@ -52,25 +52,65 @@ export default function Materiais() {
   };
 
   const handleFileChange = (e) => {
-    const file = e.target.files[0];
-    if (file) {
+    const selectedFiles = Array.from(e.target.files || []);
+    if (selectedFiles.length === 0) return;
+
+    const validos = [];
+    const excederam = [];
+
+    selectedFiles.forEach(file => {
       if (file.size > 10 * 1024 * 1024) {
-        alert('O arquivo deve ter no máximo 10MB.');
-        e.target.value = null;
-        setArquivo(null);
-        return;
+        excederam.push(file.name);
+      } else {
+        validos.push(file);
       }
-      setArquivo(file);
-      if (!nome) {
-        setNome(file.name.split('.')[0]); // Sugere o nome do arquivo
-      }
+    });
+
+    if (excederam.length > 0) {
+      alert(`Os seguintes arquivos ultrapassam o limite de 10MB e não foram adicionados:\n${excederam.join('\n')}`);
     }
+
+    if (validos.length > 0) {
+      setArquivos(prev => {
+        const combined = [...prev, ...validos];
+        if (combined.length === 1 && !nome) {
+          setNome(combined[0].name.split('.')[0]);
+        }
+        return combined;
+      });
+    }
+
+    if (fileInputRef.current) fileInputRef.current.value = null;
+  };
+
+  const removerArquivo = (indexToRemove) => {
+    setArquivos(prev => {
+      const updated = prev.filter((_, idx) => idx !== indexToRemove);
+      if (updated.length === 1 && !nome) {
+        setNome(updated[0].name.split('.')[0]);
+      } else if (updated.length === 0) {
+        setNome('');
+      }
+      return updated;
+    });
+  };
+
+  const formatFileSize = (bytes) => {
+    if (!bytes) return '0 B';
+    const k = 1024;
+    const sizes = ['B', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return `${parseFloat((bytes / Math.pow(k, i)).toFixed(1))} ${sizes[i]}`;
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!arquivo || !alunoId || !nome) {
-      setErro('Preencha todos os campos obrigatórios (Nome, Aluno e Arquivo).');
+    if (arquivos.length === 0 || !alunoId) {
+      setErro('Selecione ao menos um arquivo e o aluno de destino.');
+      return;
+    }
+    if (arquivos.length === 1 && !nome.trim()) {
+      setErro('Informe o nome / título do material.');
       return;
     }
 
@@ -79,33 +119,37 @@ export default function Materiais() {
     setMensagemSucesso('');
 
     const formData = new FormData();
-    formData.append('nome', nome);
-    formData.append('descricao', descricao);
     formData.append('aluno_id', alunoId);
-    formData.append('arquivo', arquivo);
+    formData.append('descricao', descricao);
+    if (nome.trim()) {
+      formData.append('nome', nome.trim());
+    }
+    arquivos.forEach(file => {
+      formData.append('arquivos', file);
+    });
 
     try {
       const res = await fetch(`${API_URL}/api/materiais`, {
         method: 'POST',
-        headers: { 'Authorization': `Bearer ${localStorage.getItem('@sonatta:token')}` }, // Sem Content-Type, o browser define para multipart
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('@sonatta:token')}` },
         body: formData
       });
 
       const data = await res.json();
-      if (!res.ok) throw new Error(data.erro || 'Erro ao enviar arquivo.');
+      if (!res.ok) throw new Error(data.erro || 'Erro ao enviar arquivo(s).');
 
-      setMensagemSucesso('Material enviado com sucesso!');
+      setMensagemSucesso(data.mensagem || `${arquivos.length} material(is) enviado(s) com sucesso!`);
 
       // Limpa formulário
       setNome('');
       setDescricao('');
       setAlunoId('');
-      setArquivo(null);
+      setArquivos([]);
       if (fileInputRef.current) fileInputRef.current.value = null;
 
       carregarDados();
 
-      setTimeout(() => setMensagemSucesso(''), 3000);
+      setTimeout(() => setMensagemSucesso(''), 4000);
     } catch (err) {
       setErro(err.message);
     } finally {
@@ -185,7 +229,7 @@ export default function Materiais() {
           <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 shadow-lg sticky top-6">
             <h2 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
               <Upload className="text-emerald-400" size={20} />
-              Enviar Novo Material
+              Enviar Materiais
             </h2>
 
             <form onSubmit={handleSubmit} className="space-y-4">
@@ -205,29 +249,61 @@ export default function Materiais() {
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-zinc-400 uppercase mb-1.5">Arquivo (Máx 10MB) *</label>
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="block text-xs font-bold text-zinc-400 uppercase">Arquivos (Máx 10MB cada) *</label>
+                  {arquivos.length > 0 && (
+                    <span className="text-[11px] font-semibold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full">
+                      {arquivos.length} {arquivos.length === 1 ? 'arquivo selecionado' : 'arquivos selecionados'}
+                    </span>
+                  )}
+                </div>
                 <div className="relative">
                   <input
                     type="file"
                     ref={fileInputRef}
                     onChange={handleFileChange}
+                    multiple
                     accept=".pdf, .jpg, .jpeg, .png, .mp3, .wav, .m4a"
                     className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-sm text-zinc-400 file:mr-4 file:py-1 file:px-3 file:rounded-md file:border-0 file:text-xs file:font-semibold file:bg-emerald-500/20 file:text-emerald-400 hover:file:bg-emerald-500/30 transition-colors cursor-pointer"
-                    required
                   />
-                  <p className="text-[10px] text-zinc-500 mt-1">Formatos suportados: PDF, JPG, PNG, MP3, WAV, M4A.</p>
+                  <p className="text-[10px] text-zinc-500 mt-1">Formatos suportados: PDF, JPG, PNG, MP3, WAV, M4A (selecione um ou vários).</p>
                 </div>
+
+                {/* Lista de Pré-visualização dos Arquivos Selecionados */}
+                {arquivos.length > 0 && (
+                  <div className="mt-3 space-y-1.5 max-h-40 overflow-y-auto pr-1">
+                    {arquivos.map((file, idx) => (
+                      <div key={idx} className="flex items-center justify-between bg-zinc-950/80 border border-zinc-800 rounded-lg px-3 py-1.5 text-xs text-zinc-300">
+                        <div className="flex items-center gap-2 truncate max-w-[200px]">
+                          {getFileIcon(file.type)}
+                          <span className="truncate" title={file.name}>{file.name}</span>
+                          <span className="text-[10px] text-zinc-500 shrink-0">({formatFileSize(file.size)})</span>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => removerArquivo(idx)}
+                          className="text-zinc-500 hover:text-rose-400 p-1 transition-colors"
+                          title="Remover arquivo"
+                        >
+                          <X size={14} />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-zinc-400 uppercase mb-1.5">Nome / Título *</label>
+                <label className="block text-xs font-bold text-zinc-400 uppercase mb-1.5">
+                  {arquivos.length > 1 ? 'Nome / Título Geral (Opcional)' : 'Nome / Título *'}
+                </label>
                 <input
                   type="text"
                   value={nome}
                   onChange={e => setNome(e.target.value)}
-                  placeholder="Ex: Partitura Für Elise"
-                  className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-emerald-500"
-                  required
+                  placeholder={arquivos.length > 1 ? 'Deixe em branco para usar o nome de cada arquivo' : 'Ex: Partitura Für Elise'}
+                  className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-emerald-500 placeholder-zinc-600"
+                  required={arquivos.length <= 1}
                 />
               </div>
 
@@ -237,16 +313,20 @@ export default function Materiais() {
                   value={descricao}
                   onChange={e => setDescricao(e.target.value)}
                   placeholder="Instruções para estudo..."
-                  className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-emerald-500 resize-none h-20"
+                  className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-emerald-500 resize-none h-20 placeholder-zinc-600"
                 />
               </div>
 
               <button
                 type="submit"
-                disabled={enviando}
+                disabled={enviando || arquivos.length === 0}
                 className="w-full flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-3 rounded-xl transition-all disabled:opacity-50"
               >
-                {enviando ? 'Enviando...' : 'Fazer Upload'}
+                {enviando 
+                  ? 'Enviando arquivos...' 
+                  : arquivos.length > 1 
+                    ? `Fazer Upload (${arquivos.length} arquivos)` 
+                    : 'Fazer Upload'}
               </button>
             </form>
           </div>

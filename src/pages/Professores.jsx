@@ -1153,17 +1153,23 @@ function ModalProfessor({ professor, onClose, onSalvo, token, todosAlunos }) {
 
           {/* Footer com botões */}
           {['pessoal', 'profissional', 'disponibilidade'].includes(aba) && (
-            <div className="p-5 border-t border-zinc-800 flex justify-between items-center flex-shrink-0">
-              <button type="button" onClick={onClose} className="text-zinc-500 hover:text-white px-4 py-2 text-sm transition-colors">
-                Cancelar
-              </button>
-              <button
-                type="submit"
-                disabled={salvando}
-                className="bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white font-bold px-6 py-2 rounded-lg transition-all text-sm"
-              >
-                {salvando ? 'Salvando...' : editando ? 'Salvar Alterações' : 'Cadastrar Professor'}
-              </button>
+            <div className="p-5 border-t border-zinc-800 flex flex-col sm:flex-row justify-between items-center gap-3 flex-shrink-0">
+              <div className="text-[11px] text-zinc-500 flex items-center gap-1.5 text-left">
+                <span className="text-emerald-500">🔒</span>
+                <span><strong className="text-zinc-400">Privacidade LGPD:</strong> Dados profissionais e bancários utilizados exclusivamente para repasses e gestão de turmas.</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <button type="button" onClick={onClose} className="text-zinc-500 hover:text-white px-4 py-2 text-sm transition-colors">
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  disabled={salvando}
+                  className="bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white font-bold px-6 py-2 rounded-lg transition-all text-sm"
+                >
+                  {salvando ? 'Salvando...' : editando ? 'Salvar Alterações' : 'Cadastrar Professor'}
+                </button>
+              </div>
             </div>
           )}
         </form>

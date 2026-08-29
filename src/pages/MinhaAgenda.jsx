@@ -308,16 +308,41 @@ export default function MinhaAgenda({ professorId }) {
             
             <div className="ml-2 sm:ml-4 border-l border-zinc-200 dark:border-zinc-800 pl-4">
               {calendarLink ? (
-                <div className="flex items-center bg-white dark:bg-black/40 border border-zinc-300 dark:border-zinc-700 rounded-lg overflow-hidden max-w-[180px] sm:max-w-[220px]">
-                  <input
-                    type="text"
-                    readOnly
-                    value={calendarLink}
-                    className="bg-transparent text-zinc-700 dark:text-zinc-300 text-[10px] px-2 py-1.5 w-full focus:outline-none"
-                  />
-                  <button onClick={copiarLink} className="bg-zinc-200 dark:bg-zinc-800 hover:bg-zinc-300 dark:hover:bg-zinc-700 p-1.5 text-zinc-700 dark:text-white transition-colors" title="Copiar Link">
-                    {linkCopiado ? <CheckCircle2 size={12} className="text-emerald-500" /> : <Copy size={12} />}
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={copiarLink}
+                    className="flex items-center gap-1.5 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/20 border border-emerald-500/30 rounded-lg px-3 py-1.5 text-xs font-semibold transition-all shadow-sm"
+                    title="Copiar Link para sincronizar no seu celular ou computador"
+                  >
+                    {linkCopiado ? (
+                      <>
+                        <CheckCircle2 size={13} className="text-emerald-500" />
+                        <span>Link Copiado!</span>
+                      </>
+                    ) : (
+                      <>
+                        <Copy size={13} />
+                        <span>Copiar Link da Agenda</span>
+                      </>
+                    )}
                   </button>
+                  <a
+                    href={`https://calendar.google.com/calendar/render?cid=${encodeURIComponent(calendarLink.replace(/^https?:\/\//, 'http://'))}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="hidden sm:flex items-center gap-1.5 bg-blue-500/10 text-blue-600 dark:text-blue-400 hover:bg-blue-500/20 border border-blue-500/30 rounded-lg px-3 py-1.5 text-xs font-semibold transition-all"
+                    title="Adicionar diretamente ao Google Agenda"
+                  >
+                    <CalendarIcon size={13} />
+                    <span>Google Agenda</span>
+                  </a>
+                  <a
+                    href={calendarLink.replace(/^https?:\/\//, 'webcal://')}
+                    className="hidden sm:flex items-center gap-1.5 bg-zinc-500/10 text-zinc-600 dark:text-zinc-300 hover:bg-zinc-500/20 border border-zinc-500/30 rounded-lg px-3 py-1.5 text-xs font-semibold transition-all"
+                    title="Abrir no Calendário do Celular / Apple Calendar / Outlook"
+                  >
+                    <span>Apple / Celular</span>
+                  </a>
                 </div>
               ) : (
                 <button

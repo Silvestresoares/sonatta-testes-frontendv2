@@ -27,6 +27,8 @@ const Configuracoes = React.lazy(() => import('./pages/Configuracoes'));
 const Feriados = React.lazy(() => import('./pages/Feriados'));
 const Relatorios = React.lazy(() => import('./pages/Relatorios'));
 const Eventos = React.lazy(() => import('./pages/Eventos'));
+const GestaoLGPD = React.lazy(() => import('./pages/GestaoLGPD'));
+const Privacidade = React.lazy(() => import('./pages/Privacidade'));
 
 // Páginas do Professor
 const MinhaAgenda = React.lazy(() => import('./pages/MinhaAgenda'));
@@ -258,9 +260,10 @@ export default function App() {
   const dataVencimento = typeof window !== 'undefined' ? localStorage.getItem('@sonatta:data_vencimento') : null;
   const plano = typeof window !== 'undefined' ? localStorage.getItem('@sonatta:plano') : 'Vitalicio';
   const tipoUsuarioLocal = typeof window !== 'undefined' ? localStorage.getItem('@sonatta:tipo_usuario') : 'admin';
+  const isSuperAdminLocal = typeof window !== 'undefined' ? localStorage.getItem('@sonatta:is_super_admin') === 'true' : false;
   
   let isExpiredLocally = false;
-  if (tipoUsuarioLocal !== 'professor' && plano !== 'Vitalicio' && dataVencimento) {
+  if (!isSuperAdminLocal && tipoUsuarioLocal !== 'professor' && plano !== 'Vitalicio' && dataVencimento) {
     const hoje = new Date();
     hoje.setHours(0,0,0,0);
     const venc = new Date(dataVencimento);
@@ -273,7 +276,15 @@ export default function App() {
     }
   }
 
-  const isBlocked = assinaturaSuspensa || isSuspendedLocally || isExpiredLocally;
+  const isBlocked = !isSuperAdminLocal && (assinaturaSuspensa || isSuspendedLocally || isExpiredLocally);
+
+  if (location.pathname === '/privacidade') {
+    return (
+      <Suspense fallback={<div className="flex h-screen items-center justify-center text-emerald-500">Carregando Central de Privacidade...</div>}>
+        <Privacidade />
+      </Suspense>
+    );
+  }
 
   if (isPortalRoute) {
     return (
@@ -310,6 +321,7 @@ export default function App() {
         <Suspense fallback={<div className="flex h-screen items-center justify-center text-emerald-500">Carregando Tela...</div>}>
           <Routes>
           <Route path="/" element={<LandingPage />} />
+          <Route path="/privacidade" element={<Privacidade />} />
           <Route path="/login" element={
             <Login aoLogar={(usuario) => {
               setUsuarioInfo(usuario || null);
@@ -389,6 +401,7 @@ export default function App() {
           <Route path="/eventos" element={<LayoutComSidebar onLogout={handleLogout} tipoUsuario={tipoUsuario} professorId={professorId} isSuperAdmin={isSuperAdmin} isBlocked={isBlocked} currentRoute={location.pathname}><Eventos /></LayoutComSidebar>} />
           <Route path="/materiais" element={<LayoutComSidebar onLogout={handleLogout} tipoUsuario={tipoUsuario} professorId={professorId} isSuperAdmin={isSuperAdmin} isBlocked={isBlocked} currentRoute={location.pathname}><Materiais /></LayoutComSidebar>} />
           <Route path="/configuracoes" element={<LayoutComSidebar onLogout={handleLogout} tipoUsuario={tipoUsuario} professorId={professorId} isSuperAdmin={isSuperAdmin} isBlocked={isBlocked} currentRoute={location.pathname}><Configuracoes /></LayoutComSidebar>} />
+          <Route path="/lgpd" element={<LayoutComSidebar onLogout={handleLogout} tipoUsuario={tipoUsuario} professorId={professorId} isSuperAdmin={isSuperAdmin} isBlocked={isBlocked} currentRoute={location.pathname}><GestaoLGPD /></LayoutComSidebar>} />
           <Route path="/lojinha" element={<LayoutComSidebar onLogout={handleLogout} tipoUsuario={tipoUsuario} professorId={professorId} isSuperAdmin={isSuperAdmin} isBlocked={isBlocked} currentRoute={location.pathname}><Lojinha /></LayoutComSidebar>} />
           <Route path="/minha-assinatura" element={<LayoutComSidebar onLogout={handleLogout} tipoUsuario={tipoUsuario} professorId={professorId} isSuperAdmin={isSuperAdmin} isBlocked={isBlocked} currentRoute={location.pathname}><MinhaAssinatura /></LayoutComSidebar>} />
           <Route path="*" element={<Navigate to="/" replace />} />

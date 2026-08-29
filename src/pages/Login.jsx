@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import { Eye, EyeOff } from 'lucide-react';
 import { API_URL } from '../utils/api';
 // 📦 Importação das novas telas isoladas
@@ -262,9 +263,12 @@ export default function Login({ aoLogar }) {
         </div>
         
         {/* Footer */}
-        <p className="absolute bottom-6 text-zinc-600 text-xs text-center max-w-xs px-4">
-          Ambiente seguro. Os dados da sua escola são isolados.
-        </p>
+        <div className="absolute bottom-6 text-zinc-600 text-xs text-center max-w-xs px-4 space-y-1">
+          <p>Ambiente seguro e isolado com criptografia.</p>
+          <Link to="/privacidade" className="text-zinc-500 hover:text-emerald-400 underline transition-colors block">
+            Política de Privacidade & LGPD
+          </Link>
+        </div>
       </div>
       
       {/* Modal de Imagem (Propaganda) */}

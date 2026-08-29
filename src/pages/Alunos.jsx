@@ -1225,6 +1225,14 @@ export default function Alunos() {
                   </div>
                 )}
 
+                {/* Banner de Privacidade e Finalidade LGPD */}
+                <div className="col-span-2 p-3 bg-zinc-950/80 border border-zinc-800 rounded-xl text-xs text-zinc-400 flex items-start gap-2.5">
+                  <span className="text-emerald-400 text-sm mt-0.5">🔒</span>
+                  <div className="leading-relaxed">
+                    <strong className="text-zinc-200">Finalidade & Privacidade (Art. 7º, V da LGPD):</strong> Os dados cadastrais e de endereço são tratados estritamente para gestão do contrato de ensino, emissão de cobranças bancárias registradas no Asaas e controle pedagógico.
+                  </div>
+                </div>
+
               </div>
 
               <div className="pt-4 flex justify-between items-end gap-3 border-t border-zinc-800">
