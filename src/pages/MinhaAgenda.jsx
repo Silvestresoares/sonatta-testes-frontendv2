@@ -47,7 +47,7 @@ export default function MinhaAgenda({ professorId }) {
   const [aulaSelecionada, setAulaSelecionada] = useState(null);
   const [registroTurmaAberto, setRegistroTurmaAberto] = useState(false);
   const [turmaSelecionada, setTurmaSelecionada] = useState(null);
-  
+
   const [pontoHoje, setPontoHoje] = useState(null);
   const [carregandoPonto, setCarregandoPonto] = useState(true);
   const [historicoAberto, setHistoricoAberto] = useState(false);
@@ -182,7 +182,7 @@ export default function MinhaAgenda({ professorId }) {
     if (dataSelec > dataHoje) return { restantes: totais, dadas: 0, totais };
 
     const horaAtualMinutos = hoje.getHours() * 60 + hoje.getMinutes();
-    
+
     let restantes = 0;
     let dadas = 0;
 
@@ -305,7 +305,7 @@ export default function MinhaAgenda({ professorId }) {
               <h1 className="text-2xl font-bold text-emerald-400">📅 Minha Agenda</h1>
               <p className="text-xs text-zinc-500 mt-1">Visualize e registre suas aulas.</p>
             </div>
-            
+
             <div className="ml-2 sm:ml-4 border-l border-zinc-200 dark:border-zinc-800 pl-4">
               {calendarLink ? (
                 <div className="flex items-center gap-2">
@@ -362,15 +362,15 @@ export default function MinhaAgenda({ professorId }) {
               <span className="text-xs text-zinc-500 mr-2">Carregando ponto...</span>
             ) : temAulaHoje ? (
               (!pontoHoje || pontoHoje.tipo === 'Saida') ? (
-                <button 
-                  onClick={() => registrarPonto('Entrada')} 
+                <button
+                  onClick={() => registrarPonto('Entrada')}
                   className="flex items-center gap-2 bg-emerald-600/10 text-emerald-500 hover:bg-emerald-600/20 border border-emerald-500/20 rounded-lg px-4 py-2 text-sm transition font-medium"
                 >
                   <LogIn size={16} /> Bater Ponto (Entrada)
                 </button>
               ) : (
-                <button 
-                  onClick={() => registrarPonto('Saida')} 
+                <button
+                  onClick={() => registrarPonto('Saida')}
                   className="flex items-center gap-2 bg-rose-600/10 text-rose-500 hover:bg-rose-600/20 border border-rose-500/20 rounded-lg px-4 py-2 text-sm transition font-medium"
                 >
                   <LogOut size={16} /> Bater Ponto (Saída)
@@ -382,16 +382,16 @@ export default function MinhaAgenda({ professorId }) {
               </span>
             )}
 
-            <button 
-              onClick={() => setHistoricoAberto(true)} 
+            <button
+              onClick={() => setHistoricoAberto(true)}
               className="flex items-center gap-2 border border-zinc-200 dark:border-zinc-800 text-zinc-700 dark:text-zinc-200 rounded-lg px-4 py-2 text-sm hover:bg-zinc-100 dark:hover:bg-zinc-900 transition"
               title="Ver Histórico de Ponto"
             >
               <Clock size={16} /> Histórico
             </button>
-            
-            <button 
-              onClick={() => setAjusteAberto(true)} 
+
+            <button
+              onClick={() => setAjusteAberto(true)}
               className="flex items-center gap-2 border border-zinc-200 dark:border-zinc-800 text-amber-500 rounded-lg px-4 py-2 text-sm hover:bg-zinc-100 dark:hover:bg-zinc-900 transition"
               title="Solicitar Ajuste Manual de Ponto"
             >
@@ -433,7 +433,7 @@ export default function MinhaAgenda({ professorId }) {
                 </div>
               ) : (
                 <div className="mt-4 p-3 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg text-center">
-                   <p className="text-sm font-semibold text-zinc-400">Nenhuma aula neste dia</p>
+                  <p className="text-sm font-semibold text-zinc-400">Nenhuma aula neste dia</p>
                 </div>
               )}
             </div>
@@ -476,7 +476,7 @@ export default function MinhaAgenda({ professorId }) {
         onSave={fecharRegistroTurma}
       />
 
-      <HistoricoPontoModal 
+      <HistoricoPontoModal
         isOpen={historicoAberto}
         onClose={() => setHistoricoAberto(false)}
         professorId={profId}
