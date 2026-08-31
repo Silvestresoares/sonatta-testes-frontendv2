@@ -3,13 +3,15 @@ import { Crown, Search, Edit2, X, Save, AlertCircle, Lock, Unlock, Trash2, Check
 
 
 import { API_URL } from '../utils/api';
+import SuperAdminContratos from '../components/SuperAdminContratos';
+
 export default function SuperAdmin({ onLogout }) {
   const [escolas, setEscolas] = useState([]);
   const [loading, setLoading] = useState(true);
   const [erro, setErro] = useState('');
   const [termoBusca, setTermoBusca] = useState('');
   const [filtroStatus, setFiltroStatus] = useState('todas'); // 'todas', 'em_dia', 'a_vencer', 'vencidas'
-  const [abaAtual, setAbaAtual] = useState('escolas'); // 'escolas' ou 'avisos'
+  const [abaAtual, setAbaAtual] = useState('escolas'); // 'escolas', 'avisos' ou 'contratos'
 
   // Avisos State
   const [avisos, setAvisos] = useState([]);
@@ -374,6 +376,12 @@ export default function SuperAdmin({ onLogout }) {
             >
               Avisos Globais
             </button>
+            <button
+              onClick={() => setAbaAtual('contratos')}
+              className={`px-4 py-2 font-medium transition-colors border-b-2 ${abaAtual === 'contratos' ? 'border-emerald-500 text-emerald-400' : 'border-transparent text-zinc-400 hover:text-white'}`}
+            >
+              Contratos & Jurídico SaaS
+            </button>
           </div>
 
           {/* Cards de Alerta de Assinatura */}
@@ -632,6 +640,11 @@ export default function SuperAdmin({ onLogout }) {
                 </div>
               </div>
             </div>
+          )}
+
+          {/* Conteúdo Aba Contratos & Jurídico SaaS */}
+          {abaAtual === 'contratos' && (
+            <SuperAdminContratos />
           )}
         </div>
       </main>

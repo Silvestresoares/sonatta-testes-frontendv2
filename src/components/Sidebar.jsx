@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
-import { LogOut, PlusCircle, Repeat, RotateCcw, Lightbulb, X, Folder, Settings, CreditCard, CheckSquare, Shield } from 'lucide-react';
+import { LogOut, PlusCircle, Repeat, RotateCcw, Lightbulb, X, Folder, Settings, CreditCard, CheckSquare, Shield, FileText } from 'lucide-react';
 import { FaGraduationCap, FaUserGraduate, FaCalendarAlt, FaMoneyBillWave } from 'react-icons/fa';
 import { ChartBarIcon, UsersIcon, UserGroupIcon, AcademicCapIcon, BookOpenIcon, CalendarIcon, BanknotesIcon, MapPinIcon, ShoppingCartIcon } from '@heroicons/react/24/outline';
 import AgendamentoAulaModal from './AgendamentoAulaModal';
@@ -311,6 +311,11 @@ export default function Sidebar({ onLogout, tipoUsuario, isOpen, onClose }) {
                 <NavLink to="/minha-assinatura" className={linkStyle} onClick={onClose}>
                   <CreditCard size={20} />
                   Minha Assinatura
+                </NavLink>
+
+                <NavLink to="/contrato-saas" className={linkStyle} onClick={onClose}>
+                  <FileText size={20} />
+                  Contrato & Termos SaaS
                 </NavLink>
 
                 {/* New section for special classes */}

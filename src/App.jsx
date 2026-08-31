@@ -29,6 +29,8 @@ const Relatorios = React.lazy(() => import('./pages/Relatorios'));
 const Eventos = React.lazy(() => import('./pages/Eventos'));
 const GestaoLGPD = React.lazy(() => import('./pages/GestaoLGPD'));
 const Privacidade = React.lazy(() => import('./pages/Privacidade'));
+const ContratoSaaS = React.lazy(() => import('./pages/ContratoSaaS'));
+import ModalAceiteContratoSaaS from './components/ModalAceiteContratoSaaS';
 
 // Páginas do Professor
 const MinhaAgenda = React.lazy(() => import('./pages/MinhaAgenda'));
@@ -141,6 +143,8 @@ export default function App() {
   const [carregando, setCarregando] = useState(true);
   const [usuarioInfo, setUsuarioInfo] = useState(null);
   const [assinaturaSuspensa, setAssinaturaSuspensa] = useState(false);
+  const [pendenciasSaaS, setPendenciasSaaS] = useState([]);
+  const [modalContratoAberto, setModalContratoAberto] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
 
@@ -213,6 +217,21 @@ export default function App() {
           localStorage.setItem('@sonatta:escola_nome', dados.usuario?.nome_escola || '');
           localStorage.setItem('@sonatta:escola_logo', dados.usuario?.logo_url || '');
           setEstaLogado(true);
+
+          // 📜 Checa pendências de Contrato SaaS se for administrador
+          if (dados.usuario?.tipo_usuario === 'admin' && !dados.usuario?.is_super_admin) {
+            fetch(`${API_URL}/api/saas-contratos/pendencias`, {
+              headers: { 'Authorization': `Bearer ${localStorage.getItem('@sonatta:token')}` }
+            })
+              .then(r => r.json())
+              .then(resPend => {
+                if (resPend.data?.possuiPendencias && resPend.data?.pendencias?.length > 0) {
+                  setPendenciasSaaS(resPend.data.pendencias);
+                  setModalContratoAberto(true);
+                }
+              })
+              .catch(e => console.error('Erro ao verificar pendências SaaS:', e));
+          }
         } else {
           localStorage.removeItem('@sonatta:token');
           setEstaLogado(false);
@@ -404,9 +423,18 @@ export default function App() {
           <Route path="/lgpd" element={<LayoutComSidebar onLogout={handleLogout} tipoUsuario={tipoUsuario} professorId={professorId} isSuperAdmin={isSuperAdmin} isBlocked={isBlocked} currentRoute={location.pathname}><GestaoLGPD /></LayoutComSidebar>} />
           <Route path="/lojinha" element={<LayoutComSidebar onLogout={handleLogout} tipoUsuario={tipoUsuario} professorId={professorId} isSuperAdmin={isSuperAdmin} isBlocked={isBlocked} currentRoute={location.pathname}><Lojinha /></LayoutComSidebar>} />
           <Route path="/minha-assinatura" element={<LayoutComSidebar onLogout={handleLogout} tipoUsuario={tipoUsuario} professorId={professorId} isSuperAdmin={isSuperAdmin} isBlocked={isBlocked} currentRoute={location.pathname}><MinhaAssinatura /></LayoutComSidebar>} />
+          <Route path="/contrato-saas" element={<LayoutComSidebar onLogout={handleLogout} tipoUsuario={tipoUsuario} professorId={professorId} isSuperAdmin={isSuperAdmin} isBlocked={isBlocked} currentRoute={location.pathname}><ContratoSaaS /></LayoutComSidebar>} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
           </Suspense>
+        <ModalAceiteContratoSaaS
+          isOpen={modalContratoAberto}
+          pendencias={pendenciasSaaS}
+          onAceiteConcluido={() => {
+            setModalContratoAberto(false);
+            setPendenciasSaaS([]);
+          }}
+        />
         <UpdateToast />
     </div>
   );
