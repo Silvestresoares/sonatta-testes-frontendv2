@@ -2,7 +2,7 @@
   "rewrites": [
     {
       "source": "/api/(.*)",
-      "destination": "https://sonatta-backend-v4.onrender.com/api/$1"
+      "destination": "https://sonatta-testes-backendv3.onrender.com/api/$1"
     },
     {
       "source": "/(.*)",
