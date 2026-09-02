@@ -86,8 +86,11 @@ export default function Alunos() {
   const [professores, setProfessores] = useState([]);
   const [responsavelId, setResponsavelId] = useState('');
   const [responsaveis, setResponsaveis] = useState([]);
+  const [carregandoAcessoId, setCarregandoAcessoId] = useState(null);
+
   const reenviarEmailAcesso = async (id, nome) => {
-    if (!window.confirm(`Deseja reenviar o e-mail de acesso para o aluno ${nome}?`)) return;
+    if (!id) return;
+    setCarregandoAcessoId(id);
     try {
       const resposta = await fetch(`${API_URL}/api/alunos/${id}/reenviar-email`, {
         method: 'POST',
@@ -95,13 +98,53 @@ export default function Alunos() {
       });
       const dados = await resposta.json();
       if (resposta.ok) {
-        alert('E-mail enviado com sucesso!');
+        alert(`✅ E-mail de acesso para "${nome || 'Aluno'}" enviado com sucesso!`);
       } else {
-        alert(dados.erro || 'Erro ao reenviar e-mail.');
+        alert(`⚠️ ${dados.erro || 'Falha ao reenviar e-mail.'}`);
       }
     } catch (err) {
-      console.error(err);
-      alert('Erro interno ao tentar reenviar o e-mail.');
+      console.error('Erro ao reenviar e-mail:', err);
+      alert('❌ Erro de conexão ao tentar reenviar o e-mail.');
+    } finally {
+      setCarregandoAcessoId(null);
+    }
+  };
+
+  const reenviarWhatsAppAcesso = async (id, nome, telefone) => {
+    if (!id) return;
+    setCarregandoAcessoId(id);
+    try {
+      const resposta = await fetch(`${API_URL}/api/whatsapp/enviar-acesso`, {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('@sonatta:token')}` 
+        },
+        body: JSON.stringify({ usuarioId: id, tipoUsuario: 'aluno' })
+      });
+      const dados = await resposta.json();
+      if (resposta.ok) {
+        alert(`✅ Link de acesso enviado via WhatsApp para "${nome}" com sucesso!`);
+      } else {
+        // Fallback: Gera link de criação de senha do Portal e abre WhatsApp Web
+        const linkResp = await fetch(`${API_URL}/api/alunos/${id}/gerar-link-senha`, {
+          method: 'POST',
+          headers: { 'Authorization': `Bearer ${localStorage.getItem('@sonatta:token')}` }
+        });
+        const linkDados = await linkResp.json();
+        const fone = (telefone || '').replace(/\D/g, '');
+        if (linkDados.link && fone.length >= 10) {
+          const texto = `Olá, ${nome}! 👋\n\nSeu link para criar sua senha e acessar o *Portal do Aluno* no Sonatta é:\n${linkDados.link}\n\n👤 Login: ${linkDados.email || 'seu CPF'}`;
+          window.open(`https://wa.me/55${fone}?text=${encodeURIComponent(texto)}`, '_blank');
+        } else {
+          alert(`⚠️ ${dados.erro || linkDados.erro || 'Não foi possível enviar por WhatsApp. Verifique se o aluno possui telefone e e-mail cadastrados.'}`);
+        }
+      }
+    } catch (err) {
+      console.error('Erro ao enviar WhatsApp:', err);
+      alert('❌ Erro de conexão ao enviar por WhatsApp.');
+    } finally {
+      setCarregandoAcessoId(null);
     }
   };
 
@@ -1315,6 +1358,7 @@ export default function Alunos() {
             abrirParaEdicao(aluno);
           }}
           onReenviarEmail={reenviarEmailAcesso}
+          onReenviarWhatsApp={reenviarWhatsAppAcesso}
           onCopiarLink={copiarLinkAcesso}
         />
       )}
@@ -1369,7 +1413,7 @@ export default function Alunos() {
 }
 
 // ─── MODAL DE VISUALIZAÇÃO / FICHA DO ALUNO ─────────────────────────────────
-function ModalVisualizacaoAluno({ aluno, onClose, onEditar, onReenviarEmail, onCopiarLink }) {
+function ModalVisualizacaoAluno({ aluno, onClose, onEditar, onReenviarEmail, onReenviarWhatsApp, onCopiarLink }) {
   const [abaAtiva, setAbaAtiva] = useState('ficha');
   const token = localStorage.getItem('@sonatta:token');
   
@@ -1397,7 +1441,7 @@ function ModalVisualizacaoAluno({ aluno, onClose, onEditar, onReenviarEmail, onC
   const telefoneZap = (aluno.telefone || '').replace(/\D/g, '');
   
   // Mensagem WhatsApp convidando para o portal do aluno
-  const mensagemWhatsApp = `Olá, ${aluno.nome}! 👋\n\nSeu acesso ao *Portal do Aluno* no Sonatta está pronto!\n\nPor lá você pode consultar seus horários, aulas, materiais de estudo e situação financeira.\n\n🔗 *Acesse:* ${urlPortal}\n👤 *Login:* ${loginAcesso || 'seu e-mail'}\n\nPara o seu primeiro acesso, clique na opção de criar ou recuperar sua senha na tela de login.`;
+  const mensagemWhatsApp = `Olá, ${aluno.nome}! 👋\n\nSeu acesso ao *Portal do Aluno* no Sonatta está pronto!\n\nPor lá você pode consultar seus horários, aulas, materiais de estudo e situação financeira.\n\n🔗 *Acesse:* ${urlPortal}\n👤 *Login:* ${loginAcesso || 'seu e-mail'}\n\nPara o seu primeiro acesso, crie sua senha no link informado.`;
   const urlWhatsApp = `https://wa.me/55${telefoneZap}?text=${encodeURIComponent(mensagemWhatsApp)}`;
 
   return (
@@ -1536,15 +1580,20 @@ function ModalVisualizacaoAluno({ aluno, onClose, onEditar, onReenviarEmail, onC
                 </div>
 
                 {telefoneZap.length >= 10 && loginAcesso ? (
-                  <a 
-                    href={urlWhatsApp}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="flex items-center justify-center gap-2 w-full bg-[#25D366] hover:bg-[#20bd5a] text-white font-bold py-2 px-4 rounded-lg transition-colors text-xs mt-1"
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (onReenviarWhatsApp) {
+                        onReenviarWhatsApp(aluno.id, aluno.nome, aluno.telefone);
+                      } else {
+                        window.open(urlWhatsApp, '_blank');
+                      }
+                    }}
+                    className="flex items-center justify-center gap-2 w-full bg-[#25D366] hover:bg-[#20bd5a] text-white font-bold py-2.5 px-4 rounded-lg transition-colors text-xs mt-1 cursor-pointer"
                   >
                     <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51a12.8 12.8 0 0 0-.57-.01c-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 0 1-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 0 1-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 0 1 2.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0 0 12.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 0 0 5.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 0 0-3.48-8.413Z"/></svg>
                     Enviar Acesso pelo WhatsApp
-                  </a>
+                  </button>
                 ) : (
                   <p className="text-xs text-amber-500/80 bg-amber-500/10 p-2 rounded text-center border border-amber-500/20 mt-1">
                     ⚠️ Preencha um WhatsApp válido e um Email/CPF na ficha do aluno para enviar o acesso.
