@@ -32,6 +32,10 @@ const Privacidade = React.lazy(() => import('./pages/Privacidade'));
 const ContratoSaaS = React.lazy(() => import('./pages/ContratoSaaS'));
 import ModalAceiteContratoSaaS from './components/ModalAceiteContratoSaaS';
 
+// Páginas de Autenticação / Recuperação
+const RedefinirSenha = React.lazy(() => import('./pages/RedefinirSenha'));
+const EsqueciSenha = React.lazy(() => import('./pages/EsqueciSenha'));
+
 // Páginas do Professor
 const MinhaAgenda = React.lazy(() => import('./pages/MinhaAgenda'));
 const MinhasTurmas = React.lazy(() => import('./pages/MinhasTurmas'));
@@ -305,6 +309,30 @@ export default function App() {
     );
   }
 
+  if (location.pathname === '/redefinir-senha') {
+    return (
+      <div className="flex flex-col min-h-screen">
+        <GlobalBanner />
+        <Suspense fallback={<div className="flex h-screen items-center justify-center text-emerald-500">Carregando...</div>}>
+          <RedefinirSenha aoSucesso={() => navigate('/login')} />
+        </Suspense>
+        <UpdateToast />
+      </div>
+    );
+  }
+
+  if (location.pathname === '/esqueci-senha') {
+    return (
+      <div className="flex flex-col min-h-screen">
+        <GlobalBanner />
+        <Suspense fallback={<div className="flex h-screen items-center justify-center text-emerald-500">Carregando...</div>}>
+          <EsqueciSenha aoVoltar={() => navigate('/login')} />
+        </Suspense>
+        <UpdateToast />
+      </div>
+    );
+  }
+
   if (isPortalRoute) {
     return (
       <div className="flex flex-col min-h-screen">
@@ -341,6 +369,8 @@ export default function App() {
           <Routes>
           <Route path="/" element={<LandingPage />} />
           <Route path="/privacidade" element={<Privacidade />} />
+          <Route path="/redefinir-senha" element={<RedefinirSenha aoSucesso={() => navigate('/login')} />} />
+          <Route path="/esqueci-senha" element={<EsqueciSenha aoVoltar={() => navigate('/login')} />} />
           <Route path="/login" element={
             <Login aoLogar={(usuario) => {
               setUsuarioInfo(usuario || null);

@@ -1,8 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { UserPlus, Search, Download, Printer, X,
-
          Users, Edit2, Plus, Minus, Clock,
-         ChevronLeft, ChevronRight, CheckCircle2, AlertCircle, CalendarClock, ShieldCheck, Eye, Edit, Trash2, Mail } from 'lucide-react';
+         ChevronLeft, ChevronRight, CheckCircle2, AlertCircle, CalendarClock, ShieldCheck, Eye, Edit, Trash2, Mail, Link2 } from 'lucide-react';
 import { API_URL } from '../utils/api';
 import HistoricoPontoModal from '../components/HistoricoPontoModal';
 import SolicitacoesPontoModal from '../components/SolicitacoesPontoModal';
@@ -1349,6 +1348,25 @@ export default function Professores() {
     }
   };
 
+  const copiarLinkAcesso = async (id, nome) => {
+    try {
+      const resposta = await fetch(`${API_URL}/api/professores/${id}/gerar-link-senha`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('@sonatta:token')}` }
+      });
+      const dados = await resposta.json();
+      if (resposta.ok && dados.link) {
+        await navigator.clipboard.writeText(dados.link);
+        alert(`Link de criação de senha do professor ${nome} copiado com sucesso para a área de transferência!`);
+      } else {
+        alert(dados.erro || 'Erro ao gerar link de acesso.');
+      }
+    } catch (err) {
+      console.error(err);
+      alert('Erro ao copiar link de acesso.');
+    }
+  };
+
   const carregar = async () => {
     setCarregando(true);
     try {
@@ -1621,6 +1639,13 @@ export default function Professores() {
                         title="Reenviar E-mail de Acesso"
                       >
                         <Mail size={18} />
+                      </button>
+                      <button
+                        onClick={() => copiarLinkAcesso(prof.id, prof.nome)}
+                        className="text-indigo-400 hover:text-indigo-300 p-2 rounded transition-all cursor-pointer hover:bg-indigo-500/10"
+                        title="Copiar Link de Criação de Senha"
+                      >
+                        <Link2 size={18} />
                       </button>
                       <button
                         onClick={() => excluir(prof)}

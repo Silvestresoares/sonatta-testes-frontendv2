@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
-
-
+import { Mail, CheckCircle2, AlertCircle, ArrowLeft, KeyRound } from 'lucide-react';
 import { API_URL } from '../utils/api';
+
 export default function EsqueciSenha({ aoVoltar }) {
   const [email, setEmail] = useState('');
   const [carregando, setCarregando] = useState(false);
@@ -28,7 +28,7 @@ export default function EsqueciSenha({ aoVoltar }) {
       if (resposta.ok) {
         setMensagem({
           tipo: 'sucesso',
-          texto: dados.mensagem || 'Link de recuperação gerado com sucesso! Verifique o console do backend.',
+          texto: dados.mensagem || 'Link de recuperação enviado com sucesso para o seu e-mail!',
         });
         setEmail('');
       } else {
@@ -48,70 +48,71 @@ export default function EsqueciSenha({ aoVoltar }) {
     }
   };
 
+  const handleVoltar = () => {
+    if (typeof aoVoltar === 'function') {
+      aoVoltar();
+    } else {
+      window.location.href = '/login';
+    }
+  };
+
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-md w-full space-y-8 bg-white p-8 rounded-lg shadow-md">
-        <div>
-          <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
-            Recuperar Senha
-          </h2>
-          <p className="mt-2 text-center text-sm text-gray-600">
-            Digite seu e-mail cadastrado para receber as instruções de recuperação.
+    <div className="min-h-screen bg-zinc-950 flex items-center justify-center p-4 text-white selection:bg-emerald-500 selection:text-black">
+      <div className="w-full max-w-md bg-zinc-900 border border-zinc-800 p-8 rounded-2xl shadow-2xl space-y-6">
+        <div className="text-center space-y-2">
+          <div className="w-12 h-12 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 rounded-xl flex items-center justify-center mx-auto mb-2">
+            <KeyRound size={24} />
+          </div>
+          <h2 className="text-2xl font-bold text-white tracking-tight">Recuperar Senha</h2>
+          <p className="text-xs text-zinc-400">
+            Digite seu e-mail cadastrado para receber o link de redefinição de senha.
           </p>
         </div>
 
-        <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
+        {mensagem.texto && (
+          <div className={`p-3.5 rounded-xl text-sm flex items-center gap-2.5 font-medium ${
+            mensagem.tipo === 'sucesso' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-rose-500/10 text-rose-400 border border-rose-500/20'
+          }`}>
+            {mensagem.tipo === 'sucesso' ? <CheckCircle2 size={18} className="flex-shrink-0" /> : <AlertCircle size={18} className="flex-shrink-0" />}
+            <span>{mensagem.texto}</span>
+          </div>
+        )}
+
+        <form className="space-y-4" onSubmit={handleSubmit}>
           <div>
-            <label htmlFor="email-address" className="sr-only">
-              Endereço de E-mail
+            <label className="block text-xs font-semibold text-zinc-300 mb-1.5 uppercase tracking-wider">
+              E-mail
             </label>
-            <input
-              id="email-address"
-              name="email"
-              type="email"
-              autoComplete="email"
-              required
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="appearance-none rounded-md relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm"
-              placeholder="Ex: seuemail@gmail.com"
-              disabled={carregando}
-            />
-          </div>
-
-          {mensagem.texto && (
-            <div
-              className={`p-3 rounded text-sm text-center ${
-                mensagem.tipo === 'sucesso'
-                  ? 'bg-green-100 text-green-700'
-                  : 'bg-red-100 text-red-700'
-              }`}
-            >
-              {mensagem.texto}
+            <div className="relative">
+              <input
+                type="email"
+                autoComplete="email"
+                required
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className="w-full pl-10 pr-3.5 py-2.5 bg-zinc-950 border border-zinc-800 rounded-xl text-sm text-white placeholder-zinc-600 focus:outline-none focus:border-emerald-500 transition-colors"
+                placeholder="seuemail@exemplo.com"
+                disabled={carregando}
+              />
+              <Mail size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-zinc-500" />
             </div>
-          )}
-
-          <div>
-            <button
-              type="submit"
-              disabled={carregando}
-              className={`group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white ${
-                carregando
-                  ? 'bg-indigo-400 cursor-not-allowed'
-                  : 'bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500'
-              }`}
-            >
-              {carregando ? 'Processando...' : 'Enviar Link de Recuperação'}
-            </button>
           </div>
 
-          <div className="text-sm text-center mt-4">
+          <button
+            type="submit"
+            disabled={carregando}
+            className="w-full bg-emerald-600 hover:bg-emerald-500 disabled:bg-emerald-800 disabled:opacity-50 text-white py-3 rounded-xl text-sm font-bold transition-all shadow-lg shadow-emerald-500/20 cursor-pointer active:scale-98"
+          >
+            {carregando ? 'Enviando link...' : 'Enviar Link de Recuperação'}
+          </button>
+
+          <div className="text-center pt-2">
             <button
               type="button"
-              onClick={aoVoltar}
-              className="font-medium text-indigo-600 hover:text-indigo-500 bg-transparent border-none cursor-pointer"
+              onClick={handleVoltar}
+              className="inline-flex items-center gap-2 text-xs font-semibold text-zinc-400 hover:text-emerald-400 transition-colors cursor-pointer"
             >
-              Voltar para o Login
+              <ArrowLeft size={14} /> Voltar para o Login
             </button>
           </div>
         </form>
