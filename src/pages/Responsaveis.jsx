@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Search, PlusCircle, Eye, Edit, Trash2, Mail } from 'lucide-react';
+import { Search, PlusCircle, Eye, Edit, Trash2, Mail, Link2 } from 'lucide-react';
 import ModalConfirmacao from '../components/ModalConfirmacao';
 
 import { API_URL } from '../utils/api';
@@ -41,6 +41,25 @@ export default function Responsaveis() {
     } catch (err) {
       console.error(err);
       alert('Erro interno ao tentar reenviar o e-mail.');
+    }
+  };
+
+  const copiarLinkAcesso = async (id, nome) => {
+    try {
+      const resposta = await fetch(`${API_URL}/api/responsaveis/${id}/gerar-link-senha`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('@sonatta:token')}` }
+      });
+      const dados = await resposta.json();
+      if (resposta.ok && dados.link) {
+        await navigator.clipboard.writeText(dados.link);
+        alert(`Link de criação de senha do Portal para o responsável (${nome}) copiado com sucesso!`);
+      } else {
+        alert(dados.erro || 'Erro ao gerar link de acesso.');
+      }
+    } catch (err) {
+      console.error(err);
+      alert('Erro ao copiar link de acesso.');
     }
   };
 
@@ -276,6 +295,13 @@ export default function Responsaveis() {
                           title="Reenviar E-mail de Acesso"
                         >
                           <Mail size={18} />
+                        </button>
+                        <button
+                          onClick={() => copiarLinkAcesso(resp.id, resp.nome)}
+                          className="text-indigo-400 hover:text-indigo-300 p-2 rounded transition-all cursor-pointer hover:bg-indigo-500/10"
+                          title="Copiar Link de Criação de Senha (Portal da Família)"
+                        >
+                          <Link2 size={18} />
                         </button>
                         <button
                           onClick={() => handleDeletar(resp)}

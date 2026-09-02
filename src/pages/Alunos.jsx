@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Eye, Edit, Trash2, History, Upload, GraduationCap, Mail } from 'lucide-react';
+import { Eye, Edit, Trash2, History, Upload, GraduationCap, Mail, Link2 } from 'lucide-react';
 import HistoricoAlunoModal from '../components/HistoricoAlunoModal';
 import RepertorioAluno from '../components/RepertorioAluno';
 import AvaliacaoAluno from '../components/AvaliacaoAluno';
@@ -211,6 +211,25 @@ export default function Alunos() {
       }
     } catch (erro) {
       console.error("Erro ao buscar alunos:", erro);
+    }
+  };
+
+  const copiarLinkAcesso = async (id, nome) => {
+    try {
+      const resposta = await fetch(`${API_URL}/api/alunos/${id}/gerar-link-senha`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('@sonatta:token')}` }
+      });
+      const dados = await resposta.json();
+      if (resposta.ok && dados.link) {
+        await navigator.clipboard.writeText(dados.link);
+        alert(`Link de criação de senha do Portal do Aluno (${nome}) copiado com sucesso!`);
+      } else {
+        alert(dados.erro || 'Erro ao gerar link de acesso.');
+      }
+    } catch (err) {
+      console.error(err);
+      alert('Erro ao copiar link de acesso.');
     }
   };
 
@@ -791,6 +810,13 @@ export default function Alunos() {
                               title="Reenviar E-mail de Acesso"
                             >
                               <Mail size={18} />
+                            </button>
+                            <button
+                              onClick={(e) => { e.stopPropagation(); copiarLinkAcesso(aluno.id, aluno.nome); }}
+                              className="text-indigo-400 hover:text-indigo-300 p-2 rounded transition-all cursor-pointer hover:bg-indigo-500/10"
+                              title="Copiar Link de Criação de Senha (Portal do Aluno)"
+                            >
+                              <Link2 size={18} />
                             </button>
                             <button
                               onClick={(e) => { e.stopPropagation(); handleAbrirDeleteConfirmacao(aluno); }}
