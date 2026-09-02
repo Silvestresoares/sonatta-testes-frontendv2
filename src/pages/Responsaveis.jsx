@@ -461,6 +461,29 @@ export default function Responsaveis() {
                 <p className="text-zinc-300">{visualizarResponsavel.email || 'Não informado'}</p>
               </div>
 
+              {/* Acesso ao Portal */}
+              <div className="pt-2 border-t border-zinc-800">
+                <p className="text-xs font-bold text-emerald-500 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                  <span>🎓</span> Acesso ao Portal da Família
+                </p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => reenviarEmailAcesso(visualizarResponsavel.id, visualizarResponsavel.nome)}
+                    className="flex items-center justify-center gap-2 bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 border border-amber-500/30 font-semibold py-2 px-3 rounded-lg transition-colors text-xs cursor-pointer"
+                  >
+                    <Mail size={16} /> Reenviar Link por E-mail
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => copiarLinkAcesso(visualizarResponsavel.id, visualizarResponsavel.nome)}
+                    className="flex items-center justify-center gap-2 bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-400 border border-indigo-500/30 font-semibold py-2 px-3 rounded-lg transition-colors text-xs cursor-pointer"
+                  >
+                    <Link2 size={16} /> Copiar Link do Portal
+                  </button>
+                </div>
+              </div>
+
               <div className="pt-2 border-t border-zinc-800">
                 <p className="text-xs font-bold text-zinc-500 uppercase tracking-wider mb-2">Alunos Vinculados</p>
                 {visualizarResponsavel.alunos && visualizarResponsavel.alunos.length > 0 ? (
