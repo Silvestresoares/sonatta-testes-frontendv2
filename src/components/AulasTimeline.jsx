@@ -1,5 +1,5 @@
 import React from 'react';
-import { Clock, User, Clipboard, Music, Edit, Trash2, Users, AlertCircle, CheckCircle2, XCircle, Tag } from 'lucide-react';
+import { Clock, User, Clipboard, Music, Edit, Trash2, Users, AlertCircle, CheckCircle2, XCircle, Tag, GraduationCap } from 'lucide-react';
 import { Virtuoso } from 'react-virtuoso';
 
 export default function AulasTimeline({ aulas = [], onAbrirRegistro = null, onEditAula = null, onDeleteAula = null, showActions = true }) {
@@ -111,106 +111,117 @@ export default function AulasTimeline({ aulas = [], onAbrirRegistro = null, onEd
                 key={aula.id || index}
                 className={`border-l-4 rounded-xl p-5 transition-all transform hover:scale-[1.01] hover:shadow-xl ${statusConfig.card}`}
               >
-          {/* Cabeçalho: Horário e Status */}
-          <div className="flex items-center justify-between mb-4 gap-3">
-            <div className="flex items-center gap-3">
-              <div className="flex items-center gap-2">
-                <Clock size={12} className="text-emerald-400" />
-                <span className="text-xs font-black text-zinc-900 dark:text-white">{aula.horario}</span>
-                {aula.sala && (
-                  <>
-                    <span className="text-zinc-300 dark:text-zinc-700">•</span>
-                    <span className="text-xs font-semibold text-zinc-500">📍 Sala {aula.sala}</span>
-                  </>
-                )}
-              </div>
-              {statusValue && statusValue !== 'pendente' && (
-                <div className={`flex items-center gap-2 text-xs font-semibold ${statusConfig.badge}`}>
-                  {statusConfig.icon}
-                  <span>{LABELS_STATUS[statusValue] || statusValue}</span>
+                {/* Cabeçalho: Horário e Status */}
+                <div className="flex items-center justify-between mb-4 gap-3">
+                  <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-2">
+                      <Clock size={12} className="text-emerald-400" />
+                      <span className="text-xs font-black text-zinc-900 dark:text-white">{aula.horario}</span>
+                      {aula.sala && (
+                        <>
+                          <span className="text-zinc-300 dark:text-zinc-700">•</span>
+                          <span className="text-xs font-semibold text-zinc-500">📍 Sala {aula.sala}</span>
+                        </>
+                      )}
+                    </div>
+                    {statusValue && statusValue !== 'pendente' && (
+                      <div className={`flex items-center gap-2 text-xs font-semibold ${statusConfig.badge}`}>
+                        {statusConfig.icon}
+                        <span>{LABELS_STATUS[statusValue] || statusValue}</span>
+                      </div>
+                    )}
+                  </div>
                 </div>
-              )}
-            </div>
-          </div>
 
-          {/* Informações do Aluno com Botões de Ação */}
-          <div className="space-y-2 ml-1">
-            <div className="flex items-center justify-between gap-3 flex-wrap">
-              <div className="flex items-center gap-2 flex-wrap flex-1">
-                {aula.tipo_aula === 'aula_turma' ? (
-                  <Users size={18} className="text-violet-400 flex-shrink-0" />
-                ) : (
-                  <User size={18} className="text-emerald-400 flex-shrink-0" />
-                )}
-                <p className="text-base font-bold text-zinc-900 dark:text-white">{aula.nome_aluno || aula.aluno}</p>
-                {showPrancheta && (
-                  <button
-                    onClick={() => onAbrirRegistro && onAbrirRegistro(aula)}
-                    className={`p-1 rounded-md transition-all cursor-pointer active:scale-95 ${statusConfig.color} hover:bg-white/5`}
-                    title={aula.dadosRegistro ? "Editar Registro Pedagógico" : "Registrar Aula"}
-                  >
-                    <Clipboard size={16} />
-                  </button>
-                )}
-                {aula.instrumento && (
-                  <>
-                    <span className="text-zinc-300 dark:text-zinc-700">•</span>
-                    <Music size={14} className="text-zinc-500 flex-shrink-0" />
-                    <span className="text-xs text-zinc-400">{aula.instrumento}</span>
-                  </>
+                {/* Informações do Aluno com Botões de Ação */}
+                <div className="space-y-2 ml-1">
+                  <div className="flex items-center justify-between gap-3 flex-wrap">
+                    <div className="flex items-center gap-2 flex-wrap flex-1">
+                      {aula.tipo_aula === 'aula_turma' ? (
+                        <Users size={18} className="text-violet-400 flex-shrink-0" />
+                      ) : (
+                        <User size={18} className="text-emerald-400 flex-shrink-0" />
+                      )}
+                      <p className="text-base font-bold text-zinc-900 dark:text-white">{aula.nome_aluno || aula.aluno}</p>
+                      {showPrancheta && (
+                        <button
+                          onClick={() => onAbrirRegistro && onAbrirRegistro(aula)}
+                          className={`p-1 rounded-md transition-all cursor-pointer active:scale-95 ${statusConfig.color} hover:bg-white/5`}
+                          title={aula.dadosRegistro ? "Editar Registro Pedagógico" : "Registrar Aula"}
+                        >
+                          <Clipboard size={16} />
+                        </button>
+                      )}
+                      {aula.instrumento && (
+                        <>
+                          <span className="text-zinc-300 dark:text-zinc-700">•</span>
+                          <Music size={14} className="text-zinc-500 flex-shrink-0" />
+                          <span className="text-xs text-zinc-400">{aula.instrumento}</span>
+                        </>
+                      )}
+                    </div>
+
+                    {/* Ações para Aulas Especiais */}
+                    <div className="flex items-center gap-1 ml-auto">
+                      {showActions && aula.tipo_aula && aula.tipo_aula !== 'aula_regular' && aula.tipo_aula !== 'aula_turma' && (
+                        <>
+                          <button
+                            onClick={(e) => { e.stopPropagation(); onEditAula && onEditAula(aula); }}
+                            className="text-blue-400 hover:text-blue-300 p-2 rounded transition-all cursor-pointer hover:bg-blue-500/10 active:scale-90"
+                            title="Editar"
+                          ><Edit size={16} /></button>
+                          <button
+                            onClick={(e) => { e.stopPropagation(); onDeleteAula && onDeleteAula(aula); }}
+                            className="text-rose-400 hover:text-rose-300 p-2 rounded transition-all cursor-pointer hover:bg-rose-500/10 active:scale-90"
+                            title="Excluir"
+                          ><Trash2 size={16} /></button>
+                        </>
+                      )}
+                    </div>
+                  </div>
+
+                  {aula.professor_nome && (
+                    <div className="text-xs text-zinc-400 ml-6 mt-1 flex items-center gap-1">
+                      <span>👨‍🏫 Professor:</span>
+                      <span className="font-semibold text-zinc-300">{aula.professor_nome}</span>
+                    </div>
+                  )}
+                </div>
+
+                {/* Tipo de aula e Contador de Aulas */}
+                <div className="mt-3 flex gap-2 flex-wrap items-center">
+                  {aula.tipo_aula && (
+                    <span className={`text-xs font-medium px-2.5 py-1 rounded-full border flex items-center gap-1.5 ${obterCorTipoAula(aula.tipo_aula)}`}>
+                      <Tag size={12} />
+                      {aula.tipo_aula === 'aula_extra' ? 'Aula extra' : 
+                       aula.tipo_aula === 'aula_experimental' ? 'Experimental' :
+                       aula.tipo_aula === 'reposicao' ? 'Reposição' :
+                       aula.tipo_aula === 'reagendada' ? 'Reagendada' : 
+                       aula.tipo_aula === 'aula_regular' ? 'Regular' : aula.tipo_aula}
+                    </span>
+                  )}
+
+                  {/* Contador de Aulas do Aluno (desde a matrícula) */}
+                  {aula.tipo_aula !== 'aula_turma' && aula.tipo_aula !== 'aula_experimental' && (aula.aluno_id || aula.numero_aula || aula.total_aulas_feitas !== undefined) && (
+                    <span 
+                      className="text-xs font-semibold px-2.5 py-1 rounded-full border bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20 flex items-center gap-1.5 shadow-sm"
+                      title={aula.data_matricula ? `Matriculado em ${new Date(String(aula.data_matricula).includes('T') ? aula.data_matricula : aula.data_matricula + 'T12:00:00').toLocaleDateString('pt-BR')} • ${aula.numero_aula || aula.total_aulas_feitas || 1}ª aula na grade` : `${aula.numero_aula || aula.total_aulas_feitas || 1}ª aula na grade`}
+                    >
+                      <GraduationCap size={13} className="text-amber-500" />
+                      <span>
+                        {`${aula.numero_aula || aula.total_aulas_feitas || 1}ª aula`}
+                      </span>
+                    </span>
+                  )}
+                </div>
+
+                {/* Notas ou observações */}
+                {aula.notas && (
+                  <div className="mt-3 pt-3 border-t border-zinc-700/50">
+                    <p className="text-xs text-zinc-400 italic">💬 {aula.notas}</p>
+                  </div>
                 )}
               </div>
-
-              {/* Ações para Aulas Especiais */}
-              <div className="flex items-center gap-1 ml-auto">
-                {showActions && aula.tipo_aula && aula.tipo_aula !== 'aula_regular' && aula.tipo_aula !== 'aula_turma' && (
-                  <>
-                    <button
-                      onClick={(e) => { e.stopPropagation(); onEditAula && onEditAula(aula); }}
-                      className="text-blue-400 hover:text-blue-300 p-2 rounded transition-all cursor-pointer hover:bg-blue-500/10 active:scale-90"
-                      title="Editar"
-                    ><Edit size={16} /></button>
-                    <button
-                      onClick={(e) => { e.stopPropagation(); onDeleteAula && onDeleteAula(aula); }}
-                      className="text-rose-400 hover:text-rose-300 p-2 rounded transition-all cursor-pointer hover:bg-rose-500/10 active:scale-90"
-                      title="Excluir"
-                    ><Trash2 size={16} /></button>
-                  </>
-                )}
-              </div>
-            </div>
-
-
-            {aula.professor_nome && (
-              <div className="text-xs text-zinc-400 ml-6 mt-1 flex items-center gap-1">
-                <span>👨‍🏫 Professor:</span>
-                <span className="font-semibold text-zinc-300">{aula.professor_nome}</span>
-              </div>
-            )}
-          </div>
-
-
-          {/* Tipo de aula */}
-          {aula.tipo_aula && (
-            <div className="mt-3 flex gap-2 flex-wrap">
-              <span className={`text-xs font-medium px-2.5 py-1 rounded-full border flex items-center gap-1.5 ${obterCorTipoAula(aula.tipo_aula)}`}>
-                <Tag size={12} />
-                {aula.tipo_aula === 'aula_extra' ? 'Aula extra' : 
-                 aula.tipo_aula === 'aula_experimental' ? 'Experimental' :
-                 aula.tipo_aula === 'reposicao' ? 'Reposição' :
-                 aula.tipo_aula === 'reagendada' ? 'Reagendada' : 
-                 aula.tipo_aula === 'aula_regular' ? 'Regular' : aula.tipo_aula}
-              </span>
-            </div>
-          )}
-
-          {/* Notas ou observações */}
-          {aula.notas && (
-            <div className="mt-3 pt-3 border-t border-zinc-700/50">
-              <p className="text-xs text-zinc-400 italic">💬 {aula.notas}</p>
-            </div>
-          )}
-        </div>
             </div>
           );
         }}

@@ -50,6 +50,62 @@ const obterNomeFeriado = (data, feriadosCustomizados = []) => {
   return feriadoCustom ? (feriadoCustom.descricao || 'Feriado/Recesso') : null;
 };
 
+// Função utilitária para calcular o número ordinal da aula do aluno na grade desde a matrícula
+export function calcularNumeroAula(aluno, dataAulaISO, aulasEspeciais = []) {
+  if (!aluno || !dataAulaISO) return 1;
+
+  let dataInicioStr = aluno.data_matricula || aluno.primeira_aula || aluno.created_at;
+  if (dataInicioStr) {
+    dataInicioStr = String(dataInicioStr).substring(0, 10);
+  }
+  if (!dataInicioStr || dataInicioStr > dataAulaISO) {
+    dataInicioStr = dataAulaISO;
+  }
+
+  const mapaDias = {
+    'domingo': 0, 'dom': 0,
+    'segunda': 1, 'segunda-feira': 1, 'seg': 1,
+    'terca': 2, 'terça': 2, 'terca-feira': 2, 'terça-feira': 2, 'ter': 2,
+    'quarta': 3, 'quarta-feira': 3, 'qua': 3,
+    'quinta': 4, 'quinta-feira': 4, 'qui': 4,
+    'sexta': 5, 'sexta-feira': 5, 'sex': 5,
+    'sabado': 6, 'sábado': 6, 'sabado-feira': 6, 'sábado-feira': 6, 'sab': 6
+  };
+
+  const diasSemanaArray = String(aluno.dia_aula || '')
+    .split(',')
+    .map(d => d.trim().toLowerCase())
+    .map(d => mapaDias[d])
+    .filter(d => d !== undefined);
+
+  const [anoF, mesF, diaF] = dataAulaISO.split('-').map(Number);
+  const dataFim = new Date(anoF, mesF - 1, diaF, 12, 0, 0);
+  const diasAlvo = diasSemanaArray.length > 0 ? diasSemanaArray : [dataFim.getDay()];
+
+  const [anoI, mesI, diaI] = dataInicioStr.split('-').map(Number);
+  let curr = new Date(anoI, mesI - 1, diaI, 12, 0, 0);
+  let totalAulas = 0;
+
+  while (curr <= dataFim) {
+    if (diasAlvo.includes(curr.getDay())) {
+      totalAulas++;
+    }
+    curr.setDate(curr.getDate() + 1);
+  }
+
+  if (Array.isArray(aulasEspeciais) && aluno.id) {
+    const extrasAnteriores = aulasEspeciais.filter(esp => {
+      if (Number(esp.aluno_id) !== Number(aluno.id)) return false;
+      if (esp.tipo_aula === 'regular' || esp.tipo_aula === 'aula_regular') return false;
+      const dataEsp = String(esp.data || esp.data_aula || '').substring(0, 10);
+      return dataEsp >= dataInicioStr && dataEsp <= dataAulaISO;
+    });
+    totalAulas += extrasAnteriores.length;
+  }
+
+  return Math.max(1, totalAulas);
+}
+
 // Função utilitária para formatar data sem problemas de fuso horário
 const formatarDataISO = (data) => {
   return `${data.getFullYear()}-${String(data.getMonth() + 1).padStart(2, '0')}-${String(data.getDate()).padStart(2, '0')}`;
@@ -266,6 +322,8 @@ export default function Agenda() {
           (!r.turma_id)
         );
 
+        const numAula = calcularNumeroAula(aluno, dataISO, aulasAgendadas);
+
         return {
           id: registro?.id || `regular-${aluno.id}`,
           aluno_id: aluno.id,
@@ -278,7 +336,10 @@ export default function Agenda() {
           dadosRegistro: registro || null,
           aula_id_referencia: null, // Aulas regulares usam apenas aluno_id + data
           professor_id: aluno.professor_id,
-          professor_nome: aluno.professor_nome
+          professor_nome: aluno.professor_nome,
+          numero_aula: numAula,
+          total_aulas_feitas: numAula,
+          data_matricula: aluno.data_matricula || null
         };
       });
 
@@ -304,6 +365,9 @@ export default function Agenda() {
           if (registroPresenca) statusCalculado = registroPresenca.status_presenca;
         }
 
+        const alunoRef = alunos.find(al => Number(al.id) === Number(a.aluno_id)) || a;
+        const numAula = calcularNumeroAula(alunoRef, dataISO, aulasAgendadas);
+
         return {
           id: registroPresenca?.id || `extra-${a.id}`,
           aluno_id: a.aluno_id,
@@ -319,7 +383,10 @@ export default function Agenda() {
           professor_id: a.professor_id,
           professor_nome: a.professor_nome,
           sala: a.sala,
-          sala_id: a.sala_id
+          sala_id: a.sala_id,
+          numero_aula: numAula,
+          total_aulas_feitas: numAula,
+          data_matricula: a.data_matricula || alunoRef?.data_matricula || null
         };
       });
 
