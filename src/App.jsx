@@ -161,6 +161,9 @@ export default function App() {
   // SSE - Recebimento de Avisos Globais em Tempo Real
   const [avisoGlobal, setAvisoGlobal] = useState(null);
   useEffect(() => {
+    // 🔵 BUG-032 FIX: Abre conexão SSE de avisos somente após autenticação do usuário
+    if (!estaLogado) return;
+
     const sse = new EventSource(`${API_URL}/api/avisos/stream`);
 
     sse.onmessage = (event) => {
@@ -180,7 +183,7 @@ export default function App() {
     return () => {
       sse.close();
     };
-  }, []);
+  }, [estaLogado]);
 
   // Verifica token ao montar
   useEffect(() => {
