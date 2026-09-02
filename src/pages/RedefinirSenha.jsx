@@ -8,6 +8,7 @@ export default function RedefinirSenha({ aoSucesso }) {
   const [mostrarSenha, setMostrarSenha] = useState(false);
   const [mostrarConfirmar, setMostrarConfirmar] = useState(false);
   const [token, setToken] = useState('');
+  const [tokenValido, setTokenValido] = useState(null); // null = validando, true = ok, false = invalido
   const [mensagem, setMensagem] = useState({ tipo: '', texto: '' });
   const [carregando, setCarregando] = useState(false);
 
@@ -17,10 +18,36 @@ export default function RedefinirSenha({ aoSucesso }) {
     const tokenUrl = parametros.get('token');
     if (tokenUrl) {
       setToken(tokenUrl);
+      validarToken(tokenUrl);
     } else {
-      setMensagem({ tipo: 'erro', texto: 'Link de criação/redefinição de senha inválido ou expirado.' });
+      setTokenValido(false);
+      setMensagem({ tipo: 'erro', texto: 'Link de criação/redefinição de senha inválido ou ausente.' });
     }
   }, []);
+
+  const validarToken = async (tokenParaValidar) => {
+    try {
+      const resposta = await fetch(`${API_URL}/api/recuperacao/validar-token`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token: tokenParaValidar })
+      });
+      const dados = await resposta.json();
+
+      if (resposta.ok) {
+        setTokenValido(true);
+      } else {
+        setTokenValido(false);
+        setMensagem({
+          tipo: 'erro',
+          texto: dados.erro || 'Este link de acesso é inválido, expirou ou já foi utilizado.'
+        });
+      }
+    } catch {
+      // Fallback em caso de instabilidade de rede
+      setTokenValido(true);
+    }
+  };
 
   const handleSubmeter = async (e) => {
     e.preventDefault();
@@ -48,6 +75,7 @@ export default function RedefinirSenha({ aoSucesso }) {
       const dados = await resposta.json();
 
       if (resposta.ok) {
+        setTokenValido(false);
         setMensagem({ tipo: 'sucesso', texto: 'Senha cadastrada com sucesso! Redirecionando para o login...' });
         setTimeout(() => {
           // Limpa os parâmetros da URL e vai para o login
@@ -59,7 +87,7 @@ export default function RedefinirSenha({ aoSucesso }) {
           }
         }, 2000);
       } else {
-        setMensagem({ tipo: 'erro', texto: dados.erro || 'Erro ao definir senha. O link pode ter expirado.' });
+        setMensagem({ tipo: 'erro', texto: dados.erro || 'Erro ao definir senha. O link pode ter expirado ou já ter sido utilizado.' });
       }
     } catch {
       setMensagem({ tipo: 'erro', texto: 'Não foi possível conectar ao servidor.' });
@@ -88,7 +116,7 @@ export default function RedefinirSenha({ aoSucesso }) {
           </div>
         )}
 
-        {token ? (
+        {tokenValido === true && (
           <form onSubmit={handleSubmeter} className="space-y-4">
             <div>
               <label className="block text-xs font-semibold text-zinc-300 mb-1.5 uppercase tracking-wider">Nova Senha</label>
@@ -104,7 +132,7 @@ export default function RedefinirSenha({ aoSucesso }) {
                 <button
                   type="button"
                   onClick={() => setMostrarSenha(!mostrarSenha)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-500 hover:text-zinc-300 transition-colors"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-500 hover:text-zinc-300 transition-colors cursor-pointer"
                 >
                   {mostrarSenha ? <EyeOff size={16} /> : <Eye size={16} />}
                 </button>
@@ -125,7 +153,7 @@ export default function RedefinirSenha({ aoSucesso }) {
                 <button
                   type="button"
                   onClick={() => setMostrarConfirmar(!mostrarConfirmar)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-500 hover:text-zinc-300 transition-colors"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-500 hover:text-zinc-300 transition-colors cursor-pointer"
                 >
                   {mostrarConfirmar ? <EyeOff size={16} /> : <Eye size={16} />}
                 </button>
@@ -140,7 +168,9 @@ export default function RedefinirSenha({ aoSucesso }) {
               {carregando ? 'Salvando...' : 'Salvar Nova Senha'}
             </button>
           </form>
-        ) : (
+        )}
+
+        {tokenValido === false && (
           <div className="text-center pt-2">
             <a 
               href="/login" 
