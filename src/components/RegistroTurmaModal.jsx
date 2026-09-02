@@ -54,7 +54,7 @@ export default function RegistroTurmaModal({ isOpen, onClose, turmaAula, onSave 
                   </span>
                 )}
               </div>
-              <h2 className="text-2xl font-black text-white">{turmaAula?.nome_aluno}</h2>
+              <h2 className="text-2xl font-black text-white">{turmaAula?.nome_aluno || turmaAula?.aluno_nome || turmaAula?.aluno || turmaAula?.nome || 'Turma'}</h2>
             </div>
             <button 
               onClick={onClose}

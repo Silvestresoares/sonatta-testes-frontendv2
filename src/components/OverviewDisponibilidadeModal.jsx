@@ -100,7 +100,8 @@ export default function OverviewDisponibilidadeModal({ isOpen, onClose, professo
 
     aulasAgendadas.forEach(aula => {
       if (Number(aula.professor_id) === Number(professorId) && (aula.status === 'agendada' || aula.status === 'realizada' || aula.status === 'pendente')) {
-        const diaCorrespondente = Object.keys(datasSemana).find(dia => datasSemana[dia] === aula.data);
+        const aulaDataStr = String(aula.data || aula.data_aula || '').substring(0, 10);
+        const diaCorrespondente = Object.keys(datasSemana).find(dia => datasSemana[dia] === aulaDataStr);
         
         if (diaCorrespondente && aula.horario) {
           if (!mapa[diaCorrespondente]) mapa[diaCorrespondente] = {};

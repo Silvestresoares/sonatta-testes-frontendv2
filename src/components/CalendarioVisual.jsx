@@ -30,13 +30,22 @@ const FERIADOS_FIXOS = {
   '25-12': 'Natal'
 };
 
-const obterNomeFeriado = (data) => {
+const obterNomeFeriado = (data, feriadosCustomizados = []) => {
   const dia = String(data.getDate()).padStart(2, '0');
   const mes = String(data.getMonth() + 1).padStart(2, '0');
-  return FERIADOS_FIXOS[`${dia}-${mes}`];
+  const nomeFixo = FERIADOS_FIXOS[`${dia}-${mes}`];
+  if (nomeFixo) return nomeFixo;
+
+  const dataISO = `${data.getFullYear()}-${mes}-${dia}`;
+  const feriadoCustom = feriadosCustomizados.find(f => {
+    const fData = f.data_feriado ? String(f.data_feriado).substring(0, 10) : '';
+    return fData === dataISO;
+  });
+
+  return feriadoCustom ? (feriadoCustom.descricao || 'Feriado/Recesso') : null;
 };
 
-export function CalendarioVisual({ aulasDoMes = [], onDiaSelected = () => {}, onMesChange, initialDate = new Date() }) {
+export function CalendarioVisual({ aulasDoMes = [], onDiaSelected = () => {}, onMesChange, initialDate = new Date(), feriadosCustomizados = [] }) {
   const [mesAtual, setMesAtual] = useState(initialDate);
   const [diaSelecionado, setDiaSelecionado] = useState(initialDate);
 
@@ -101,18 +110,20 @@ export function CalendarioVisual({ aulasDoMes = [], onDiaSelected = () => {}, on
   };
   
   const contarAulasDoDia = (data) => {
-    // Se for feriado nacional, as aulas são bloqueadas (contagem zero)
-    if (obterNomeFeriado(data)) return 0;
+    // Se for feriado (nacional ou customizado da escola), as aulas são bloqueadas (contagem zero)
+    if (obterNomeFeriado(data, feriadosCustomizados)) return 0;
 
     const diasSemana = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
     const diaDasemana = diasSemana[data.getDay()];
+    const dataISO = `${data.getFullYear()}-${String(data.getMonth() + 1).padStart(2, '0')}-${String(data.getDate()).padStart(2, '0')}`;
     const idsRegistradosNoDia = new Set();
 
     // 1. Conta registros específicos para este dia (presenças, extras, etc)
     const registrosDoDia = aulasDoMes.filter(aula => {
-      if (aula.data_aula) {
-        const aulasData = parseDataLocal(aula.data_aula);
-        if (aulasData && aulasData.toDateString() === data.toDateString()) {
+      if (aula.data_aula || aula.data) {
+        const rawData = aula.data_aula || aula.data;
+        const dataStr = String(rawData).substring(0, 10);
+        if (dataStr === dataISO) {
           if (aula.aluno_id) idsRegistradosNoDia.add(aula.aluno_id);
           return true;
         }
@@ -125,7 +136,16 @@ export function CalendarioVisual({ aulasDoMes = [], onDiaSelected = () => {}, on
       const diaReferencia = aula.dia_aula || aula.dia_semana;
       if (diaReferencia) {
         const diaTratado = diaReferencia.replace('-feira', '');
-        return diaTratado === diaDasemana && !idsRegistradosNoDia.has(aula.id);
+        if (diaTratado.toLowerCase() !== diaDasemana.toLowerCase()) return false;
+
+        // Valida se a data é anterior à matrícula do aluno
+        if (aula.data_matricula) {
+          const dataMatriculaStr = String(aula.data_matricula).substring(0, 10);
+          if (dataISO < dataMatriculaStr) return false;
+        }
+
+        // Não conta duplicado se o aluno já teve registro no dia
+        return !idsRegistradosNoDia.has(aula.id);
       }
       return false;
     });

@@ -35,10 +35,19 @@ const FERIADOS_FIXOS = {
   '25-12': 'Natal'
 };
 
-const obterNomeFeriado = (data) => {
+const obterNomeFeriado = (data, feriadosCustomizados = []) => {
   const dia = String(data.getDate()).padStart(2, '0');
   const mes = String(data.getMonth() + 1).padStart(2, '0');
-  return FERIADOS_FIXOS[`${dia}-${mes}`];
+  const nomeFixo = FERIADOS_FIXOS[`${dia}-${mes}`];
+  if (nomeFixo) return nomeFixo;
+
+  const dataISO = `${data.getFullYear()}-${mes}-${dia}`;
+  const feriadoCustom = feriadosCustomizados.find(f => {
+    const fData = f.data_feriado ? String(f.data_feriado).substring(0, 10) : '';
+    return fData === dataISO;
+  });
+
+  return feriadoCustom ? (feriadoCustom.descricao || 'Feriado/Recesso') : null;
 };
 
 // Função utilitária para formatar data sem problemas de fuso horário
@@ -55,6 +64,7 @@ export default function Agenda() {
   const [aulasAgendadas, setAulasAgendadas] = useState([]);
   const [professores, setProfessores] = useState([]);
   const [turmas, setTurmas] = useState([]);
+  const [feriados, setFeriados] = useState([]);
   const [professorSelecionado, setProfessorSelecionado] = useState('');
   const [carregando, setCarregando] = useState(false);
   const [modalRegistroAberto, setModalRegistroAberto] = useState(false);
@@ -68,6 +78,21 @@ export default function Agenda() {
   const [mesVisivel, setMesVisivel] = useState({ mes: new Date().getMonth() + 1, ano: new Date().getFullYear() });
 
   const token = localStorage.getItem('@sonatta:token');
+
+  // Carregar feriados cadastrados da escola
+  const carregarFeriados = useCallback(async () => {
+    try {
+      const resposta = await fetch(`${API_URL}/api/feriados`, {
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('@sonatta:token')}` }
+      });
+      if (resposta.ok) {
+        const dados = await resposta.json();
+        setFeriados(Array.isArray(dados) ? dados : (dados.dados || []));
+      }
+    } catch (erro) {
+      console.error('Erro ao carregar feriados:', erro);
+    }
+  }, [token]);
 
   // Carregar alunos
   const carregarAlunos = useCallback(async () => {
@@ -175,14 +200,20 @@ export default function Agenda() {
     }
   }, [token]);
 
-  // Carregar dados iniciais ao montar
+  // 1. Carregar dados estruturais fixos ao montar o componente
   useEffect(() => {
     carregarAlunos();
-    carregarExperimentais();
-    carregarAulasAgendadas();
     carregarProfessores();
     carregarTurmas();
-  }, [carregarAlunos, carregarExperimentais, carregarAulasAgendadas, carregarProfessores, carregarTurmas]);
+    carregarFeriados();
+  }, [carregarAlunos, carregarProfessores, carregarTurmas, carregarFeriados]);
+
+  // 2. Carregar dados dinâmicos mensais sempre que o mês/ano visível for alterado
+  useEffect(() => {
+    carregarRegistros();
+    carregarAulasAgendadas();
+    carregarExperimentais();
+  }, [mesVisivel, carregarRegistros, carregarAulasAgendadas, carregarExperimentais]);
 
   // Ouvir atualizações da Sidebar / outros contextos
   useEffect(() => {
@@ -191,21 +222,17 @@ export default function Agenda() {
         carregarAulasAgendadas();
         carregarRegistros();
         carregarProfessores();
+        carregarExperimentais();
       }
     };
 
     canalAtualizacao.addEventListener('message', handleUpdates);
     return () => canalAtualizacao.removeEventListener('message', handleUpdates);
-  }, [carregarAulasAgendadas, carregarRegistros, carregarProfessores]);
-
-  // Efeito específico para recarregar registros de aula quando o mês visível for alterado
-  useEffect(() => {
-    carregarRegistros();
-  }, [mesVisivel, carregarRegistros]);
+  }, [carregarAulasAgendadas, carregarRegistros, carregarProfessores, carregarExperimentais]);
 
   const nomeFeriado = useMemo(() => {
-    return obterNomeFeriado(dataSelecionada);
-  }, [dataSelecionada]);
+    return obterNomeFeriado(dataSelecionada, feriados);
+  }, [dataSelecionada, feriados]);
 
   // Filtra as aulas para o dia selecionado no calendário
   const aulasDoDia = useMemo(() => {
@@ -233,7 +260,7 @@ export default function Agenda() {
         // Busca registro específico de aula regular (sem aula_id, sem experimental_id e sem turma_id)
         const registro = registros.find(r => 
           Number(r.aluno_id) === Number(aluno.id) && 
-          r.data_aula === dataISO && 
+          String(r.data_aula || '').substring(0, 10) === dataISO && 
           (!r.aula_id || r.aula_id === 0) && 
           (!r.aula_experimental_id || r.aula_experimental_id === 0) &&
           (!r.turma_id)
@@ -257,7 +284,7 @@ export default function Agenda() {
 
     // 2. Adiciona aulas especiais (Extras, Reposições, etc) da tabela 'aulas'
     const extras = aulasAgendadas
-      .filter(a => a.data === dataISO && a.tipo_aula !== 'regular')
+      .filter(a => String(a.data || a.data_aula || '').substring(0, 10) === dataISO && a.tipo_aula !== 'regular')
       .map(a => {
         // Busca registro vinculado exatamente a este ID de aula extra/reposição (ou turma_id se for turma)
         let registroPresenca = null;
@@ -265,7 +292,7 @@ export default function Agenda() {
 
         if (a.turma_id) {
           const turmaRegistros = registros.filter(r => 
-            r.data_aula === dataISO && Number(r.turma_id) === Number(a.turma_id)
+            String(r.data_aula || '').substring(0, 10) === dataISO && Number(r.turma_id) === Number(a.turma_id)
           );
           if (turmaRegistros.length > 0) {
             if (turmaRegistros.every(r => r.status_presenca === 'cancelada')) statusCalculado = 'cancelada';
@@ -273,7 +300,7 @@ export default function Agenda() {
             else statusCalculado = 'presente';
           }
         } else {
-          registroPresenca = registros.find(r => Number(r.aula_id) === Number(a.id) && r.data_aula === dataISO);
+          registroPresenca = registros.find(r => Number(r.aula_id) === Number(a.id) && String(r.data_aula || '').substring(0, 10) === dataISO);
           if (registroPresenca) statusCalculado = registroPresenca.status_presenca;
         }
 
@@ -298,11 +325,11 @@ export default function Agenda() {
 
     // 3. Adiciona Aulas Experimentais agendadas para o dia
     const aulasExp = experimentais
-      .filter(exp => exp.data_aula === dataISO)
+      .filter(exp => String(exp.data_aula || '').substring(0, 10) === dataISO)
       .map(exp => {
         // Verifica se já existe um registro de frequência para esta aula experimental
         const registro = registros.find(r => 
-          r.aula_experimental_id === exp.id && r.data_aula === dataISO
+          Number(r.aula_experimental_id) === Number(exp.id) && String(r.data_aula || '').substring(0, 10) === dataISO
         );
 
         return {
@@ -333,7 +360,7 @@ export default function Agenda() {
       .map(turma => {
         // Obter registros dos alunos desta turma para a data atual
         const turmaRegistros = registros.filter(r => 
-          r.data_aula === dataISO && 
+          String(r.data_aula || '').substring(0, 10) === dataISO && 
           Number(r.turma_id) === Number(turma.id) &&
           turma.alunos_ids && turma.alunos_ids.includes(Number(r.aluno_id))
         );
@@ -542,6 +569,7 @@ export default function Agenda() {
                   aulasDoMes={[...alunos, ...registros, ...experimentais, ...aulasAgendadas, ...turmas]} 
                   onDiaSelected={setDataSelecionada} 
                   onMesChange={handleMesChange}
+                  feriadosCustomizados={feriados}
                 />
                 {!nomeFeriado && contagemAulas.totais > 0 && (
                   <div className="mt-6 grid grid-cols-2 gap-2 text-center bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg p-3">
