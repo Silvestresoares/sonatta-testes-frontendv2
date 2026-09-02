@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import {
-
   BarChart,
   Bar,
   AreaChart,
@@ -64,7 +63,7 @@ export default function Dashboard() {
         alert('Rotina mensal executada com sucesso!');
         carregarDadosDashboard();
       } else {
-        alert(dados.erro);
+        alert(dados.erro || dados.message || 'Erro ao processar a virada de mês.');
       }
     } catch (erro) {
       console.error("Erro ao forçar virada de mês:", erro);
