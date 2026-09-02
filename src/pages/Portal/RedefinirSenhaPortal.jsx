@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Lock, AlertCircle, CheckCircle2, ArrowRight } from 'lucide-react';
 import { API_URL } from '../../utils/api';
+import PasswordStrengthIndicator from '../../components/PasswordStrengthIndicator';
+import { avaliarSenha } from '../../utils/passwordValidation';
 
 export default function RedefinirSenhaPortal({ aoSucesso }) {
   const [novaSenha, setNovaSenha] = useState('');
@@ -54,13 +56,18 @@ export default function RedefinirSenhaPortal({ aoSucesso }) {
   const handleSubmeter = async (e) => {
     e.preventDefault();
     
-    if (novaSenha !== confirmarSenha) {
-      setMensagem({ tipo: 'erro', texto: 'As senhas digitadas não coincidem.' });
+    // 🔒 Validação de força de senha (mínimo 8 chars, maiúscula, minúscula, número e especial)
+    const avaliacao = avaliarSenha(novaSenha);
+    if (!avaliacao.valida) {
+      setMensagem({ 
+        tipo: 'erro', 
+        texto: 'A senha não cumpre os requisitos de segurança (mínimo 8 dígitos, letra maiúscula, minúscula, número e caractere especial).' 
+      });
       return;
     }
 
-    if (novaSenha.length < 6) {
-      setMensagem({ tipo: 'erro', texto: 'A senha deve ter pelo menos 6 caracteres.' });
+    if (novaSenha !== confirmarSenha) {
+      setMensagem({ tipo: 'erro', texto: 'As senhas digitadas não coincidem.' });
       return;
     }
 
@@ -151,9 +158,11 @@ export default function RedefinirSenhaPortal({ aoSucesso }) {
               required
               value={novaSenha}
               onChange={(e) => setNovaSenha(e.target.value)}
-              placeholder="Mínimo de 6 caracteres"
+              placeholder="Mínimo 8 caracteres e símbolos"
               className="w-full px-4 py-3 bg-zinc-950/70 border border-zinc-800 rounded-xl text-sm text-white placeholder-zinc-600 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500 transition-all"
             />
+            {/* Indicador de Força de Senha */}
+            <PasswordStrengthIndicator senha={novaSenha} />
           </div>
 
           <div>

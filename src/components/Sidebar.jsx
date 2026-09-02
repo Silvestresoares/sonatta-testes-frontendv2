@@ -4,6 +4,8 @@ import { LogOut, PlusCircle, Repeat, RotateCcw, Lightbulb, X, Folder, Settings, 
 import { FaGraduationCap, FaUserGraduate, FaCalendarAlt, FaMoneyBillWave } from 'react-icons/fa';
 import { ChartBarIcon, UsersIcon, UserGroupIcon, AcademicCapIcon, BookOpenIcon, CalendarIcon, BanknotesIcon, MapPinIcon, ShoppingCartIcon } from '@heroicons/react/24/outline';
 import AgendamentoAulaModal from './AgendamentoAulaModal';
+import PasswordStrengthIndicator from './PasswordStrengthIndicator';
+import { avaliarSenha } from '../utils/passwordValidation';
 
 export default function Sidebar({ onLogout, tipoUsuario, isOpen, onClose }) {
   const navigate = useNavigate();
@@ -51,6 +53,18 @@ export default function Sidebar({ onLogout, tipoUsuario, isOpen, onClose }) {
   const handleTrocarSenha = async (e) => {
     e.preventDefault();
     setSenhaMensagem('');
+
+    if (novaSenha !== confirmarNovaSenha) {
+      setSenhaMensagem('A nova senha e a confirmação não coincidem.');
+      return;
+    }
+
+    // 🔒 Validação de força da senha
+    const avaliacao = avaliarSenha(novaSenha);
+    if (!avaliacao.valida) {
+      setSenhaMensagem('A nova senha não cumpre os requisitos de segurança (8 dígitos, maiúscula, minúscula, número e especial).');
+      return;
+    }
 
     const token = localStorage.getItem('@sonatta:token');
     try {
@@ -416,9 +430,10 @@ export default function Sidebar({ onLogout, tipoUsuario, isOpen, onClose }) {
                   value={novaSenha}
                   onChange={(e) => setNovaSenha(e.target.value)}
                   required
-                  placeholder="Nova senha"
+                  placeholder="Mínimo 8 caracteres e símbolos"
                   className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-emerald-500"
                 />
+                <PasswordStrengthIndicator senha={novaSenha} />
               </div>
               <div>
                 <label className="block text-xs font-medium text-zinc-400 mb-1">Confirmar Nova Senha</label>

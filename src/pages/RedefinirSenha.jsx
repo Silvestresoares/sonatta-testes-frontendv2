@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Eye, EyeOff, Lock, CheckCircle2, AlertCircle } from 'lucide-react';
 import { API_URL } from '../utils/api';
+import PasswordStrengthIndicator from '../components/PasswordStrengthIndicator';
+import { avaliarSenha } from '../utils/passwordValidation';
 
 export default function RedefinirSenha({ aoSucesso }) {
   const [novaSenha, setNovaSenha] = useState('');
@@ -34,7 +36,7 @@ export default function RedefinirSenha({ aoSucesso }) {
       });
       const dados = await resposta.json();
 
-      if (resposta.ok) {
+      if (resposta.ok && dados.valido) {
         setTokenValido(true);
       } else {
         setTokenValido(false);
@@ -52,13 +54,18 @@ export default function RedefinirSenha({ aoSucesso }) {
   const handleSubmeter = async (e) => {
     e.preventDefault();
     
-    if (novaSenha !== confirmarSenha) {
-      setMensagem({ tipo: 'erro', texto: 'As senhas não coincidem.' });
+    // 🔒 Validação de força de senha (mínimo 8 chars, maiúscula, minúscula, número e especial)
+    const avaliacao = avaliarSenha(novaSenha);
+    if (!avaliacao.valida) {
+      setMensagem({ 
+        tipo: 'erro', 
+        texto: 'A senha não atende aos requisitos mínimos de segurança (8 dígitos, maiúscula, minúscula, número e caractere especial).' 
+      });
       return;
     }
 
-    if (novaSenha.length < 6) {
-      setMensagem({ tipo: 'erro', texto: 'A senha deve ter pelo menos 6 caracteres.' });
+    if (novaSenha !== confirmarSenha) {
+      setMensagem({ tipo: 'erro', texto: 'As senhas não coincidem.' });
       return;
     }
 
@@ -126,7 +133,7 @@ export default function RedefinirSenha({ aoSucesso }) {
                   required
                   value={novaSenha}
                   onChange={(e) => setNovaSenha(e.target.value)}
-                  placeholder="Mínimo de 6 caracteres"
+                  placeholder="Mínimo 8 caracteres e símbolos"
                   className="w-full px-3.5 py-2.5 bg-zinc-950 border border-zinc-800 rounded-xl text-sm text-white placeholder-zinc-600 focus:outline-none focus:border-emerald-500 transition-colors pr-10"
                 />
                 <button
@@ -137,6 +144,9 @@ export default function RedefinirSenha({ aoSucesso }) {
                   {mostrarSenha ? <EyeOff size={16} /> : <Eye size={16} />}
                 </button>
               </div>
+
+              {/* Indicador Interativo de Força da Senha */}
+              <PasswordStrengthIndicator senha={novaSenha} />
             </div>
 
             <div>

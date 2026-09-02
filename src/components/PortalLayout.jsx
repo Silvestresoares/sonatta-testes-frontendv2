@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { LogOut, KeyRound } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import PasswordStrengthIndicator from './PasswordStrengthIndicator';
+import { avaliarSenha } from '../utils/passwordValidation';
 
 const _envApi = import.meta.env.VITE_API_URL;
 const _defaultLocal = 'http://localhost:3005';
@@ -29,6 +31,14 @@ export default function PortalLayout({ children }) {
   const handleTrocarSenha = async (e) => {
     e.preventDefault();
     setMensagemSenha('');
+
+    // 🔒 Validação de força da senha conforme padrões modernos
+    const avaliacao = avaliarSenha(novaSenha);
+    if (!avaliacao.valida) {
+      setMensagemSenha('A nova senha não atende aos requisitos de segurança (mínimo 8 dígitos, maiúscula, minúscula, número e caractere especial).');
+      return;
+    }
+
     setCarregando(true);
     try {
       const res = await fetch(`${API_URL}/api/portal/trocar-senha`, {
@@ -167,9 +177,10 @@ export default function PortalLayout({ children }) {
                   value={novaSenha}
                   onChange={(e) => setNovaSenha(e.target.value)}
                   required
-                  placeholder="Nova senha"
+                  placeholder="Mínimo 8 caracteres e símbolos"
                   className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-emerald-500"
                 />
+                <PasswordStrengthIndicator senha={novaSenha} />
               </div>
               <button 
                 type="submit" 

@@ -4,6 +4,8 @@ import { PlayCircle, CheckCircle, Guitar, ArrowRight, MessageCircle, Mail } from
 
 
 import { API_URL } from '../utils/api';
+import PasswordStrengthIndicator from '../components/PasswordStrengthIndicator';
+import { avaliarSenha } from '../utils/passwordValidation';
 export default function LandingPage() {
   const [modalAberto, setModalAberto] = useState(false);
   const [nomeEscola, setNomeEscola] = useState('');
@@ -20,6 +22,12 @@ export default function LandingPage() {
 
     if (!nomeEscola || !emailCadastro || !senhaCadastro) {
       return alert("Preencha todos os campos obrigatórios!");
+    }
+
+    // 🔒 Validação de força de senha
+    const avaliacao = avaliarSenha(senhaCadastro);
+    if (!avaliacao.valida) {
+      return alert("A senha não atende aos requisitos mínimos de segurança (mínimo 8 dígitos, letra maiúscula, letra minúscula, número e caractere especial).");
     }
 
     if (senhaCadastro !== confirmarSenha) {
@@ -375,6 +383,9 @@ export default function LandingPage() {
                   />
                 </div>
               </div>
+
+              {/* Indicador de Força de Senha no Cadastro de Escola */}
+              <PasswordStrengthIndicator senha={senhaCadastro} />
 
               <button
                 type="submit"
