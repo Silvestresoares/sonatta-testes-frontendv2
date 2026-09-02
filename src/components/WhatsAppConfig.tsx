@@ -3,7 +3,7 @@ import { MessageCircle, Link2, CheckCircle, AlertTriangle, RefreshCw, LogOut, Sa
 import { API_URL } from '../utils/api';
 
 export default function WhatsAppConfig({ token }: { token: string }) {
-  const [provider, setProvider] = useState('evolution');
+  const [provider, setProvider] = useState('baileys');
   const [apiUrl, setApiUrl] = useState('');
   const [apiKey, setApiKey] = useState('');
   const [instanceName, setInstanceName] = useState('');
@@ -17,16 +17,12 @@ export default function WhatsAppConfig({ token }: { token: string }) {
 
   useEffect(() => {
     carregarConfiguracao();
-  }, []);
+    verificarStatus();
 
-  useEffect(() => {
-    let interval: ReturnType<typeof setInterval>;
-    if (apiUrl && apiKey && instanceName) {
-      verificarStatus();
-      interval = setInterval(verificarStatus, 5000); // Polling a cada 5s
-    }
+    // Polling contínuo a cada 4s para manter o status sempre sincronizado
+    const interval = setInterval(verificarStatus, 4000);
     return () => clearInterval(interval);
-  }, [apiUrl, apiKey, instanceName]);
+  }, []);
 
   const carregarConfiguracao = async () => {
     try {
@@ -36,12 +32,15 @@ export default function WhatsAppConfig({ token }: { token: string }) {
       });
       if (res.ok) {
         const data = await res.json();
-        let prov = data.whatsapp_provider || 'evolution';
+        let prov = data.whatsapp_provider || 'baileys';
         if (prov === 'native') prov = 'baileys';
         setProvider(prov);
         setApiUrl(data.whatsapp_api_url || '');
         setApiKey(data.whatsapp_api_key || '');
         setInstanceName(data.whatsapp_instance || '');
+        if (data.whatsapp_session_status) {
+          setStatus(data.whatsapp_session_status);
+        }
       }
     } catch (err) {
       console.error('Erro ao buscar configs whatsapp', err);
@@ -64,7 +63,7 @@ export default function WhatsAppConfig({ token }: { token: string }) {
       });
       if (res.ok) {
         setMensagem({ tipo: 'success', texto: 'Configuração salva com sucesso!' });
-        verificarStatus();
+        await verificarStatus();
       } else {
         setMensagem({ tipo: 'error', texto: 'Erro ao salvar configuração.' });
       }
@@ -83,7 +82,14 @@ export default function WhatsAppConfig({ token }: { token: string }) {
       });
       if (res.ok) {
         const data = await res.json();
-        setStatus(data.status);
+        if (data.status) {
+          setStatus(data.status);
+        }
+        if (data.status === 'qr_ready' && data.qrCodeUrl) {
+          setQrCodeUrl(data.qrCodeUrl);
+        } else if (data.status === 'connected') {
+          setQrCodeUrl('');
+        }
       }
     } catch (err) {
       console.error('Erro status', err);
@@ -92,6 +98,7 @@ export default function WhatsAppConfig({ token }: { token: string }) {
 
   const iniciarSessao = async () => {
     setStatus('starting');
+    setQrCodeUrl('');
     try {
       const res = await fetch(`${API_URL}/api/whatsapp/start`, {
         method: 'POST',
@@ -104,6 +111,8 @@ export default function WhatsAppConfig({ token }: { token: string }) {
         setStatus('qr_ready');
       } else if (data.status === 'connected') {
         setStatus('connected');
+      } else if (data.status === 'starting') {
+        setStatus('starting');
       } else {
         setMensagem({ tipo: 'error', texto: 'Erro ao iniciar sessão: ' + (data.error || 'Falha desconhecida') });
         setStatus('disconnected');
@@ -142,7 +151,7 @@ export default function WhatsAppConfig({ token }: { token: string }) {
         <button 
           onClick={salvarConfiguracao}
           disabled={salvando}
-          className="flex items-center gap-2 text-sm px-4 py-1.5 bg-emerald-500 hover:bg-emerald-600 text-zinc-950 font-semibold rounded-md transition-colors disabled:opacity-50"
+          className="flex items-center gap-2 text-sm px-4 py-1.5 bg-emerald-500 hover:bg-emerald-600 text-zinc-950 font-semibold rounded-md transition-colors disabled:opacity-50 cursor-pointer"
         >
           <Save size={16} />
           {salvando ? 'Salvando...' : 'Salvar API'}
@@ -170,44 +179,51 @@ export default function WhatsAppConfig({ token }: { token: string }) {
               onChange={e => setProvider(e.target.value)}
               className="w-full px-4 py-2 bg-zinc-900 border border-zinc-700 rounded-lg text-white focus:outline-none focus:border-emerald-500"
             >
-              <option value="evolution">Evolution API (Nuvem / Docker)</option>
-              <option value="baileys">Nativo (Baileys / Embutido)</option>
+              <option value="baileys">Nativo (Baileys / QR Code Direto)</option>
+              <option value="evolution">Evolution API (Nuvem / Servidor Externo)</option>
             </select>
           </div>
 
           {provider === 'evolution' && (
             <>
-          <div>
-            <label className="block text-sm font-medium text-zinc-400 mb-1">URL da API</label>
-            <input
-              type="text"
-              value={apiUrl}
-              onChange={e => setApiUrl(e.target.value)}
-              placeholder="Ex: https://api.seudominio.com"
-              className="w-full px-4 py-2 bg-zinc-900 border border-zinc-700 rounded-lg text-white focus:outline-none focus:border-emerald-500"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-zinc-400 mb-1">Global API Key</label>
-            <input
-              type="password"
-              value={apiKey}
-              onChange={e => setApiKey(e.target.value)}
-              placeholder="Sua chave de acesso"
-              className="w-full px-4 py-2 bg-zinc-900 border border-zinc-700 rounded-lg text-white focus:outline-none focus:border-emerald-500"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-zinc-400 mb-1">Nome da Instância</label>
-            <input
-              type="text"
-              value={instanceName}
-              onChange={e => setInstanceName(e.target.value)}
-              placeholder="Ex: sonatta_v2"
-              className="w-full px-4 py-2 bg-zinc-900 border border-zinc-700 rounded-lg text-white focus:outline-none focus:border-emerald-500"
-            />
-          </div>
+              <div>
+                <label className="block text-sm font-medium text-zinc-400 mb-1">URL da API</label>
+                <input
+                  type="text"
+                  value={apiUrl}
+                  onChange={e => setApiUrl(e.target.value)}
+                  placeholder="Ex: https://api.seudominio.com"
+                  className="w-full px-4 py-2 bg-zinc-900 border border-zinc-700 rounded-lg text-white focus:outline-none focus:border-emerald-500"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-zinc-400 mb-1">Global API Key</label>
+                <input
+                  type="password"
+                  value={apiKey}
+                  onChange={e => setApiKey(e.target.value)}
+                  placeholder="Sua chave de acesso"
+                  className="w-full px-4 py-2 bg-zinc-900 border border-zinc-700 rounded-lg text-white focus:outline-none focus:border-emerald-500"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-zinc-400 mb-1">Nome da Instância</label>
+                <input
+                  type="text"
+                  value={instanceName}
+                  onChange={e => setInstanceName(e.target.value)}
+                  placeholder="Ex: sonatta_v2"
+                  className="w-full px-4 py-2 bg-zinc-900 border border-zinc-700 rounded-lg text-white focus:outline-none focus:border-emerald-500"
+                />
+              </div>
             </>
+          )}
+
+          {provider === 'baileys' && (
+            <div className="p-3 bg-zinc-900/60 border border-zinc-800 rounded-lg text-xs text-zinc-400 space-y-1.5">
+              <p className="font-semibold text-zinc-300">💡 Modo Nativo Baileys:</p>
+              <p>Não necessita de nenhum servidor ou API externa. Basta clicar em "Gerar QR Code de Conexão", escanear pelo seu celular e a sessão permanecerá salva.</p>
+            </div>
           )}
         </div>
 
@@ -225,9 +241,12 @@ export default function WhatsAppConfig({ token }: { token: string }) {
               </div>
               <div>
                 <h3 className="text-lg font-semibold text-white">WhatsApp Conectado!</h3>
-                <p className="text-zinc-400 text-sm">Os envios de mensagens já estão ativos e passando pela sua conexão configurada.</p>
+                <p className="text-zinc-400 text-sm">Os envios automáticos e links de acesso estão ativos pelo seu WhatsApp.</p>
               </div>
-              <button onClick={desconectarSessao} className="flex items-center justify-center gap-2 px-4 py-2 bg-rose-500/10 text-rose-500 border border-rose-500/50 hover:bg-rose-500 hover:text-white rounded-lg transition-colors mx-auto">
+              <button 
+                onClick={desconectarSessao} 
+                className="flex items-center justify-center gap-2 px-4 py-2 bg-rose-500/10 text-rose-500 border border-rose-500/50 hover:bg-rose-500 hover:text-white rounded-lg transition-colors mx-auto cursor-pointer"
+              >
                 <LogOut size={16} /> Desconectar Instância
               </button>
             </div>
@@ -235,22 +254,30 @@ export default function WhatsAppConfig({ token }: { token: string }) {
             <div className="text-center space-y-4">
               <h3 className="text-lg font-semibold text-white">Escaneie o QR Code</h3>
               <p className="text-zinc-400 text-sm">Abra o WhatsApp no seu celular, vá em Aparelhos Conectados e escaneie:</p>
-              <div className="bg-white p-2 rounded-xl inline-block mx-auto">
-                <img src={qrCodeUrl.startsWith('data:image') ? qrCodeUrl : `data:image/png;base64,${qrCodeUrl}`} alt="QR Code WhatsApp" className="w-64 h-64 object-contain" />
+              <div className="bg-white p-2.5 rounded-xl inline-block mx-auto shadow-lg">
+                <img 
+                  src={qrCodeUrl.startsWith('data:image') ? qrCodeUrl : `data:image/png;base64,${qrCodeUrl}`} 
+                  alt="QR Code WhatsApp" 
+                  className="w-64 h-64 object-contain" 
+                />
               </div>
+              <p className="text-xs text-emerald-400 animate-pulse">Aguardando leitura do QR Code...</p>
             </div>
           ) : status === 'starting' ? (
             <div className="text-center space-y-4 py-8">
               <RefreshCw size={32} className="text-emerald-500 animate-spin mx-auto" />
-              <p className="text-zinc-400">Solicitando QR Code do provedor...</p>
+              <p className="text-zinc-400 text-sm">Iniciando conexão e preparando WhatsApp...</p>
             </div>
           ) : (
             <div className="text-center space-y-4 py-8">
               <AlertTriangle size={32} className="text-zinc-500 mx-auto" />
               <div>
                 <h3 className="text-lg font-semibold text-white">WhatsApp Desconectado</h3>
-                <p className="text-zinc-400 text-sm mb-4">Sua instância está configurada, mas não conectada. Clique abaixo para gerar o QR Code.</p>
-                <button onClick={iniciarSessao} className="px-6 py-2 bg-emerald-500 hover:bg-emerald-600 text-zinc-950 font-semibold rounded-lg transition-colors">
+                <p className="text-zinc-400 text-sm mb-4">Clique abaixo para gerar o QR Code e conectar seu WhatsApp.</p>
+                <button 
+                  onClick={iniciarSessao} 
+                  className="px-6 py-2.5 bg-emerald-500 hover:bg-emerald-600 text-zinc-950 font-bold rounded-lg transition-colors cursor-pointer shadow-lg shadow-emerald-500/20"
+                >
                   Gerar QR Code de Conexão
                 </button>
               </div>
