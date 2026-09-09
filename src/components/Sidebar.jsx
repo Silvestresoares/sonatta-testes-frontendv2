@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
-import { LogOut, PlusCircle, Repeat, RotateCcw, Lightbulb, X, Folder, Settings, CreditCard, CheckSquare, Shield, FileText } from 'lucide-react';
+import { LogOut, PlusCircle, Repeat, RotateCcw, Lightbulb, X, Folder, Settings, CreditCard, CheckSquare, Shield, FileText, BookOpen } from 'lucide-react';
 import { FaGraduationCap, FaUserGraduate, FaCalendarAlt, FaMoneyBillWave } from 'react-icons/fa';
 import { ChartBarIcon, UsersIcon, UserGroupIcon, AcademicCapIcon, BookOpenIcon, CalendarIcon, BanknotesIcon, MapPinIcon, ShoppingCartIcon } from '@heroicons/react/24/outline';
 import AgendamentoAulaModal from './AgendamentoAulaModal';
@@ -190,6 +190,15 @@ export default function Sidebar({ onLogout, tipoUsuario, isOpen, onClose }) {
                   <Folder size={20} />
                   Arquivos
                 </NavLink>
+
+                <NavLink to="/manual-professor" className={linkStyle} onClick={onClose}>
+                  {({ isActive }) => (
+                    <>
+                      <BookOpen size={20} className={isActive ? "text-white" : "text-cyan-400"} />
+                      Manual do Professor
+                    </>
+                  )}
+                </NavLink>
               </>
             ) : (
               <>
@@ -330,6 +339,15 @@ export default function Sidebar({ onLogout, tipoUsuario, isOpen, onClose }) {
                 <NavLink to="/contrato-saas" className={linkStyle} onClick={onClose}>
                   <FileText size={20} />
                   Contrato & Termos SaaS
+                </NavLink>
+
+                <NavLink to="/manuais" className={linkStyle} onClick={onClose}>
+                  {({ isActive }) => (
+                    <>
+                      <BookOpen size={20} className={isActive ? "text-white" : "text-cyan-400"} />
+                      Manuais do Usuário
+                    </>
+                  )}
                 </NavLink>
 
                 {/* New section for special classes */}

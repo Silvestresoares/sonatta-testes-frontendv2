@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
-import { LogOut, KeyRound } from 'lucide-react';
+import { LogOut, KeyRound, BookOpen } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import PasswordStrengthIndicator from './PasswordStrengthIndicator';
 import { avaliarSenha } from '../utils/passwordValidation';
+import ModalManualAluno from './ModalManualAluno';
 
 const _envApi = import.meta.env.VITE_API_URL;
 const _defaultLocal = 'http://localhost:3005';
@@ -16,6 +17,7 @@ export default function PortalLayout({ children }) {
   const escolaLogo = localStorage.getItem('@sonatta:portal_escola_logo') || '';
 
   const [modalAberto, setModalAberto] = useState(false);
+  const [manualAberto, setManualAberto] = useState(false);
   const [senhaAtual, setSenhaAtual] = useState('');
   const [novaSenha, setNovaSenha] = useState('');
   const [mensagemSenha, setMensagemSenha] = useState('');
@@ -102,9 +104,18 @@ export default function PortalLayout({ children }) {
             <span className="text-zinc-400 font-medium hidden md:inline-block shadow-sm">Portal do Aluno</span>
           </div>
 
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2 sm:gap-4">
             <span className="text-sm text-zinc-300 hidden sm:inline-block">Olá, <strong className="text-white">{nome}</strong></span>
             
+            <button 
+              onClick={() => setManualAberto(true)}
+              className="flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3 py-1.5 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-300 transition-colors text-sm font-medium border border-emerald-500/30 shadow-sm"
+              title="Manual do Aluno e Responsável"
+            >
+              <BookOpen size={16} className="text-emerald-400" />
+              <span className="hidden sm:inline">Manual do Aluno</span>
+            </button>
+
             <button 
               onClick={() => {
                 setModalAberto(true);
@@ -193,6 +204,8 @@ export default function PortalLayout({ children }) {
           </div>
         </div>
       )}
+      {/* Modal do Manual do Aluno e Responsável */}
+      <ModalManualAluno isOpen={manualAberto} onClose={() => setManualAberto(false)} />
     </div>
   );
 }

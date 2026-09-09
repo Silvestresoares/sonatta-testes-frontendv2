@@ -30,6 +30,7 @@ const Eventos = React.lazy(() => import('./pages/Eventos'));
 const GestaoLGPD = React.lazy(() => import('./pages/GestaoLGPD'));
 const Privacidade = React.lazy(() => import('./pages/Privacidade'));
 const ContratoSaaS = React.lazy(() => import('./pages/ContratoSaaS'));
+const ManualUsuario = React.lazy(() => import('./pages/ManualUsuario'));
 import ModalAceiteContratoSaaS from './components/ModalAceiteContratoSaaS';
 
 // Páginas de Autenticação / Recuperação
@@ -424,6 +425,7 @@ export default function App() {
             <Route path="/meus-recebimentos" element={<LayoutComSidebar onLogout={handleLogout} tipoUsuario={tipoUsuario} professorId={professorId} isSuperAdmin={isSuperAdmin} isBlocked={isBlocked} currentRoute={location.pathname}><MeusRecebimentos professorId={professorId} /></LayoutComSidebar>} />
             <Route path="/eventos" element={<LayoutComSidebar onLogout={handleLogout} tipoUsuario={tipoUsuario} professorId={professorId} isSuperAdmin={isSuperAdmin} isBlocked={isBlocked} currentRoute={location.pathname}><Eventos /></LayoutComSidebar>} />
             <Route path="/materiais" element={<LayoutComSidebar onLogout={handleLogout} tipoUsuario={tipoUsuario} professorId={professorId} isSuperAdmin={isSuperAdmin} isBlocked={isBlocked} currentRoute={location.pathname}><Materiais /></LayoutComSidebar>} />
+            <Route path="/manual-professor" element={<LayoutComSidebar onLogout={handleLogout} tipoUsuario={tipoUsuario} professorId={professorId} isSuperAdmin={isSuperAdmin} isBlocked={isBlocked} currentRoute={location.pathname}><ManualUsuario abaInicial="professor" /></LayoutComSidebar>} />
             <Route path="*" element={<Navigate to="/minha-agenda" replace />} />
           </Routes>
           </Suspense>
@@ -457,6 +459,7 @@ export default function App() {
           <Route path="/lojinha" element={<LayoutComSidebar onLogout={handleLogout} tipoUsuario={tipoUsuario} professorId={professorId} isSuperAdmin={isSuperAdmin} isBlocked={isBlocked} currentRoute={location.pathname}><Lojinha /></LayoutComSidebar>} />
           <Route path="/minha-assinatura" element={<LayoutComSidebar onLogout={handleLogout} tipoUsuario={tipoUsuario} professorId={professorId} isSuperAdmin={isSuperAdmin} isBlocked={isBlocked} currentRoute={location.pathname}><MinhaAssinatura /></LayoutComSidebar>} />
           <Route path="/contrato-saas" element={<LayoutComSidebar onLogout={handleLogout} tipoUsuario={tipoUsuario} professorId={professorId} isSuperAdmin={isSuperAdmin} isBlocked={isBlocked} currentRoute={location.pathname}><ContratoSaaS /></LayoutComSidebar>} />
+          <Route path="/manuais" element={<LayoutComSidebar onLogout={handleLogout} tipoUsuario={tipoUsuario} professorId={professorId} isSuperAdmin={isSuperAdmin} isBlocked={isBlocked} currentRoute={location.pathname}><ManualUsuario /></LayoutComSidebar>} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
           </Suspense>
