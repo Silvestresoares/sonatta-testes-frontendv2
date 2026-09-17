@@ -6,9 +6,10 @@ import Sidebar from './components/Sidebar';
 import NotificationBanner from './components/NotificationBanner';
 import UpdateToast from './components/UpdateToast';
 import { Menu } from 'lucide-react';
+import PWAInstallPrompt from './components/PWAInstallPrompt';
 
 // Importações das páginas
-const Dashboard = React.lazy(() => import('./pages/Dashboard')); 
+const Dashboard = React.lazy(() => import('./pages/Dashboard'));
 const Alunos = React.lazy(() => import('./pages/Alunos'));
 const Agenda = React.lazy(() => import('./pages/Agenda'));
 const Financeiro = React.lazy(() => import('./pages/Financeiro'));
@@ -72,14 +73,14 @@ function LayoutComSidebar({ children, onLogout, tipoUsuario, professorId, isBloc
 
   if (tipoUsuario !== 'professor' && plano !== 'Vitalicio' && dataVencimento) {
     const hoje = new Date();
-    hoje.setHours(0,0,0,0);
+    hoje.setHours(0, 0, 0, 0);
     const venc = new Date(dataVencimento);
-    venc.setHours(0,0,0,0);
-    
+    venc.setHours(0, 0, 0, 0);
+
     const diffTime = venc - hoje;
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
     const diasTolerancia = 3;
-    
+
     if (plano === 'Trial 10 dias') {
       if (diffDays < -diasTolerancia) {
         avisoBanner = <div className="bg-red-500/20 border-b border-red-500/50 text-red-200 p-3 text-center text-sm font-semibold">⚠️ Seu período de teste expirou há {Math.abs(diffDays)} dia(s). Escolha um plano para restaurar o acesso!</div>;
@@ -120,19 +121,19 @@ function LayoutComSidebar({ children, onLogout, tipoUsuario, professorId, isBloc
       </div>
 
       <Sidebar onLogout={onLogout} tipoUsuario={tipoUsuario} professorId={professorId} isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} />
-      
+
       <main className="flex-1 flex flex-col overflow-hidden relative">
         {avisoBanner}
         <NotificationBanner />
-        
+
         {/* Overlay para mobile quando a Sidebar está aberta */}
         {isSidebarOpen && (
-          <div 
+          <div
             className="md:hidden fixed inset-0 bg-black/60 z-40 backdrop-blur-sm"
             onClick={() => setIsSidebarOpen(false)}
           />
         )}
-        
+
         {isBlocked && currentRoute !== '/minha-assinatura' ? (
           <AssinaturaSuspensa />
         ) : (
@@ -201,7 +202,7 @@ export default function App() {
       }
 
       const token = localStorage.getItem('@sonatta:token');
-      
+
       if (!token) {
         setEstaLogado(false);
         setCarregando(false);
@@ -269,11 +270,10 @@ export default function App() {
   const GlobalBanner = () => {
     if (!avisoGlobal) return null;
     return (
-      <div className={`w-full z-[100] relative px-4 py-2 text-center text-sm font-semibold text-white shadow-md ${
-        avisoGlobal.tipo === 'alert' ? 'bg-red-600' :
+      <div className={`w-full z-[100] relative px-4 py-2 text-center text-sm font-semibold text-white shadow-md ${avisoGlobal.tipo === 'alert' ? 'bg-red-600' :
         avisoGlobal.tipo === 'success' ? 'bg-emerald-600' :
-        'bg-blue-600'
-      }`}>
+          'bg-blue-600'
+        }`}>
         {avisoGlobal.mensagem}
       </div>
     );
@@ -283,18 +283,18 @@ export default function App() {
 
   const ativaLocalStorage = typeof window !== 'undefined' ? localStorage.getItem('@sonatta:ativa') : 'true';
   const isSuspendedLocally = ativaLocalStorage === 'false';
-  
+
   const dataVencimento = typeof window !== 'undefined' ? localStorage.getItem('@sonatta:data_vencimento') : null;
   const plano = typeof window !== 'undefined' ? localStorage.getItem('@sonatta:plano') : 'Vitalicio';
   const tipoUsuarioLocal = typeof window !== 'undefined' ? localStorage.getItem('@sonatta:tipo_usuario') : 'admin';
   const isSuperAdminLocal = typeof window !== 'undefined' ? localStorage.getItem('@sonatta:is_super_admin') === 'true' : false;
-  
+
   let isExpiredLocally = false;
   if (!isSuperAdminLocal && tipoUsuarioLocal !== 'professor' && plano !== 'Vitalicio' && dataVencimento) {
     const hoje = new Date();
-    hoje.setHours(0,0,0,0);
+    hoje.setHours(0, 0, 0, 0);
     const venc = new Date(dataVencimento);
-    venc.setHours(0,0,0,0);
+    venc.setHours(0, 0, 0, 0);
     const diffTime = venc - hoje;
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
     const diasTolerancia = 3;
@@ -321,6 +321,7 @@ export default function App() {
           <RedefinirSenha aoSucesso={() => navigate('/login')} />
         </Suspense>
         <UpdateToast />
+        <PWAInstallPrompt />
       </div>
     );
   }
@@ -343,12 +344,13 @@ export default function App() {
         <GlobalBanner />
         <Suspense fallback={<div className="flex h-screen items-center justify-center text-emerald-500">Carregando Tela...</div>}>
           <Routes>
-          <Route path="/portal/login" element={<LoginPortal />} />
-          <Route path="/portal/dashboard" element={<DashboardPortal />} />
-          <Route path="*" element={<Navigate to="/portal/login" replace />} />
-        </Routes>
-          </Suspense>
+            <Route path="/portal/login" element={<LoginPortal />} />
+            <Route path="/portal/dashboard" element={<DashboardPortal />} />
+            <Route path="*" element={<Navigate to="/portal/login" replace />} />
+          </Routes>
+        </Suspense>
         <UpdateToast />
+        <PWAInstallPrompt />
       </div>
     );
   }
@@ -371,21 +373,22 @@ export default function App() {
         <GlobalBanner />
         <Suspense fallback={<div className="flex h-screen items-center justify-center text-emerald-500">Carregando Tela...</div>}>
           <Routes>
-          <Route path="/" element={<LandingPage />} />
-          <Route path="/privacidade" element={<Privacidade />} />
-          <Route path="/redefinir-senha" element={<RedefinirSenha aoSucesso={() => navigate('/login')} />} />
-          <Route path="/esqueci-senha" element={<EsqueciSenha aoVoltar={() => navigate('/login')} />} />
-          <Route path="/login" element={
-            <Login aoLogar={(usuario) => {
-              setUsuarioInfo(usuario || null);
-              setEstaLogado(true);
-            }} />
-          } />
-          {/* Se a pessoa tentar entrar em algo não autorizado, manda pra home */}
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
-          </Suspense>
+            <Route path="/" element={<LandingPage />} />
+            <Route path="/privacidade" element={<Privacidade />} />
+            <Route path="/redefinir-senha" element={<RedefinirSenha aoSucesso={() => navigate('/login')} />} />
+            <Route path="/esqueci-senha" element={<EsqueciSenha aoVoltar={() => navigate('/login')} />} />
+            <Route path="/login" element={
+              <Login aoLogar={(usuario) => {
+                setUsuarioInfo(usuario || null);
+                setEstaLogado(true);
+              }} />
+            } />
+            {/* Se a pessoa tentar entrar em algo não autorizado, manda pra home */}
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
+        </Suspense>
         <UpdateToast />
+        <PWAInstallPrompt />
       </div>
     );
   }
@@ -402,11 +405,12 @@ export default function App() {
         <GlobalBanner />
         <Suspense fallback={<div className="flex h-screen items-center justify-center text-emerald-500">Carregando Tela...</div>}>
           <Routes>
-          <Route path="/" element={<SuperAdmin onLogout={handleLogout} />} />
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
-          </Suspense>
+            <Route path="/" element={<SuperAdmin onLogout={handleLogout} />} />
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
+        </Suspense>
         <UpdateToast />
+        <PWAInstallPrompt />
       </div>
     );
   }
@@ -416,7 +420,7 @@ export default function App() {
     return (
       <div className="flex flex-col min-h-screen">
         <GlobalBanner />
-          <Suspense fallback={<div className="flex h-screen items-center justify-center text-emerald-500">Carregando Tela...</div>}>
+        <Suspense fallback={<div className="flex h-screen items-center justify-center text-emerald-500">Carregando Tela...</div>}>
           <Routes>
             <Route path="/" element={<LayoutComSidebar onLogout={handleLogout} tipoUsuario={tipoUsuario} professorId={professorId} isSuperAdmin={isSuperAdmin} isBlocked={isBlocked} currentRoute={location.pathname}><MinhaAgenda professorId={professorId} /></LayoutComSidebar>} />
             <Route path="/minha-agenda" element={<LayoutComSidebar onLogout={handleLogout} tipoUsuario={tipoUsuario} professorId={professorId} isSuperAdmin={isSuperAdmin} isBlocked={isBlocked} currentRoute={location.pathname}><MinhaAgenda professorId={professorId} /></LayoutComSidebar>} />
@@ -428,8 +432,9 @@ export default function App() {
             <Route path="/manual-professor" element={<LayoutComSidebar onLogout={handleLogout} tipoUsuario={tipoUsuario} professorId={professorId} isSuperAdmin={isSuperAdmin} isBlocked={isBlocked} currentRoute={location.pathname}><ManualUsuario abaInicial="professor" /></LayoutComSidebar>} />
             <Route path="*" element={<Navigate to="/minha-agenda" replace />} />
           </Routes>
-          </Suspense>
-          <UpdateToast />
+        </Suspense>
+        <UpdateToast />
+        <PWAInstallPrompt />
       </div>
     );
   }
@@ -438,8 +443,8 @@ export default function App() {
   return (
     <div className="flex flex-col min-h-screen">
       <GlobalBanner />
-        <Suspense fallback={<div className="flex h-screen items-center justify-center text-emerald-500">Carregando Tela...</div>}>
-          <Routes>
+      <Suspense fallback={<div className="flex h-screen items-center justify-center text-emerald-500">Carregando Tela...</div>}>
+        <Routes>
           <Route path="/" element={<LayoutComSidebar onLogout={handleLogout} tipoUsuario={tipoUsuario} professorId={professorId} isSuperAdmin={isSuperAdmin} isBlocked={isBlocked} currentRoute={location.pathname}><Dashboard /></LayoutComSidebar>} />
           <Route path="/alunos" element={<LayoutComSidebar onLogout={handleLogout} tipoUsuario={tipoUsuario} professorId={professorId} isSuperAdmin={isSuperAdmin} isBlocked={isBlocked} currentRoute={location.pathname}><Alunos /></LayoutComSidebar>} />
           <Route path="/agenda" element={<LayoutComSidebar onLogout={handleLogout} tipoUsuario={tipoUsuario} professorId={professorId} isSuperAdmin={isSuperAdmin} isBlocked={isBlocked} currentRoute={location.pathname}><Agenda /></LayoutComSidebar>} />
@@ -462,16 +467,17 @@ export default function App() {
           <Route path="/manuais" element={<LayoutComSidebar onLogout={handleLogout} tipoUsuario={tipoUsuario} professorId={professorId} isSuperAdmin={isSuperAdmin} isBlocked={isBlocked} currentRoute={location.pathname}><ManualUsuario /></LayoutComSidebar>} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
-          </Suspense>
-        <ModalAceiteContratoSaaS
-          isOpen={modalContratoAberto}
-          pendencias={pendenciasSaaS}
-          onAceiteConcluido={() => {
-            setModalContratoAberto(false);
-            setPendenciasSaaS([]);
-          }}
-        />
-        <UpdateToast />
+      </Suspense>
+      <ModalAceiteContratoSaaS
+        isOpen={modalContratoAberto}
+        pendencias={pendenciasSaaS}
+        onAceiteConcluido={() => {
+          setModalContratoAberto(false);
+          setPendenciasSaaS([]);
+        }}
+      />
+      <UpdateToast />
+      <PWAInstallPrompt />
     </div>
   );
 }
