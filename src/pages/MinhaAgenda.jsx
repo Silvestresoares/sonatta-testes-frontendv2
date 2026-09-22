@@ -192,12 +192,14 @@ export default function MinhaAgenda({ professorId }) {
         return;
       }
       const [h, m] = aula.horario.split(':').map(Number);
-      const minutosTerminoAula = h * 60 + (m || 0) + 60; // Assumindo 1 hora de aula
+      const duracao = Number(aula.duracao_minutos) || 60;
+      const minutosTerminoAula = h * 60 + (m || 0) + duracao;
       if (minutosTerminoAula > horaAtualMinutos) {
         restantes++;
       } else {
         dadas++;
       }
+
     });
 
     return { restantes, dadas, totais };

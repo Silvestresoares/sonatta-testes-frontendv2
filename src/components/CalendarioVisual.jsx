@@ -5,13 +5,13 @@ import { ChevronLeft, ChevronRight, Calendar as CalendarIcon } from 'lucide-reac
 const parseDataLocal = (dataString) => {
   if (!dataString) return null;
   if (dataString instanceof Date) return dataString;
-  
+
   // Se é string YYYY-MM-DD, parsear como local
   if (typeof dataString === 'string' && /^\d{4}-\d{2}-\d{2}/.test(dataString)) {
     const [year, month, day] = dataString.split('-');
     return new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
   }
-  
+
   // Fallback: tentar novo Date (pode ser arriscado)
   const parsed = new Date(dataString);
   return isNaN(parsed.getTime()) ? null : parsed;
@@ -45,7 +45,7 @@ const obterNomeFeriado = (data, feriadosCustomizados = []) => {
   return feriadoCustom ? (feriadoCustom.descricao || 'Feriado/Recesso') : null;
 };
 
-export function CalendarioVisual({ aulasDoMes = [], onDiaSelected = () => {}, onMesChange, initialDate = new Date(), feriadosCustomizados = [] }) {
+export function CalendarioVisual({ aulasDoMes = [], onDiaSelected = () => { }, onMesChange, initialDate = new Date(), feriadosCustomizados = [] }) {
   const [mesAtual, setMesAtual] = useState(initialDate);
   const [diaSelecionado, setDiaSelecionado] = useState(initialDate);
 
@@ -59,24 +59,24 @@ export function CalendarioVisual({ aulasDoMes = [], onDiaSelected = () => {}, on
     setMesAtual(initialDate);
     setDiaSelecionado(initialDate);
   }, [initialDate.getFullYear(), initialDate.getMonth(), initialDate.getDate()]);
-  
+
   const nomeMeses = [
     'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
     'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'
   ];
-  
+
   const nomeDias = ['DOM', 'SEG', 'TER', 'QUA', 'QUI', 'SEX', 'SAB'];
-  
+
   // Gera o calendário do mês
   const gerarDiasDoMes = () => {
     const ano = mesAtual.getFullYear();
     const mes = mesAtual.getMonth();
-    
+
     const primeirodia = new Date(ano, mes, 1).getDay();
     const ultimoDia = new Date(ano, mes + 1, 0).getDate();
-    
+
     const dias = [];
-    
+
     // Dias do mês anterior
     const ultimoDiaMesAnterior = new Date(ano, mes, 0).getDate();
     for (let i = primeirodia - 1; i >= 0; i--) {
@@ -86,7 +86,7 @@ export function CalendarioVisual({ aulasDoMes = [], onDiaSelected = () => {}, on
         data: new Date(ano, mes - 1, ultimoDiaMesAnterior - i)
       });
     }
-    
+
     // Dias do mês atual
     for (let i = 1; i <= ultimoDia; i++) {
       dias.push({
@@ -95,7 +95,7 @@ export function CalendarioVisual({ aulasDoMes = [], onDiaSelected = () => {}, on
         data: new Date(ano, mes, i)
       });
     }
-    
+
     // Dias do próximo mês
     const diasFaltando = 42 - dias.length;
     for (let i = 1; i <= diasFaltando; i++) {
@@ -105,10 +105,10 @@ export function CalendarioVisual({ aulasDoMes = [], onDiaSelected = () => {}, on
         data: new Date(ano, mes + 1, i)
       });
     }
-    
+
     return dias;
   };
-  
+
   const contarAulasDoDia = (data) => {
     // Se for feriado (nacional ou customizado da escola), as aulas são bloqueadas (contagem zero)
     if (obterNomeFeriado(data, feriadosCustomizados)) return 0;
@@ -133,6 +133,25 @@ export function CalendarioVisual({ aulasDoMes = [], onDiaSelected = () => {}, on
 
     // 2. Conta alunos (dia_aula) e turmas (dia_semana) regulares hoje que ainda não possuem registro específico
     const regularesDoDia = aulasDoMes.filter(aula => {
+      // Valida se a data é anterior à matrícula do aluno
+      if (aula.data_matricula) {
+        const dataMatriculaStr = String(aula.data_matricula).substring(0, 10);
+        if (dataISO < dataMatriculaStr) return false;
+      }
+
+      // 👉 ADICIONAR: Valida periodicidade (quinzenal / mensal)
+      const diaDoMes = data.getDate();
+      const semanaDoMes = Math.ceil(diaDoMes / 7);
+      if (aula.periodicidade === 'quinzenal' || aula.periodicidade === 'mensal') {
+        const semanasPermitidas = String(aula.semanas_aula || '')
+          .split(',')
+          .map(s => parseInt(s.trim(), 10))
+          .filter(n => !isNaN(n));
+        if (semanasPermitidas.length > 0 && !semanasPermitidas.includes(semanaDoMes)) {
+          return false;
+        }
+      }
+
       const diaReferencia = aula.dia_aula || aula.dia_semana;
       if (diaReferencia) {
         const diaTratado = diaReferencia.replace('-feira', '');
@@ -152,32 +171,32 @@ export function CalendarioVisual({ aulasDoMes = [], onDiaSelected = () => {}, on
 
     return registrosDoDia.length + regularesDoDia.length;
   };
-  
+
   const temAulasHoje = (data) => {
     return contarAulasDoDia(data) > 0;
   };
-  
+
   const ehHoje = (data) => {
     const hoje = new Date();
     return data.toDateString() === hoje.toDateString();
   };
-  
+
   const diasDoMes = gerarDiasDoMes();
-  
+
   const handleMesAnterior = () => {
     const novoMes = new Date(mesAtual.getFullYear(), mesAtual.getMonth() - 1, 1);
     setMesAtual(novoMes);
   };
-  
+
   const handleProximoMes = () => {
     const novoMes = new Date(mesAtual.getFullYear(), mesAtual.getMonth() + 1, 1);
     setMesAtual(novoMes);
   };
-  
+
   const handleCliqueDia = (dia) => {
     setDiaSelecionado(dia.data);
     onDiaSelected(dia.data);
-    
+
     // Se clicou em um dia de outro mês, muda o mês automaticamente
     if (!dia.mesAtual) {
       setMesAtual(new Date(dia.data.getFullYear(), dia.data.getMonth()));
@@ -200,7 +219,7 @@ export function CalendarioVisual({ aulasDoMes = [], onDiaSelected = () => {}, on
         >
           <ChevronLeft size={24} />
         </button>
-        
+
         <div className="text-center">
           <h3 className="text-xl font-bold text-zinc-900 dark:text-white tracking-tight">
             {nomeMeses[mesAtual.getMonth()]}
@@ -209,7 +228,7 @@ export function CalendarioVisual({ aulasDoMes = [], onDiaSelected = () => {}, on
             {mesAtual.getFullYear()}
           </p>
         </div>
-        
+
         <button
           onClick={handleProximoMes}
           className="p-2 hover:bg-zinc-100 dark:hover:bg-white/5 rounded-xl transition-all cursor-pointer text-zinc-400 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white active:scale-90"
@@ -218,7 +237,7 @@ export function CalendarioVisual({ aulasDoMes = [], onDiaSelected = () => {}, on
           <ChevronRight size={24} />
         </button>
       </div>
-      
+
       {/* Cabeçalho com dias da semana */}
       <div className="grid grid-cols-7 gap-2 mb-4">
         {nomeDias.map((dia) => (
@@ -227,7 +246,7 @@ export function CalendarioVisual({ aulasDoMes = [], onDiaSelected = () => {}, on
           </div>
         ))}
       </div>
-      
+
       {/* Grid de dias */}
       <div className="grid grid-cols-7 gap-3">
         {diasDoMes.map((item, index) => {
@@ -236,7 +255,7 @@ export function CalendarioVisual({ aulasDoMes = [], onDiaSelected = () => {}, on
           const ehHojeDia = ehHoje(item.data);
           const selecionado = estaSelecionado(item.data);
           const nomeFeriado = obterNomeFeriado(item.data);
-          
+
           return (
             <button
               key={index}
@@ -244,16 +263,16 @@ export function CalendarioVisual({ aulasDoMes = [], onDiaSelected = () => {}, on
               className={`
                 relative aspect-square rounded-xl flex flex-col items-center justify-center text-sm font-bold
                 transition-all cursor-pointer group border-2
-                ${ehHojeDia 
-                  ? 'bg-orange-500/25 text-orange-400 border-orange-500/30 hover:bg-orange-500/35' 
-                  : selecionado 
-                    ? 'bg-emerald-600 dark:bg-white/25 text-white dark:text-white border-emerald-700 dark:border-white/30 shadow-xl scale-105 z-10' 
+                ${ehHojeDia
+                  ? 'bg-orange-500/25 text-orange-400 border-orange-500/30 hover:bg-orange-500/35'
+                  : selecionado
+                    ? 'bg-emerald-600 dark:bg-white/25 text-white dark:text-white border-emerald-700 dark:border-white/30 shadow-xl scale-105 z-10'
                     : nomeFeriado && item.mesAtual
                       ? 'bg-rose-500/10 text-rose-400 border-rose-500/20 opacity-60 hover:bg-rose-500/20'
-                      : !item.mesAtual 
-                        ? 'text-zinc-300 dark:text-zinc-700 bg-transparent border-transparent opacity-40 hover:opacity-100' 
-                        : temAulas 
-                          ? 'bg-transparent text-zinc-600 dark:text-zinc-300 border-transparent hover:bg-zinc-100 dark:hover:bg-white/5' 
+                      : !item.mesAtual
+                        ? 'text-zinc-300 dark:text-zinc-700 bg-transparent border-transparent opacity-40 hover:opacity-100'
+                        : temAulas
+                          ? 'bg-transparent text-zinc-600 dark:text-zinc-300 border-transparent hover:bg-zinc-100 dark:hover:bg-white/5'
                           : 'bg-transparent text-zinc-400 dark:text-zinc-500 border-transparent hover:bg-zinc-100 dark:hover:bg-white/5'
                 }
               `}

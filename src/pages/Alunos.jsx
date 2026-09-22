@@ -78,6 +78,9 @@ export default function Alunos() {
   const [dataMatricula, setDataMatricula] = useState('');
   const [primeiraAula, setPrimeiraAula] = useState('');
   const [horariosAula, setHorariosAula] = useState([{ dia: 'Segunda', horario: '' }]);
+  const [duracaoMinutos, setDuracaoMinutos] = useState('60');
+  const [periodicidade, setPeriodicidade] = useState('semanal');
+  const [semanasAula, setSemanasAula] = useState('1,3');
   const [mensalidade, setMensalidade] = useState('');
   const [quantidadeAulas, setQuantidadeAulas] = useState('');
   const [aulasMesEntrada, setAulasMesEntrada] = useState('4');
@@ -116,9 +119,9 @@ export default function Alunos() {
     try {
       const resposta = await fetch(`${API_URL}/api/whatsapp/enviar-acesso`, {
         method: 'POST',
-        headers: { 
+        headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('@sonatta:token')}` 
+          'Authorization': `Bearer ${localStorage.getItem('@sonatta:token')}`
         },
         body: JSON.stringify({ usuarioId: id, tipoUsuario: 'aluno' })
       });
@@ -427,6 +430,10 @@ export default function Alunos() {
       primeira_aula: primeiraAula || '',
       dia_aula: horariosAula.map(h => h.dia).join(', '),
       horario: horariosAula.map(h => h.horario).join(', '),
+      duracao_minutos: Number(duracaoMinutos) || 60,
+      periodicidade: periodicidade || 'semanal',
+      semanas_aula: periodicidade === 'semanal' ? '' : (semanasAula || '1,3'),
+
       mensalidade: mensalidade ? Number(mensalidade) : 0,
       quantidade_aulas: quantidadeAulas ? parseInt(quantidadeAulas) : 4,
       aulas_mes_entrada: aulasMesEntrada ? parseInt(aulasMesEntrada) : 4,
@@ -489,7 +496,7 @@ export default function Alunos() {
   // ✅ Executa deleção após confirmação do modal
   const handleConfirmarDelete = async () => {
     if (!alunoDeletando) return;
-    
+
     const token = localStorage.getItem('@sonatta:token');
     if (!token) {
       alert("Sessão expirada.");
@@ -543,6 +550,11 @@ export default function Alunos() {
     const horas = aluno.horario ? aluno.horario.split(',').map(h => h.trim()) : [''];
     const combinados = dias.map((d, i) => ({ dia: d, horario: horas[i] || horas[0] || '' }));
     setHorariosAula(combinados);
+    setDuracaoMinutos(String(aluno.duracao_minutos || '60'));
+    setPeriodicidade(aluno.periodicidade || 'semanal');
+    setSemanasAula(aluno.semanas_aula || (aluno.periodicidade === 'mensal' ? '1' : '1,3'));
+
+
 
     setMensalidade(aluno.mensalidade || '');
     setQuantidadeAulas(aluno.quantidade_aulas?.toString() || '4');
@@ -572,7 +584,7 @@ export default function Alunos() {
       alert("Por favor, preencha o nome do curso.");
       return;
     }
-    
+
     setIsEmitindoCertificado(true);
     try {
       const token = localStorage.getItem('@sonatta:token');
@@ -602,7 +614,7 @@ export default function Alunos() {
       a.click();
       a.remove();
       window.URL.revokeObjectURL(url);
-      
+
       setAlunoCertificado(null);
       setCursoCertificado('');
     } catch (err) {
@@ -616,7 +628,8 @@ export default function Alunos() {
     setModalAberto(false);
     setIdSendoEditado(null);
     setNome(''); setCpf(''); setEmail(''); setTelefone(''); setDataMatricula(''); setPrimeiraAula(''); setMensalidade('');
-    setInstrumento(''); setStatus('Ativo'); setHorariosAula([{ dia: 'Segunda', horario: '' }]); setQuantidadeAulas(''); setAulasMesEntrada('4');
+    setInstrumento(''); setStatus('Ativo'); setHorariosAula([{ dia: 'Segunda', horario: '' }]); setDuracaoMinutos('60');
+    setQuantidadeAulas(''); setAulasMesEntrada('4');
     setStatusMensalidade('Pendente');
     setProfessorId('');
     setResponsavelId('');
@@ -624,6 +637,8 @@ export default function Alunos() {
     setCidade('');
     setEstado('');
     setCep('');
+    setPeriodicidade('semanal');
+    setSemanasAula('1,3');
   };
 
   const buscarCep = async (cepBuscado) => {
@@ -788,8 +803,8 @@ export default function Alunos() {
                             onClick={(e) => handleAlternarStatus(e, aluno)}
                             title="Clique para alternar o status rapidamente"
                             className={`px-2 py-1 rounded-full text-xs font-medium cursor-pointer transition-all hover:brightness-125 border ${aluno.status === 'Ativo'
-                                ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
-                                : 'bg-rose-500/10 text-rose-400 border-rose-500/20'
+                              ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
+                              : 'bg-rose-500/10 text-rose-400 border-rose-500/20'
                               }`}
                           >
                             {aluno.status === 'Ativo' ? '🟢 Ativo' : '🔴 Inativo'}
@@ -798,8 +813,8 @@ export default function Alunos() {
                         <td className="p-4">
                           <div className="flex items-center justify-center gap-2">
                             <button
-                              onClick={(e) => { 
-                                e.stopPropagation(); 
+                              onClick={(e) => {
+                                e.stopPropagation();
                                 const telefoneZap = (aluno.telefone || '').replace(/\D/g, '');
                                 if (telefoneZap.length >= 10) {
                                   window.open(`https://wa.me/55${telefoneZap}`, '_blank');
@@ -810,7 +825,7 @@ export default function Alunos() {
                               className="text-[#25D366] hover:text-[#20bd5a] p-2 rounded transition-all cursor-pointer hover:bg-[#25D366]/10"
                               title="Contatar via WhatsApp"
                             >
-                              <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51a12.8 12.8 0 0 0-.57-.01c-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 0 1-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 0 1-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 0 1 2.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0 0 12.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 0 0 5.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 0 0-3.48-8.413Z"/></svg>
+                              <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51a12.8 12.8 0 0 0-.57-.01c-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 0 1-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 0 1-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 0 1 2.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0 0 12.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 0 0 5.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 0 0-3.48-8.413Z" /></svg>
                             </button>
                             <button
                               onClick={(e) => { e.stopPropagation(); setVisualizarAluno(aluno); }}
@@ -833,7 +848,7 @@ export default function Alunos() {
                             >
                               <Edit size={18} />
                             </button>
-                            <button 
+                            <button
                               onClick={(e) => { e.stopPropagation(); navigate('/materiais', { state: { alunoId: aluno.id } }); }}
                               className="text-amber-400 hover:text-amber-300 p-2 rounded transition-all cursor-pointer hover:bg-amber-500/10"
                               title="Upload de Material"
@@ -1233,6 +1248,125 @@ export default function Alunos() {
                   </div>
                 </div>
 
+                {/* DURAÇÃO DA AULA */}
+                <div className="col-span-2 bg-zinc-900/50 p-4 rounded-lg border border-zinc-800">
+                  <label className="text-xs font-bold text-zinc-500 uppercase block mb-1.5">⏱️ Tempo de Duração de Cada Aula</label>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                    {[
+                      { label: '30 min', valor: '30' },
+                      { label: '45 min', valor: '45' },
+                      { label: '50 min', valor: '50' },
+                      { label: '60 min (1h)', valor: '60' },
+                      { label: '90 min (1h30)', valor: '90' },
+                      { label: '120 min (2h)', valor: '120' }
+                    ].map(opcao => (
+                      <button
+                        key={opcao.valor}
+                        type="button"
+                        onClick={() => setDuracaoMinutos(opcao.valor)}
+                        className={`py-2 px-3 rounded-lg text-xs font-semibold border transition-all ${duracaoMinutos === opcao.valor
+                          ? 'bg-emerald-500/20 border-emerald-500 text-emerald-400 shadow-sm'
+                          : 'bg-zinc-950 border-zinc-800 text-zinc-400 hover:text-white hover:border-zinc-700'
+                          }`}
+                      >
+                        {opcao.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                {/* PERIODICIDADE / FREQUÊNCIA DA AULA */}
+                <div className="col-span-2 bg-zinc-900/50 p-4 rounded-lg border border-zinc-800">
+                  <label className="text-xs font-bold text-zinc-500 uppercase block mb-1.5">
+                    🔄 Frequência das Aulas
+                  </label>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 mb-2">
+                    {[
+                      { label: 'Semanal (Toda semana)', valor: 'semanal', padraoAulas: '4' },
+                      { label: 'Quinzenal (A cada 15 dias)', valor: 'quinzenal', padraoAulas: '2' },
+                      { label: 'Mensal (1x por mês)', valor: 'mensal', padraoAulas: '1' }
+                    ].map(opcao => (
+                      <button
+                        key={opcao.valor}
+                        type="button"
+                        onClick={() => {
+                          setPeriodicidade(opcao.valor);
+                          if (!idSendoEditado) {
+                            setQuantidadeAulas(opcao.padraoAulas);
+                          }
+                          if (opcao.valor === 'quinzenal' && !semanasAula) setSemanasAula('1,3');
+                          if (opcao.valor === 'mensal' && (!semanasAula || semanasAula.includes(','))) setSemanasAula('1');
+                        }}
+                        className={`py-2 px-3 rounded-lg text-xs font-semibold border transition-all text-center ${periodicidade === opcao.valor
+                            ? 'bg-emerald-500/20 border-emerald-500 text-emerald-400 shadow-sm'
+                            : 'bg-zinc-950 border-zinc-800 text-zinc-400 hover:text-white hover:border-zinc-700'
+                          }`}
+                      >
+                        {opcao.label}
+                      </button>
+                    ))}
+                  </div>
+
+                  {/* Seletor quando for Quinzenal */}
+                  {periodicidade === 'quinzenal' && (
+                    <div className="mt-3 p-3 bg-zinc-950 rounded-lg border border-zinc-800">
+                      <label className="text-xs font-semibold text-zinc-400 block mb-2">
+                        Quais semanas do mês este aluno tem aula?
+                      </label>
+                      <div className="grid grid-cols-2 gap-2">
+                        {[
+                          { label: '1ª e 3ª semana do mês', valor: '1,3' },
+                          { label: '2ª e 4ª semana do mês', valor: '2,4' }
+                        ].map(sub => (
+                          <button
+                            key={sub.valor}
+                            type="button"
+                            onClick={() => setSemanasAula(sub.valor)}
+                            className={`py-2 px-3 rounded-lg text-xs font-semibold border transition-all text-center ${semanasAula === sub.valor
+                                ? 'bg-sky-500/20 border-sky-500 text-sky-400'
+                                : 'bg-zinc-900 border-zinc-800 text-zinc-400 hover:text-white hover:border-zinc-700'
+                              }`}
+                          >
+                            {sub.label}
+                          </button>
+                        ))}
+                      </div>
+                      <p className="text-[11px] text-zinc-500 mt-2">
+                        💡 Exemplo: ao escolher 1ª e 3ª semana, a aula acontecerá apenas no 1º e no 3º dia correspondente do mês.
+                      </p>
+                    </div>
+                  )}
+
+                  {/* Seletor quando for Mensal */}
+                  {periodicidade === 'mensal' && (
+                    <div className="mt-3 p-3 bg-zinc-950 rounded-lg border border-zinc-800">
+                      <label className="text-xs font-semibold text-zinc-400 block mb-2">
+                        Em qual semana do mês a aula acontece?
+                      </label>
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                        {[
+                          { label: '1ª Semana', valor: '1' },
+                          { label: '2ª Semana', valor: '2' },
+                          { label: '3ª Semana', valor: '3' },
+                          { label: '4ª Semana', valor: '4' }
+                        ].map(sub => (
+                          <button
+                            key={sub.valor}
+                            type="button"
+                            onClick={() => setSemanasAula(sub.valor)}
+                            className={`py-2 px-2 rounded-lg text-xs font-semibold border transition-all text-center ${semanasAula === sub.valor
+                                ? 'bg-sky-500/20 border-sky-500 text-sky-400'
+                                : 'bg-zinc-900 border-zinc-800 text-zinc-400 hover:text-white hover:border-zinc-700'
+                              }`}
+                          >
+                            {sub.label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+
                 {/* LINHA 2: Mensalidade, Quantidade de Aulas, Aulas Proporcionais */}
                 <div className="col-span-2 grid grid-cols-3 gap-4">
                   <div>
@@ -1416,7 +1550,7 @@ export default function Alunos() {
 function ModalVisualizacaoAluno({ aluno, onClose, onEditar, onReenviarEmail, onReenviarWhatsApp, onCopiarLink }) {
   const [abaAtiva, setAbaAtiva] = useState('ficha');
   const token = localStorage.getItem('@sonatta:token');
-  
+
   const formatarData = (data) => {
     if (!data) return '—';
     const clean = typeof data === 'string' ? data.split('T')[0] : data;
@@ -1439,7 +1573,7 @@ function ModalVisualizacaoAluno({ aluno, onClose, onEditar, onReenviarEmail, onR
   const urlPortal = `${window.location.origin}/portal/login`;
   const loginAcesso = aluno.email || aluno.cpf || null;
   const telefoneZap = (aluno.telefone || '').replace(/\D/g, '');
-  
+
   // Mensagem WhatsApp convidando para o portal do aluno
   const mensagemWhatsApp = `Olá, ${aluno.nome}! 👋\n\nSeu acesso ao *Portal do Aluno* no Sonatta está pronto!\n\nPor lá você pode consultar seus horários, aulas, materiais de estudo e situação financeira.\n\n🔗 *Acesse:* ${urlPortal}\n👤 *Login:* ${loginAcesso || 'seu e-mail'}\n\nPara o seu primeiro acesso, crie sua senha no link informado.`;
   const urlWhatsApp = `https://wa.me/55${telefoneZap}?text=${encodeURIComponent(mensagemWhatsApp)}`;
@@ -1487,8 +1621,8 @@ function ModalVisualizacaoAluno({ aluno, onClose, onEditar, onReenviarEmail, onR
           {/* Status e Matrícula */}
           <div className="flex items-center gap-3">
             <span className={`px-2.5 py-1 rounded-full text-xs font-semibold border ${aluno.status === 'Ativo'
-                ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
-                : 'bg-rose-500/10 text-rose-400 border-rose-500/20'
+              ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
+              : 'bg-rose-500/10 text-rose-400 border-rose-500/20'
               }`}>
               {aluno.status === 'Ativo' ? '🟢 Ativo' : '🔴 Inativo'}
             </span>
@@ -1497,15 +1631,15 @@ function ModalVisualizacaoAluno({ aluno, onClose, onEditar, onReenviarEmail, onR
 
           {/* Tabs */}
           <div className="flex gap-2 border-b border-zinc-800 pb-2">
-            <button 
+            <button
               onClick={() => setAbaAtiva('ficha')}
               className={`text-sm font-bold px-3 py-1.5 rounded-lg transition-colors ${abaAtiva === 'ficha' ? 'bg-zinc-800 text-white' : 'text-zinc-500 hover:text-zinc-300'}`}
             >Ficha Cadastral</button>
-            <button 
+            <button
               onClick={() => setAbaAtiva('repertorio')}
               className={`text-sm font-bold px-3 py-1.5 rounded-lg transition-colors ${abaAtiva === 'repertorio' ? 'bg-emerald-600/20 text-emerald-400' : 'text-zinc-500 hover:text-zinc-300'}`}
             >Repertório</button>
-            <button 
+            <button
               onClick={() => setAbaAtiva('boletim')}
               className={`text-sm font-bold px-3 py-1.5 rounded-lg transition-colors ${abaAtiva === 'boletim' ? 'bg-sky-600/20 text-sky-400' : 'text-zinc-500 hover:text-zinc-300'}`}
             >Boletim & Avaliações</button>
@@ -1515,137 +1649,137 @@ function ModalVisualizacaoAluno({ aluno, onClose, onEditar, onReenviarEmail, onR
             <>
               {/* Informações Gerais */}
               <section className="space-y-3">
-            <h3 className="text-xs font-bold text-zinc-500 uppercase tracking-wider">Cadastro & Contato</h3>
-            <div className="grid grid-cols-2 gap-4 text-sm bg-zinc-950/40 p-4 border border-zinc-850 rounded-xl">
-              <div>
-                <p className="text-zinc-500 text-xs">E-mail</p>
-                <p className="text-zinc-200 break-all">{aluno.email || '—'}</p>
-              </div>
-              <div>
-                <p className="text-zinc-500 text-xs">Telefone / WhatsApp</p>
-                <p className="text-zinc-200">{aluno.telefone || '—'}</p>
-              </div>
-              <div>
-                <p className="text-zinc-500 text-xs">CPF</p>
-                <p className="text-zinc-200 font-mono">{aluno.cpf || '—'}</p>
-              </div>
-              <div>
-                <p className="text-zinc-500 text-xs">Professor Responsável</p>
-                <p className="text-zinc-200">{aluno.professor_nome || 'Nenhum'}</p>
-              </div>
-              <div className="col-span-2 pt-2 border-t border-zinc-800/50 mt-1">
-                <p className="text-zinc-500 text-xs">Responsável Financeiro</p>
-                <p className="text-zinc-200">{aluno.responsavel_nome || 'O próprio aluno'}</p>
-              </div>
-            </div>
-          </section>
-
-          {/* Acesso ao Portal */}
-          <section className="space-y-3">
-            <h3 className="text-xs font-bold text-emerald-500 uppercase tracking-wider flex items-center gap-2">
-              <span className="text-lg">🎓</span> Acesso ao Portal do Aluno
-            </h3>
-            <div className="bg-emerald-950/20 border border-emerald-900/30 p-4 rounded-xl relative overflow-hidden">
-              <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500/5 rounded-full blur-2xl -mr-10 -mt-10 pointer-events-none"></div>
-              
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4 relative z-10">
-                <div>
-                  <p className="text-emerald-500/70 text-xs">Link do Portal</p>
-                  <a href={urlPortal} target="_blank" rel="noreferrer" className="text-emerald-400 font-medium hover:underline break-all text-sm">
-                    {urlPortal}
-                  </a>
+                <h3 className="text-xs font-bold text-zinc-500 uppercase tracking-wider">Cadastro & Contato</h3>
+                <div className="grid grid-cols-2 gap-4 text-sm bg-zinc-950/40 p-4 border border-zinc-850 rounded-xl">
+                  <div>
+                    <p className="text-zinc-500 text-xs">E-mail</p>
+                    <p className="text-zinc-200 break-all">{aluno.email || '—'}</p>
+                  </div>
+                  <div>
+                    <p className="text-zinc-500 text-xs">Telefone / WhatsApp</p>
+                    <p className="text-zinc-200">{aluno.telefone || '—'}</p>
+                  </div>
+                  <div>
+                    <p className="text-zinc-500 text-xs">CPF</p>
+                    <p className="text-zinc-200 font-mono">{aluno.cpf || '—'}</p>
+                  </div>
+                  <div>
+                    <p className="text-zinc-500 text-xs">Professor Responsável</p>
+                    <p className="text-zinc-200">{aluno.professor_nome || 'Nenhum'}</p>
+                  </div>
+                  <div className="col-span-2 pt-2 border-t border-zinc-800/50 mt-1">
+                    <p className="text-zinc-500 text-xs">Responsável Financeiro</p>
+                    <p className="text-zinc-200">{aluno.responsavel_nome || 'O próprio aluno'}</p>
+                  </div>
                 </div>
-                <div>
-                  <p className="text-emerald-500/70 text-xs">Login</p>
-                  <p className="text-zinc-200 font-medium">{loginAcesso || <span className="text-rose-400 text-xs">⚠️ Cadastre Email ou CPF</span>}</p>
+              </section>
+
+              {/* Acesso ao Portal */}
+              <section className="space-y-3">
+                <h3 className="text-xs font-bold text-emerald-500 uppercase tracking-wider flex items-center gap-2">
+                  <span className="text-lg">🎓</span> Acesso ao Portal do Aluno
+                </h3>
+                <div className="bg-emerald-950/20 border border-emerald-900/30 p-4 rounded-xl relative overflow-hidden">
+                  <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500/5 rounded-full blur-2xl -mr-10 -mt-10 pointer-events-none"></div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4 relative z-10">
+                    <div>
+                      <p className="text-emerald-500/70 text-xs">Link do Portal</p>
+                      <a href={urlPortal} target="_blank" rel="noreferrer" className="text-emerald-400 font-medium hover:underline break-all text-sm">
+                        {urlPortal}
+                      </a>
+                    </div>
+                    <div>
+                      <p className="text-emerald-500/70 text-xs">Login</p>
+                      <p className="text-zinc-200 font-medium">{loginAcesso || <span className="text-rose-400 text-xs">⚠️ Cadastre Email ou CPF</span>}</p>
+                    </div>
+                  </div>
+
+                  <div className="pt-3 border-t border-emerald-900/30 relative z-10 flex flex-col gap-2">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      <button
+                        type="button"
+                        onClick={() => onReenviarEmail && onReenviarEmail(aluno.id, aluno.nome)}
+                        className="flex items-center justify-center gap-2 bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 border border-amber-500/30 font-semibold py-2 px-3 rounded-lg transition-colors text-xs cursor-pointer"
+                      >
+                        <Mail size={16} /> Reenviar Link por E-mail
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => onCopiarLink && onCopiarLink(aluno.id, aluno.nome)}
+                        className="flex items-center justify-center gap-2 bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-400 border border-indigo-500/30 font-semibold py-2 px-3 rounded-lg transition-colors text-xs cursor-pointer"
+                      >
+                        <Link2 size={16} /> Copiar Link do Portal
+                      </button>
+                    </div>
+
+                    {telefoneZap.length >= 10 && loginAcesso ? (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (onReenviarWhatsApp) {
+                            onReenviarWhatsApp(aluno.id, aluno.nome, aluno.telefone);
+                          } else {
+                            window.open(urlWhatsApp, '_blank');
+                          }
+                        }}
+                        className="flex items-center justify-center gap-2 w-full bg-[#25D366] hover:bg-[#20bd5a] text-white font-bold py-2.5 px-4 rounded-lg transition-colors text-xs mt-1 cursor-pointer"
+                      >
+                        <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51a12.8 12.8 0 0 0-.57-.01c-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 0 1-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 0 1-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 0 1 2.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0 0 12.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 0 0 5.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 0 0-3.48-8.413Z" /></svg>
+                        Enviar Acesso pelo WhatsApp
+                      </button>
+                    ) : (
+                      <p className="text-xs text-amber-500/80 bg-amber-500/10 p-2 rounded text-center border border-amber-500/20 mt-1">
+                        ⚠️ Preencha um WhatsApp válido e um Email/CPF na ficha do aluno para enviar o acesso.
+                      </p>
+                    )}
+                  </div>
                 </div>
-              </div>
+              </section>
 
-              <div className="pt-3 border-t border-emerald-900/30 relative z-10 flex flex-col gap-2">
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                  <button
-                    type="button"
-                    onClick={() => onReenviarEmail && onReenviarEmail(aluno.id, aluno.nome)}
-                    className="flex items-center justify-center gap-2 bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 border border-amber-500/30 font-semibold py-2 px-3 rounded-lg transition-colors text-xs cursor-pointer"
-                  >
-                    <Mail size={16} /> Reenviar Link por E-mail
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => onCopiarLink && onCopiarLink(aluno.id, aluno.nome)}
-                    className="flex items-center justify-center gap-2 bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-400 border border-indigo-500/30 font-semibold py-2 px-3 rounded-lg transition-colors text-xs cursor-pointer"
-                  >
-                    <Link2 size={16} /> Copiar Link do Portal
-                  </button>
+              {/* Horários & Aula */}
+              <section className="space-y-3">
+                <h3 className="text-xs font-bold text-zinc-500 uppercase tracking-wider">Aulas & Planejamento</h3>
+                <div className="grid grid-cols-2 gap-4 text-sm bg-zinc-950/40 p-4 border border-zinc-850 rounded-xl">
+                  <div>
+                    <p className="text-zinc-500 text-xs">Dia da Aula</p>
+                    <p className="text-zinc-200">{aluno.dia_aula || '—'}</p>
+                  </div>
+                  <div>
+                    <p className="text-zinc-500 text-xs">Horário da Aula</p>
+                    <p className="text-zinc-200">{aluno.horario || '—'}</p>
+                  </div>
+                  <div>
+                    <p className="text-zinc-500 text-xs">Primeira Aula</p>
+                    <p className="text-zinc-200">{formatarData(aluno.primeira_aula)}</p>
+                  </div>
+                  <div>
+                    <p className="text-zinc-500 text-xs">Aulas p/ Mês</p>
+                    <p className="text-zinc-200">{aluno.quantidade_aulas || 4} aula(s)</p>
+                  </div>
                 </div>
+              </section>
 
-                {telefoneZap.length >= 10 && loginAcesso ? (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      if (onReenviarWhatsApp) {
-                        onReenviarWhatsApp(aluno.id, aluno.nome, aluno.telefone);
-                      } else {
-                        window.open(urlWhatsApp, '_blank');
-                      }
-                    }}
-                    className="flex items-center justify-center gap-2 w-full bg-[#25D366] hover:bg-[#20bd5a] text-white font-bold py-2.5 px-4 rounded-lg transition-colors text-xs mt-1 cursor-pointer"
-                  >
-                    <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51a12.8 12.8 0 0 0-.57-.01c-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 0 1-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 0 1-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 0 1 2.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0 0 12.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 0 0 5.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 0 0-3.48-8.413Z"/></svg>
-                    Enviar Acesso pelo WhatsApp
-                  </button>
-                ) : (
-                  <p className="text-xs text-amber-500/80 bg-amber-500/10 p-2 rounded text-center border border-amber-500/20 mt-1">
-                    ⚠️ Preencha um WhatsApp válido e um Email/CPF na ficha do aluno para enviar o acesso.
-                  </p>
-                )}
-              </div>
-            </div>
-          </section>
-
-          {/* Horários & Aula */}
-          <section className="space-y-3">
-            <h3 className="text-xs font-bold text-zinc-500 uppercase tracking-wider">Aulas & Planejamento</h3>
-            <div className="grid grid-cols-2 gap-4 text-sm bg-zinc-950/40 p-4 border border-zinc-850 rounded-xl">
-              <div>
-                <p className="text-zinc-500 text-xs">Dia da Aula</p>
-                <p className="text-zinc-200">{aluno.dia_aula || '—'}</p>
-              </div>
-              <div>
-                <p className="text-zinc-500 text-xs">Horário da Aula</p>
-                <p className="text-zinc-200">{aluno.horario || '—'}</p>
-              </div>
-              <div>
-                <p className="text-zinc-500 text-xs">Primeira Aula</p>
-                <p className="text-zinc-200">{formatarData(aluno.primeira_aula)}</p>
-              </div>
-              <div>
-                <p className="text-zinc-500 text-xs">Aulas p/ Mês</p>
-                <p className="text-zinc-200">{aluno.quantidade_aulas || 4} aula(s)</p>
-              </div>
-            </div>
-          </section>
-
-          {/* Financeiro */}
-          <section className="space-y-3">
-            <h3 className="text-xs font-bold text-zinc-500 uppercase tracking-wider">Situação Financeira</h3>
-            <div className="grid grid-cols-2 gap-4 text-sm bg-zinc-950/40 p-4 border border-zinc-850 rounded-xl">
-              <div>
-                <p className="text-zinc-500 text-xs">Mensalidade Base</p>
-                <p className="text-zinc-200 font-bold font-mono">R$ {Number(aluno.mensalidade || 0).toFixed(2)}</p>
-              </div>
-              <div>
-                <p className="text-zinc-500 text-xs">Status da Mensalidade</p>
-                <span className={`inline-block text-[10px] font-bold px-2 py-0.5 rounded-full border mt-1 ${aluno.status_mensalidade === 'Pago'
-                    ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
-                    : 'bg-amber-500/10 text-amber-400 border-amber-500/20'
-                  }`}>
-                  {aluno.status_mensalidade || 'Pendente'}
-                </span>
-              </div>
-            </div>
-          </section>
-          </>
+              {/* Financeiro */}
+              <section className="space-y-3">
+                <h3 className="text-xs font-bold text-zinc-500 uppercase tracking-wider">Situação Financeira</h3>
+                <div className="grid grid-cols-2 gap-4 text-sm bg-zinc-950/40 p-4 border border-zinc-850 rounded-xl">
+                  <div>
+                    <p className="text-zinc-500 text-xs">Mensalidade Base</p>
+                    <p className="text-zinc-200 font-bold font-mono">R$ {Number(aluno.mensalidade || 0).toFixed(2)}</p>
+                  </div>
+                  <div>
+                    <p className="text-zinc-500 text-xs">Status da Mensalidade</p>
+                    <span className={`inline-block text-[10px] font-bold px-2 py-0.5 rounded-full border mt-1 ${aluno.status_mensalidade === 'Pago'
+                      ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
+                      : 'bg-amber-500/10 text-amber-400 border-amber-500/20'
+                      }`}>
+                      {aluno.status_mensalidade || 'Pendente'}
+                    </span>
+                  </div>
+                </div>
+              </section>
+            </>
           )}
 
           {abaAtiva === 'repertorio' && (

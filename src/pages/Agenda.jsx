@@ -301,23 +301,37 @@ export default function Agenda() {
       .filter(aluno => {
         const diaAluno = aluno.dia_aula?.replace('-feira', '');
         if (diaAluno !== nomeDia) return false;
-        
+
         if (aluno.data_matricula) {
-          const dataMatriculaStr = typeof aluno.data_matricula === 'string' 
-            ? aluno.data_matricula.substring(0, 10) 
+          const dataMatriculaStr = typeof aluno.data_matricula === 'string'
+            ? aluno.data_matricula.substring(0, 10)
             : new Date(aluno.data_matricula).toISOString().substring(0, 10);
-            
+
           if (dataISO < dataMatriculaStr) return false;
         }
-        
+
+        // Filtra se for quinzenal ou mensal
+        const diaDoMes = parseInt(dataISO.split('-')[2], 10);
+        const semanaDoMes = Math.ceil(diaDoMes / 7);
+        if (aluno.periodicidade === 'quinzenal' || aluno.periodicidade === 'mensal') {
+          const semanasPermitidas = String(aluno.semanas_aula || '')
+            .split(',')
+            .map(s => parseInt(s.trim(), 10))
+            .filter(n => !isNaN(n));
+
+          if (semanasPermitidas.length > 0 && !semanasPermitidas.includes(semanaDoMes)) {
+            return false; // Pula este dia pois o aluno não tem aula nesta semana do mês
+          }
+        }
+
         return true;
       })
       .map(aluno => {
         // Busca registro específico de aula regular (sem aula_id, sem experimental_id e sem turma_id)
-        const registro = registros.find(r => 
-          Number(r.aluno_id) === Number(aluno.id) && 
-          String(r.data_aula || '').substring(0, 10) === dataISO && 
-          (!r.aula_id || r.aula_id === 0) && 
+        const registro = registros.find(r =>
+          Number(r.aluno_id) === Number(aluno.id) &&
+          String(r.data_aula || '').substring(0, 10) === dataISO &&
+          (!r.aula_id || r.aula_id === 0) &&
           (!r.aula_experimental_id || r.aula_experimental_id === 0) &&
           (!r.turma_id)
         );
@@ -330,6 +344,9 @@ export default function Agenda() {
           aluno: aluno.nome,
           instrumento: aluno.instrumento,
           horario: aluno.horario,
+          duracao_minutos: aluno.duracao_minutos || 60,
+          periodicidade: aluno.periodicidade || 'semanal',
+          semanas_aula: aluno.semanas_aula || '',
           tipo_aula: registro?.tipo_aula || 'aula_regular',
           status: registro ? registro.status_presenca : 'pendente',
           data_aula: dataISO,
@@ -352,7 +369,7 @@ export default function Agenda() {
         let statusCalculado = a.status === 'agendada' ? 'pendente' : a.status;
 
         if (a.turma_id) {
-          const turmaRegistros = registros.filter(r => 
+          const turmaRegistros = registros.filter(r =>
             String(r.data_aula || '').substring(0, 10) === dataISO && Number(r.turma_id) === Number(a.turma_id)
           );
           if (turmaRegistros.length > 0) {
@@ -395,7 +412,7 @@ export default function Agenda() {
       .filter(exp => String(exp.data_aula || '').substring(0, 10) === dataISO)
       .map(exp => {
         // Verifica se já existe um registro de frequência para esta aula experimental
-        const registro = registros.find(r => 
+        const registro = registros.find(r =>
           Number(r.aula_experimental_id) === Number(exp.id) && String(r.data_aula || '').substring(0, 10) === dataISO
         );
 
@@ -426,8 +443,8 @@ export default function Agenda() {
       })
       .map(turma => {
         // Obter registros dos alunos desta turma para a data atual
-        const turmaRegistros = registros.filter(r => 
-          String(r.data_aula || '').substring(0, 10) === dataISO && 
+        const turmaRegistros = registros.filter(r =>
+          String(r.data_aula || '').substring(0, 10) === dataISO &&
           Number(r.turma_id) === Number(turma.id) &&
           turma.alunos_ids && turma.alunos_ids.includes(Number(r.aluno_id))
         );
@@ -466,7 +483,7 @@ export default function Agenda() {
         return true;
       })
       .sort((a, b) => (a.horario || '').localeCompare(b.horario || ''));
-    
+
     return todasAsAulas;
   }, [alunos, registros, experimentais, aulasAgendadas, turmas, dataSelecionada, professorSelecionado]);
 
@@ -480,7 +497,7 @@ export default function Agenda() {
     if (dataSelec > dataHoje) return { restantes: totais, dadas: 0, totais };
 
     const horaAtualMinutos = hoje.getHours() * 60 + hoje.getMinutes();
-    
+
     let restantes = 0;
     let dadas = 0;
 
@@ -490,7 +507,8 @@ export default function Agenda() {
         return;
       }
       const [h, m] = aula.horario.split(':').map(Number);
-      const minutosTerminoAula = h * 60 + (m || 0) + 60; // Assumindo 1 hora de aula
+      const duracao = Number(aula.duracao_minutos) || 60;
+      const minutosTerminoAula = h * 60 + (m || 0) + duracao; // Assumindo 1 hora de aula
       if (minutosTerminoAula > horaAtualMinutos) {
         restantes++;
       } else {
@@ -511,22 +529,22 @@ export default function Agenda() {
 
     setAulaSelecionada({
       // Identificadores e metadados da aula para exibição no modal
-      id: aula.dadosRegistro?.id || aula.id, 
+      id: aula.dadosRegistro?.id || aula.id,
       aluno_id: aula.aluno_id,
       aluno_nome: aula.aluno,
       instrumento: aula.instrumento,
       horario: aula.horario,
       data_aula: aula.data_aula,
-      
+
       // Referências para persistência (Foreign Keys no banco de dados)
-      aula_id: aula.aula_id_referencia, 
+      aula_id: aula.aula_id_referencia,
       aula_experimental_id: aula.aula_experimental_id,
-      
+
       // Dados pedagógicos carregados para edição imediata
       registroExistente: aula.dadosRegistro,
       status_presenca: aula.dadosRegistro?.status_presenca || (aula.status !== 'pendente' ? aula.status : ''),
       is_novo_registro: !aula.dadosRegistro,
-      
+
       // Flag para o modal abrir com campos habilitados para edição
       modo_edicao: true
     });
@@ -536,10 +554,10 @@ export default function Agenda() {
   // Handle editing a special class (from 'aulas' table) or experimental class
   const handleEditAula = useCallback((aula) => {
     if (!aula || !aula.id) return;
-    
+
     if (aula.tipo_aula === 'aula_experimental') {
       alert('Edição de aulas experimentais é feita na página de "Aulas Experimentais".');
-      return; 
+      return;
     }
 
     setAulaParaEditar({ ...aula }); // Cria uma cópia para garantir re-renderização do modal
@@ -602,16 +620,16 @@ export default function Agenda() {
             </button>
             <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full sm:w-auto">
               <label className="text-xs font-semibold text-zinc-400 uppercase tracking-wider whitespace-nowrap">Exibir Professor:</label>
-            <select
-              value={professorSelecionado}
-              onChange={(e) => setProfessorSelecionado(e.target.value)}
-              className="bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-2 text-sm text-zinc-200 focus:outline-none focus:border-emerald-500 transition-all cursor-pointer w-full sm:w-auto min-w-[200px]"
-            >
-              <option value="">👥 Todos os Professores</option>
-              {professores.map(p => (
-                <option key={p.id} value={p.id}>👨‍🏫 {p.nome}</option>
-              ))}
-            </select>
+              <select
+                value={professorSelecionado}
+                onChange={(e) => setProfessorSelecionado(e.target.value)}
+                className="bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-2 text-sm text-zinc-200 focus:outline-none focus:border-emerald-500 transition-all cursor-pointer w-full sm:w-auto min-w-[200px]"
+              >
+                <option value="">👥 Todos os Professores</option>
+                {professores.map(p => (
+                  <option key={p.id} value={p.id}>👨‍🏫 {p.nome}</option>
+                ))}
+              </select>
             </div>
           </div>
         </div>
@@ -621,8 +639,8 @@ export default function Agenda() {
       <div className="flex-1 overflow-auto p-6">
         {carregando ? (
           <div className="flex items-center justify-center h-full">
-             <RefreshCw className="animate-spin text-emerald-500 mr-2" />
-             <p className="text-zinc-400">Carregando dados...</p>
+            <RefreshCw className="animate-spin text-emerald-500 mr-2" />
+            <p className="text-zinc-400">Carregando dados...</p>
           </div>
         ) : (
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -632,9 +650,9 @@ export default function Agenda() {
                 <h2 className="text-sm font-bold text-zinc-500 uppercase tracking-widest mb-4 flex items-center gap-2">
                   <CalendarIcon size={16} /> Selecione a Data
                 </h2>
-                <CalendarioVisual 
-                  aulasDoMes={[...alunos, ...registros, ...experimentais, ...aulasAgendadas, ...turmas]} 
-                  onDiaSelected={setDataSelecionada} 
+                <CalendarioVisual
+                  aulasDoMes={[...alunos, ...registros, ...experimentais, ...aulasAgendadas, ...turmas]}
+                  onDiaSelected={setDataSelecionada}
                   onMesChange={handleMesChange}
                   feriadosCustomizados={feriados}
                 />
@@ -651,9 +669,9 @@ export default function Agenda() {
                   </div>
                 )}
                 {!nomeFeriado && contagemAulas.totais === 0 && (
-                   <div className="mt-6 text-center">
-                     <p className="text-sm font-semibold text-zinc-400">Nenhuma aula neste dia</p>
-                   </div>
+                  <div className="mt-6 text-center">
+                    <p className="text-sm font-semibold text-zinc-400">Nenhuma aula neste dia</p>
+                  </div>
                 )}
               </div>
             </div>
@@ -661,23 +679,23 @@ export default function Agenda() {
             {/* Coluna 2 e 3: Timeline do Dia */}
             <div className="lg:col-span-2">
               <h2 className="text-sm font-bold text-zinc-500 uppercase tracking-widest mb-4 flex items-center gap-2">
-                <Clock size={16} /> 
+                <Clock size={16} />
                 <span>Aulas de {dataSelecionada.toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: 'long' })}</span>
               </h2>
-              
+
               {nomeFeriado ? (
                 <div className="bg-rose-500/5 border border-rose-500/10 rounded-3xl p-24 text-center min-h-[500px] flex items-center justify-center shadow-lg dark:shadow-2xl">
                   <div className="flex flex-col items-center gap-8">
                     <span className="text-9xl mb-4 animate-bounce drop-shadow-2xl">🍹</span>
                     <h3 className="text-4xl md:text-5xl font-black text-zinc-900 dark:text-white tracking-tighter">Feriado! Nenhuma aula hoje!</h3>
                     <p className="text-xl text-rose-400 font-bold uppercase tracking-[0.4em]">
-                       {nomeFeriado} 
+                      {nomeFeriado}
                     </p>
                   </div>
                 </div>
               ) : (
-                <AulasTimeline 
-                  aulas={aulasDoDia} 
+                <AulasTimeline
+                  aulas={aulasDoDia}
                   onFrequenciaAtualizada={carregarRegistros}
                   onEditAula={handleEditAula}
                   onDeleteAula={handleDeleteAula}
@@ -709,7 +727,7 @@ export default function Agenda() {
           }}
         />
       )}
-      
+
       {/* Modal de Registro de Turma */}
       <RegistroTurmaModal
         isOpen={registroTurmaAberto}
@@ -727,7 +745,7 @@ export default function Agenda() {
           carregarAulasAgendadas();
         }}
       />
-      
+
       {/* Modal para Agendamento/Edição de Aulas Especiais (Extra, Reagendada, Reposição) */}
       <AgendamentoAulaModal
         key={aulaParaEditar?.id || 'novo-agendamento'}
@@ -738,7 +756,7 @@ export default function Agenda() {
       />
 
       {/* Modal de Overview de Disponibilidade */}
-      <OverviewDisponibilidadeModal 
+      <OverviewDisponibilidadeModal
         isOpen={isOverviewModalAberto}
         onClose={() => setIsOverviewModalAberto(false)}
         professores={professores}

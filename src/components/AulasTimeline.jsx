@@ -2,6 +2,17 @@ import React from 'react';
 import { Clock, User, Clipboard, Music, Edit, Trash2, Users, AlertCircle, CheckCircle2, XCircle, Tag, GraduationCap } from 'lucide-react';
 import { Virtuoso } from 'react-virtuoso';
 
+// Calcula o horário de término somando a duração em minutos ao horário inicial
+function calcularHorarioFim(horarioInicio, duracaoMinutos = 60) {
+  if (!horarioInicio) return '';
+  const [h, m] = horarioInicio.split(':').map(Number);
+  const totalMin = h * 60 + (m || 0) + (Number(duracaoMinutos) || 60);
+  const fimH = Math.floor(totalMin / 60) % 24;
+  const fimM = totalMin % 60;
+  return `${String(fimH).padStart(2, '0')}:${String(fimM).padStart(2, '0')}`;
+}
+
+
 export default function AulasTimeline({ aulas = [], onAbrirRegistro = null, onEditAula = null, onDeleteAula = null, showActions = true }) {
   if (!aulas || aulas.length === 0) {
     return (
@@ -88,7 +99,7 @@ export default function AulasTimeline({ aulas = [], onAbrirRegistro = null, onEd
         itemContent={(index, aula) => {
           const statusValue = aula.status || aula.status_presenca || aula.dadosRegistro?.status_presenca || 'pendente';
           const statusConfig = getStatusConfig(statusValue);
-          
+
           let showPrancheta = true;
           if (aula.data_aula) {
             const dataAulaStr = String(aula.data_aula).substring(0, 10);
@@ -111,26 +122,36 @@ export default function AulasTimeline({ aulas = [], onAbrirRegistro = null, onEd
                 key={aula.id || index}
                 className={`border-l-4 rounded-xl p-5 transition-all transform hover:scale-[1.01] hover:shadow-xl ${statusConfig.card}`}
               >
-                {/* Cabeçalho: Horário e Status */}
+                {/* Cabeçalho: Horário, Duração e Status */}
                 <div className="flex items-center justify-between mb-4 gap-3">
-                  <div className="flex items-center gap-3">
-                    <div className="flex items-center gap-2">
-                      <Clock size={12} className="text-emerald-400" />
-                      <span className="text-xs font-black text-zinc-900 dark:text-white">{aula.horario}</span>
-                      {aula.sala && (
-                        <>
-                          <span className="text-zinc-300 dark:text-zinc-700">•</span>
-                          <span className="text-xs font-semibold text-zinc-500">📍 Sala {aula.sala}</span>
-                        </>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <Clock size={12} className="text-emerald-400" />
+                    <span className="text-xs font-black text-zinc-900 dark:text-white">
+                      {aula.horario}
+                      {aula.horario && (
+                        <span className="text-zinc-500 font-normal">
+                          {' '}- {calcularHorarioFim(aula.horario, aula.duracao_minutos)}
+                        </span>
                       )}
-                    </div>
-                    {statusValue && statusValue !== 'pendente' && (
-                      <div className={`flex items-center gap-2 text-xs font-semibold ${statusConfig.badge}`}>
-                        {statusConfig.icon}
-                        <span>{LABELS_STATUS[statusValue] || statusValue}</span>
-                      </div>
+                    </span>
+                    {aula.duracao_minutos && aula.duracao_minutos !== 60 && (
+                      <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-zinc-800 text-zinc-300 border border-zinc-700">
+                        {aula.duracao_minutos} min
+                      </span>
+                    )}
+                    {aula.sala && (
+                      <>
+                        <span className="text-zinc-300 dark:text-zinc-700">•</span>
+                        <span className="text-xs font-semibold text-zinc-500">📍 Sala {aula.sala}</span>
+                      </>
                     )}
                   </div>
+                  {statusValue && statusValue !== 'pendente' && (
+                    <div className={`flex items-center gap-2 text-xs font-semibold ${statusConfig.badge}`}>
+                      {statusConfig.icon}
+                      <span>{LABELS_STATUS[statusValue] || statusValue}</span>
+                    </div>
+                  )}
                 </div>
 
                 {/* Informações do Aluno com Botões de Ação */}
@@ -193,17 +214,17 @@ export default function AulasTimeline({ aulas = [], onAbrirRegistro = null, onEd
                   {aula.tipo_aula && (
                     <span className={`text-xs font-medium px-2.5 py-1 rounded-full border flex items-center gap-1.5 ${obterCorTipoAula(aula.tipo_aula)}`}>
                       <Tag size={12} />
-                      {aula.tipo_aula === 'aula_extra' ? 'Aula extra' : 
-                       aula.tipo_aula === 'aula_experimental' ? 'Experimental' :
-                       aula.tipo_aula === 'reposicao' ? 'Reposição' :
-                       aula.tipo_aula === 'reagendada' ? 'Reagendada' : 
-                       aula.tipo_aula === 'aula_regular' ? 'Regular' : aula.tipo_aula}
+                      {aula.tipo_aula === 'aula_extra' ? 'Aula extra' :
+                        aula.tipo_aula === 'aula_experimental' ? 'Experimental' :
+                          aula.tipo_aula === 'reposicao' ? 'Reposição' :
+                            aula.tipo_aula === 'reagendada' ? 'Reagendada' :
+                              aula.tipo_aula === 'aula_regular' ? 'Regular' : aula.tipo_aula}
                     </span>
                   )}
 
                   {/* Contador de Aulas do Aluno (desde a matrícula) */}
                   {aula.tipo_aula !== 'aula_turma' && aula.tipo_aula !== 'aula_experimental' && (aula.aluno_id || aula.numero_aula || aula.total_aulas_feitas !== undefined) && (
-                    <span 
+                    <span
                       className="text-xs font-semibold px-2.5 py-1 rounded-full border bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20 flex items-center gap-1.5 shadow-sm"
                       title={aula.data_matricula ? `Matriculado em ${new Date(String(aula.data_matricula).includes('T') ? aula.data_matricula : aula.data_matricula + 'T12:00:00').toLocaleDateString('pt-BR')} • ${aula.numero_aula || aula.total_aulas_feitas || 1}ª aula na grade` : `${aula.numero_aula || aula.total_aulas_feitas || 1}ª aula na grade`}
                     >
@@ -224,8 +245,9 @@ export default function AulasTimeline({ aulas = [], onAbrirRegistro = null, onEd
               </div>
             </div>
           );
+
         }}
       />
-    </div>
+    </div >
   );
 }

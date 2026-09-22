@@ -2,10 +2,27 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { X, Clock, Calendar as CalendarIcon } from 'lucide-react';
 
 const DIAS_SEMANA = ['Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado', 'Domingo'];
-const HORARIOS = [
-  '08:00', '09:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', 
-  '17:00', '18:00', '19:00', '20:00', '21:00', '22:00'
-];
+const HORARIOS = Array.from({ length: 29 }, (_, i) => {
+  const h = Math.floor(i / 2) + 8;
+  const m = i % 2 === 0 ? '00' : '30';
+  return `${String(h).padStart(2, '0')}:${m}`;
+});
+
+// Função utilitária para converter "HH:MM" em minutos totais desde 00:00
+function horaParaMinutos(horaStr) {
+  if (!horaStr) return 0;
+  const [h, m] = horaStr.split(':').map(Number);
+  return (h || 0) * 60 + (m || 0);
+}
+
+// Função utilitária para somar minutos a um horário e formatar "HH:MM"
+function somarMinutos(horaStr, duracaoMin = 60) {
+  const total = horaParaMinutos(horaStr) + Number(duracaoMin);
+  const fimH = Math.floor(total / 60) % 24;
+  const fimM = total % 60;
+  return `${String(fimH).padStart(2, '0')}:${String(fimM).padStart(2, '0')}`;
+}
+
 
 export default function OverviewDisponibilidadeModal({ isOpen, onClose, professores, alunos, turmas, aulasAgendadas, dataSemanaSelecionada }) {
   const [professorId, setProfessorId] = useState('');
@@ -22,11 +39,11 @@ export default function OverviewDisponibilidadeModal({ isOpen, onClose, professo
     if (!dataSemanaSelecionada) return {};
     const dataRef = new Date(dataSemanaSelecionada);
     const day = dataRef.getDay(); // 0 is Sunday
-    const diff = dataRef.getDate() - day + (day === 0 ? -6 : 1); 
-    
+    const diff = dataRef.getDate() - day + (day === 0 ? -6 : 1);
+
     const datas = {};
     const curr = new Date(dataRef.setDate(diff));
-    
+
     for (let i = 0; i < 7; i++) {
       const dataFormatada = `${curr.getFullYear()}-${String(curr.getMonth() + 1).padStart(2, '0')}-${String(curr.getDate()).padStart(2, '0')}`;
       datas[DIAS_SEMANA[i]] = dataFormatada;
@@ -42,45 +59,90 @@ export default function OverviewDisponibilidadeModal({ isOpen, onClose, professo
   const disponibilidade = useMemo(() => {
     if (!professorSelecionado || !professorSelecionado.disponibilidade) return {};
     try {
-      return typeof professorSelecionado.disponibilidade === 'string' 
-        ? JSON.parse(professorSelecionado.disponibilidade) 
+      return typeof professorSelecionado.disponibilidade === 'string'
+        ? JSON.parse(professorSelecionado.disponibilidade)
         : professorSelecionado.disponibilidade;
     } catch (e) {
       return {};
     }
-  }, [professorSelecionado]);
-
-  // Mapa de ocupação por alunos fixos
+  }, [professorSelecionado]);  // Mapa de ocupação por alunos fixos e turmas considerando duração e periodicidade
   const mapaOcupacaoRegular = useMemo(() => {
     const mapa = {};
     if (!professorId) return mapa;
 
-    alunos.forEach(aluno => {
-      if (Number(aluno.professor_id) === Number(professorId) && aluno.status === 'Ativo') {
-        const diaBase = aluno.dia_aula?.replace('-feira', ''); 
-        const hora = aluno.horario;
-        if (diaBase && hora) {
+    // Helper para marcar ocupação nos blocos da grade
+    const registrarOcupacao = (diaBase, horaInicio, duracaoMin, dados) => {
+      const horaFim = somarMinutos(horaInicio, duracaoMin);
+      const minInicio = horaParaMinutos(horaInicio);
+      const minFim = horaParaMinutos(horaFim);
+
+      HORARIOS.forEach(slotHora => {
+        const minSlot = horaParaMinutos(slotHora);
+        // O slot de 30 min vai de minSlot até minSlot + 30
+        const slotOcupado = minSlot < minFim && (minSlot + 30) > minInicio;
+
+        if (slotOcupado) {
           if (!mapa[diaBase]) mapa[diaBase] = {};
-          if (!mapa[diaBase][hora]) mapa[diaBase][hora] = [];
-          mapa[diaBase][hora].push({ 
-            tipo: 'regular', 
-            alunoNome: aluno.nome,
-            instrumento: aluno.instrumento
+          if (!mapa[diaBase][slotHora]) mapa[diaBase][slotHora] = [];
+
+          const ehInicioExato = slotHora === horaInicio;
+          mapa[diaBase][slotHora].push({
+            ...dados,
+            horaInicio,
+            horaFim,
+            duracaoMin,
+            ehContinuacao: !ehInicioExato
           });
         }
+      });
+    };
+
+    // 1. Alunos Regulares
+    alunos.forEach(aluno => {
+      if (Number(aluno.professor_id) === Number(professorId) && aluno.status === 'Ativo') {
+        const dias = (aluno.dia_aula || '').split(',').map(d => d.trim().replace('-feira', ''));
+        const horas = (aluno.horario || '').split(',').map(h => h.trim());
+        const duracao = Number(aluno.duracao_minutos) || 60;
+
+        dias.forEach((diaBase, idx) => {
+          const hora = horas[idx] || horas[0];
+          if (diaBase && hora) {
+            // Se for quinzenal ou mensal, verifica se o aluno tem aula na semana exibida
+            const dataDoDia = datasSemana[diaBase];
+            if (dataDoDia && (aluno.periodicidade === 'quinzenal' || aluno.periodicidade === 'mensal')) {
+              const diaDoMes = parseInt(dataDoDia.split('-')[2], 10);
+              const semanaDoMes = Math.ceil(diaDoMes / 7);
+              const semanasPermitidas = String(aluno.semanas_aula || '')
+                .split(',')
+                .map(s => parseInt(s.trim(), 10))
+                .filter(n => !isNaN(n));
+
+              if (semanasPermitidas.length > 0 && !semanasPermitidas.includes(semanaDoMes)) {
+                return; // O aluno não ocupa este horário nesta semana do mês!
+              }
+            }
+
+            registrarOcupacao(diaBase, hora, duracao, {
+              tipo: 'regular',
+              alunoNome: aluno.nome,
+              instrumento: aluno.instrumento
+            });
+          }
+        });
       }
     });
 
+    // 2. Turmas Regulares
     if (turmas) {
       turmas.forEach(turma => {
         if (Number(turma.professor_id) === Number(professorId) && turma.status === 'Ativa') {
-          const diaBase = turma.dia_semana?.replace('-feira', ''); 
+          const diaBase = turma.dia_semana?.replace('-feira', '');
           const hora = turma.horario_inicio;
+          const duracao = Number(turma.duracao_minutos) || 60;
+
           if (diaBase && hora) {
-            if (!mapa[diaBase]) mapa[diaBase] = {};
-            if (!mapa[diaBase][hora]) mapa[diaBase][hora] = [];
-            mapa[diaBase][hora].push({ 
-              tipo: 'regular', 
+            registrarOcupacao(diaBase, hora, duracao, {
+              tipo: 'regular',
               isTurma: true,
               alunoNome: `Turma: ${turma.nome}`,
               instrumento: turma.curso_nome || 'Turma'
@@ -89,9 +151,9 @@ export default function OverviewDisponibilidadeModal({ isOpen, onClose, professo
         }
       });
     }
-    
+
     return mapa;
-  }, [alunos, turmas, professorId]);
+  }, [alunos, turmas, professorId, datasSemana]);
 
   // Mapa de ocupação por aulas especiais agendadas nesta semana exata
   const mapaOcupacaoEspecial = useMemo(() => {
@@ -102,16 +164,16 @@ export default function OverviewDisponibilidadeModal({ isOpen, onClose, professo
       if (Number(aula.professor_id) === Number(professorId) && (aula.status === 'agendada' || aula.status === 'realizada' || aula.status === 'pendente')) {
         const aulaDataStr = String(aula.data || aula.data_aula || '').substring(0, 10);
         const diaCorrespondente = Object.keys(datasSemana).find(dia => datasSemana[dia] === aulaDataStr);
-        
+
         if (diaCorrespondente && aula.horario) {
           if (!mapa[diaCorrespondente]) mapa[diaCorrespondente] = {};
           if (!mapa[diaCorrespondente][aula.horario]) mapa[diaCorrespondente][aula.horario] = [];
-          
+
           let cor = 'bg-blue-500/20 text-blue-400 border-blue-500/30';
           if (aula.tipo_aula === 'aula_extra') cor = 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30';
           if (aula.tipo_aula === 'reposicao') cor = 'bg-red-500/20 text-red-400 border-red-500/30';
           if (aula.tipo_aula === 'experimental') cor = 'bg-orange-500/20 text-orange-400 border-orange-500/30';
-          
+
           mapa[diaCorrespondente][aula.horario].push({
             tipo: 'especial',
             alunoNome: aula.nome_aluno || aula.aluno_nome,
@@ -123,6 +185,7 @@ export default function OverviewDisponibilidadeModal({ isOpen, onClose, professo
     });
     return mapa;
   }, [aulasAgendadas, professorId, datasSemana]);
+
 
   if (!isOpen) return null;
 
@@ -162,7 +225,7 @@ export default function OverviewDisponibilidadeModal({ isOpen, onClose, professo
                 ))}
               </select>
             </div>
-            
+
             <div className="flex items-center flex-wrap gap-4 text-xs font-medium bg-zinc-950 p-3 rounded-lg border border-zinc-800">
               <div className="flex items-center gap-2 text-zinc-400">
                 <div className="w-3 h-3 rounded-sm bg-zinc-800"></div> Fora de Grade
@@ -184,7 +247,6 @@ export default function OverviewDisponibilidadeModal({ isOpen, onClose, professo
               </div>
             </div>
           </div>
-
           {!professorSelecionado ? (
             <div className="text-center py-12 text-zinc-500">
               Nenhum professor selecionado.
@@ -200,7 +262,7 @@ export default function OverviewDisponibilidadeModal({ isOpen, onClose, professo
                         {dia}
                         {datasSemana[dia] && (
                           <span className="block text-[10px] text-zinc-600 mt-0.5">
-                            {datasSemana[dia].split('-').reverse().slice(0,2).join('/')}
+                            {datasSemana[dia].split('-').reverse().slice(0, 2).join('/')}
                           </span>
                         )}
                       </th>
@@ -219,7 +281,7 @@ export default function OverviewDisponibilidadeModal({ isOpen, onClose, professo
                         const ocupacoesEspeciais = mapaOcupacaoEspecial[dia]?.[hora] || [];
                         const todasOcupacoes = [...ocupacoesRegulares, ...ocupacoesEspeciais];
                         const temOcupacao = todasOcupacoes.length > 0;
-                        
+
                         let celula = null;
 
                         if (temOcupacao) {
@@ -229,7 +291,7 @@ export default function OverviewDisponibilidadeModal({ isOpen, onClose, professo
                                 const isForaDaGrade = !estaDisponivel;
                                 if (isForaDaGrade) {
                                   return (
-                                    <div 
+                                    <div
                                       key={idx}
                                       className="w-full py-1 px-1.5 rounded-md text-center bg-yellow-500/10 text-yellow-500 border border-yellow-500/30 flex flex-col items-center justify-center"
                                       title={`Agendado fora da grade de disponibilidade! Aluno: ${ocupacao.alunoNome}`}
@@ -242,7 +304,7 @@ export default function OverviewDisponibilidadeModal({ isOpen, onClose, professo
 
                                 if (ocupacao.tipo === 'especial') {
                                   return (
-                                    <div 
+                                    <div
                                       key={idx}
                                       className={`w-full py-1 px-1.5 rounded-md text-center border ${ocupacao.cor} flex flex-col items-center justify-center`}
                                       title={`Aula Especial: ${ocupacao.tipo_aula.replace('_', ' ')} - ${ocupacao.alunoNome}`}
@@ -255,25 +317,39 @@ export default function OverviewDisponibilidadeModal({ isOpen, onClose, professo
 
                                 if (ocupacao.isTurma) {
                                   return (
-                                    <div 
+                                    <div
                                       key={idx}
                                       className="w-full py-1 px-1.5 rounded-md text-center bg-fuchsia-500/10 text-fuchsia-400 border border-fuchsia-500/20 flex flex-col items-center justify-center"
-                                      title={`Turma Fixa: ${ocupacao.alunoNome} (${ocupacao.instrumento})`}
+                                      title={`Turma Fixa: ${ocupacao.alunoNome} (${ocupacao.instrumento}) • ${ocupacao.horaInicio} às ${ocupacao.horaFim} (${ocupacao.duracaoMin}m)`}
                                     >
                                       <span className="font-semibold text-[10px] truncate w-full max-w-[110px]">{ocupacao.alunoNome.replace('Turma: ', '')}</span>
                                       <span className="text-[8px] opacity-70 truncate w-full max-w-[110px]">{ocupacao.instrumento}</span>
+                                      <span className="text-[7px] font-bold text-fuchsia-300/90 mt-0.5">
+                                        {ocupacao.horaInicio} - {ocupacao.horaFim} ({ocupacao.duracaoMin}m)
+                                      </span>
                                     </div>
                                   );
                                 }
 
+                                // Aluno Regular Fixo
                                 return (
-                                  <div 
+                                  <div
                                     key={idx}
-                                    className="w-full py-1 px-1.5 rounded-md text-center bg-rose-500/10 text-rose-400 border border-rose-500/20 flex flex-col items-center justify-center"
-                                    title={`Aluno Fixo: ${ocupacao.alunoNome} (${ocupacao.instrumento})`}
+                                    className={`w-full py-1 px-1.5 rounded-md text-center border flex flex-col items-center justify-center ${ocupacao.ehContinuacao
+                                      ? 'bg-rose-500/5 text-rose-400/70 border-rose-500/10 border-dashed'
+                                      : 'bg-rose-500/10 text-rose-400 border-rose-500/20'
+                                      }`}
+                                    title={`Aluno Fixo: ${ocupacao.alunoNome} (${ocupacao.instrumento}) • ${ocupacao.horaInicio} às ${ocupacao.horaFim} (${ocupacao.duracaoMin} min)`}
                                   >
-                                    <span className="font-semibold text-[10px] truncate w-full max-w-[110px]">{ocupacao.alunoNome}</span>
-                                    <span className="text-[8px] opacity-70 truncate w-full max-w-[110px]">{ocupacao.instrumento}</span>
+                                    <span className="font-semibold text-[10px] truncate w-full max-w-[110px]">
+                                      {ocupacao.ehContinuacao ? `↳ ${ocupacao.alunoNome}` : ocupacao.alunoNome}
+                                    </span>
+                                    <span className="text-[8px] opacity-70 truncate w-full max-w-[110px]">
+                                      {ocupacao.instrumento}
+                                    </span>
+                                    <span className="text-[7px] font-bold text-rose-300/90 mt-0.5">
+                                      {ocupacao.horaInicio} - {ocupacao.horaFim} ({ocupacao.duracaoMin}m)
+                                    </span>
                                   </div>
                                 );
                               })}
