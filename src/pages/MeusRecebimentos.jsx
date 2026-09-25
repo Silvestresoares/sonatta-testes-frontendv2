@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { DollarSign, TrendingUp, Users, ChevronLeft, ChevronRight, RefreshCw, CheckCircle, Clock as ClockIcon } from 'lucide-react';
 
 
@@ -14,13 +14,14 @@ export default function MeusRecebimentos({ professorId }) {
 
   const token = localStorage.getItem('@sonatta:token');
 
-  const carregarFinanceiro = async () => {
+  // Busca e sincroniza os dados financeiros do professor para o mês/ano selecionado
+  const carregarFinanceiro = useCallback(async () => {
     if (!professorId) return;
     setCarregando(true);
     setErro(null);
     try {
       const resposta = await fetch(`${API_URL}/api/professores/${professorId}/financeiro?mes=${mesAtual}&ano=${anoAtual}`, {
-        headers: { 'Authorization': `Bearer ${localStorage.getItem('@sonatta:token')}` }
+        headers: { 'Authorization': `Bearer ${token}` }
       });
       if (!resposta.ok) throw new Error('Erro ao carregar recebimentos');
       const json = await resposta.json();
@@ -30,11 +31,11 @@ export default function MeusRecebimentos({ professorId }) {
     } finally {
       setCarregando(false);
     }
-  };
+  }, [professorId, mesAtual, anoAtual, token]);
 
   useEffect(() => {
     carregarFinanceiro();
-  }, [professorId, mesAtual, anoAtual]);
+  }, [carregarFinanceiro]);
 
   const mesAnterior = () => {
     if (mesAtual === 1) {
@@ -179,6 +180,11 @@ export default function MeusRecebimentos({ professorId }) {
             <TrendingUp size={20} className="text-blue-400" />
             Detalhamento por Hora
           </h2>
+          {dados.total_aulas_abonadas_feriado > 0 && (
+            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 mt-2">
+              ✨ Inclui {dados.total_aulas_abonadas_feriado} aula(s) abonada(s) por feriado
+            </span>
+          )}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
             <div className="bg-zinc-950 rounded-lg p-3">
               <p className="text-xs text-zinc-500">Valor/Hora</p>
@@ -281,9 +287,8 @@ export default function MeusRecebimentos({ professorId }) {
                     </div>
                     <p className="text-zinc-500 text-xs">{a.instrumento || ''}</p>
                   </div>
-                  <span className={`text-xs px-2 py-0.5 rounded-full ${
-                    a.status_mensalidade === 'Pago' ? 'bg-emerald-500/10 text-emerald-400' : 'bg-amber-500/10 text-amber-400'
-                  }`}>{a.status_mensalidade}</span>
+                  <span className={`text-xs px-2 py-0.5 rounded-full ${a.status_mensalidade === 'Pago' ? 'bg-emerald-500/10 text-emerald-400' : 'bg-amber-500/10 text-amber-400'
+                    }`}>{a.status_mensalidade}</span>
                 </div>
               ))}
             </div>

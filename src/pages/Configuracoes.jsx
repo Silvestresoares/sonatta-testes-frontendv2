@@ -10,18 +10,18 @@ export default function Configuracoes() {
   const [salvando, setSalvando] = useState(false);
   const [erro, setErro] = useState('');
   const [sucesso, setSucesso] = useState('');
-  
+
   const [asaasConfigurado, setAsaasConfigurado] = useState(false);
   const [saldoAsaas, setSaldoAsaas] = useState(null);
   const [carregandoSaldo, setCarregandoSaldo] = useState(false);
   const [ativandoAsaas, setAtivandoAsaas] = useState(false);
   const [fazendoUpload, setFazendoUpload] = useState(false);
   const fileInputRef = useRef(null);
-  
+
   const [calendarLink, setCalendarLink] = useState('');
   const [gerandoLink, setGerandoLink] = useState(false);
   const [linkCopiado, setLinkCopiado] = useState(false);
-  
+
   const [formData, setFormData] = useState({
     nome_escola: '',
     documento: '',
@@ -45,6 +45,7 @@ export default function Configuracoes() {
     texto_contrato_padrao: '',
     config_pagar_5_semana: false,
     config_descontar_falta_prof: false,
+    config_abonar_feriados_prof: true,
     config_pagamento_substituto: 'valor_normal_professor',
     config_valor_fixo_substituto: '',
     dia_vencimento_mensalidade: 10
@@ -91,7 +92,7 @@ export default function Configuracoes() {
       const res = await fetch(`${API_URL}/api/escola`, {
         headers: { 'Authorization': `Bearer ${localStorage.getItem('@sonatta:token')}` }
       });
-      
+
       if (res.ok) {
         const data = await res.json();
         setFormData({
@@ -117,6 +118,7 @@ export default function Configuracoes() {
           texto_contrato_padrao: data.texto_contrato_padrao || '',
           config_pagar_5_semana: !!data.config_pagar_5_semana,
           config_descontar_falta_prof: !!data.config_descontar_falta_prof,
+          config_abonar_feriados_prof: data.config_abonar_feriados_prof !== false,
           config_pagamento_substituto: data.config_pagamento_substituto || 'valor_normal_professor',
           config_valor_fixo_substituto: data.config_valor_fixo_substituto || '',
           dia_vencimento_mensalidade: data.dia_vencimento_mensalidade || 10
@@ -178,13 +180,13 @@ export default function Configuracoes() {
 
       const res = await fetch(`${API_URL}/api/escola/onboarding-asaas`, {
         method: 'POST',
-        headers: { 
+        headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${localStorage.getItem('@sonatta:token')}`
         },
         body: JSON.stringify(payload)
       });
-      
+
       const data = await res.json();
       if (res.ok) {
         setSucesso(data.mensagem);
@@ -230,12 +232,12 @@ export default function Configuracoes() {
   const handleUploadLogo = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
-    
+
     setFazendoUpload(true);
     setErro('');
     const formDataUpload = new FormData();
     formDataUpload.append('logo', file);
-    
+
     try {
       const res = await fetch(`${API_URL}/api/escola/upload-logo`, {
         method: 'POST',
@@ -249,11 +251,11 @@ export default function Configuracoes() {
         setTimeout(() => setSucesso(''), 4000);
       } else {
         setErro(data.erro || 'Erro ao enviar logo.');
-        window.scrollTo(0,0);
+        window.scrollTo(0, 0);
       }
     } catch {
       setErro('Erro de conexão ao enviar logo.');
-      window.scrollTo(0,0);
+      window.scrollTo(0, 0);
     } finally {
       setFazendoUpload(false);
       e.target.value = '';
@@ -269,15 +271,15 @@ export default function Configuracoes() {
     try {
       const res = await fetch(`${API_URL}/api/escola`, {
         method: 'PUT',
-        headers: { 
+        headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${localStorage.getItem('@sonatta:token')}`
         },
         body: JSON.stringify(formData)
       });
-      
+
       const data = await res.json();
-      
+
       if (res.ok) {
         setSucesso(data.mensagem || 'Configurações salvas com sucesso!');
         setTimeout(() => setSucesso(''), 3000);
@@ -311,7 +313,7 @@ export default function Configuracoes() {
             <p className="text-zinc-400 text-sm">Atualize os dados e informações públicas da sua escola</p>
           </div>
         </div>
-        <button 
+        <button
           onClick={handleSubmit}
           disabled={salvando}
           className="flex items-center gap-2 px-6 py-2 bg-emerald-500 hover:bg-emerald-600 disabled:opacity-50 text-zinc-950 font-semibold rounded-lg transition-colors"
@@ -323,7 +325,7 @@ export default function Configuracoes() {
 
       <main className="flex-1 p-4 sm:p-6 md:p-8 overflow-auto custom-scrollbar">
         <div className="max-w-4xl mx-auto space-y-6">
-          
+
           {erro && (
             <div className="bg-rose-500/10 border border-rose-500/30 text-rose-400 p-4 rounded-lg flex items-center gap-3">
               <AlertCircle size={20} />
@@ -339,7 +341,7 @@ export default function Configuracoes() {
           )}
 
           <form onSubmit={handleSubmit} className="space-y-6">
-            
+
             {/* Perfil do Administrador */}
             <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-6">
               <h2 className="text-lg font-semibold text-white mb-4 border-b border-zinc-800 pb-2 flex items-center gap-2">
@@ -358,7 +360,7 @@ export default function Configuracoes() {
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-zinc-400 mb-1 flex items-center gap-1"><Mail size={16}/> Seu E-mail de Login</label>
+                  <label className="block text-sm font-medium text-zinc-400 mb-1 flex items-center gap-1"><Mail size={16} /> Seu E-mail de Login</label>
                   <input
                     type="email"
                     name="admin_email"
@@ -378,14 +380,14 @@ export default function Configuracoes() {
                 <Wallet size={20} className="text-emerald-500" />
                 Integração Financeira (Asaas)
               </h2>
-              
+
               {asaasConfigurado ? (
                 <div className="space-y-4">
                   <div className="flex items-center gap-2 text-emerald-400 font-medium">
                     <CheckCircle size={20} />
                     Sua escola já está integrada e pronta para emitir cobranças!
                   </div>
-                  
+
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
                     <div className="bg-zinc-950 p-4 rounded-lg border border-zinc-800">
                       <div className="text-sm text-zinc-400 mb-1">Saldo Disponível</div>
@@ -508,7 +510,7 @@ export default function Configuracoes() {
                     <span className="text-xs text-zinc-400">Se ativo, alunos ou responsáveis sem contrato assinado verão uma tela de bloqueio exigindo o aceite digital do termo abaixo.</span>
                   </div>
                 </label>
-                
+
                 {formData.exige_assinatura_contrato && (
                   <div>
                     <label className="block text-sm font-medium text-zinc-400 mb-2 mt-4">Texto do Contrato / Termo de Matrícula (Padrão)</label>
@@ -578,9 +580,9 @@ export default function Configuracoes() {
                     className="w-full px-4 py-2 bg-zinc-950 border border-zinc-800 rounded-lg text-white focus:outline-none focus:border-emerald-500 transition-colors"
                   />
                 </div>
-                
+
                 <div>
-                  <label className="block text-sm font-medium text-zinc-400 mb-1 flex items-center gap-1"><Mail size={16}/> E-mail Público da Escola</label>
+                  <label className="block text-sm font-medium text-zinc-400 mb-1 flex items-center gap-1"><Mail size={16} /> E-mail Público da Escola</label>
                   <input
                     type="email"
                     name="escola_email"
@@ -589,9 +591,9 @@ export default function Configuracoes() {
                     className="w-full px-4 py-2 bg-zinc-950 border border-zinc-800 rounded-lg text-white focus:outline-none focus:border-emerald-500 transition-colors"
                   />
                 </div>
-                
+
                 <div>
-                  <label className="block text-sm font-medium text-zinc-400 mb-1 flex items-center gap-1"><Phone size={16}/> Telefone / WhatsApp</label>
+                  <label className="block text-sm font-medium text-zinc-400 mb-1 flex items-center gap-1"><Phone size={16} /> Telefone / WhatsApp</label>
                   <input
                     type="text"
                     name="telefone_comercial"
@@ -609,7 +611,7 @@ export default function Configuracoes() {
                 </div>
 
                 <div className="md:col-span-2">
-                  <label className="block text-sm font-medium text-zinc-400 mb-1 flex items-center gap-1"><Link size={16}/> Website ou Link (Instagram)</label>
+                  <label className="block text-sm font-medium text-zinc-400 mb-1 flex items-center gap-1"><Link size={16} /> Website ou Link (Instagram)</label>
                   <input
                     type="url"
                     name="website"
@@ -625,7 +627,7 @@ export default function Configuracoes() {
             {/* Endereço */}
             <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-6">
               <h2 className="text-lg font-semibold text-white mb-4 border-b border-zinc-800 pb-2 flex items-center gap-2">
-                <MapPin size={20} className="text-zinc-400"/>
+                <MapPin size={20} className="text-zinc-400" />
                 Localização
               </h2>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -640,7 +642,7 @@ export default function Configuracoes() {
                     className="w-full px-4 py-2 bg-zinc-950 border border-zinc-800 rounded-lg text-white focus:outline-none focus:border-emerald-500 transition-colors"
                   />
                 </div>
-                
+
                 <div className="md:col-span-1">
                   <label className="block text-sm font-medium text-zinc-400 mb-1">CEP</label>
                   <input
@@ -693,7 +695,7 @@ export default function Configuracoes() {
               <h2 className="text-lg font-semibold text-white mb-4 border-b border-zinc-800 pb-2">Identidade Visual</h2>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="md:col-span-2">
-                  <label className="block text-sm font-medium text-zinc-400 mb-1 flex items-center gap-1"><Link size={16}/> Logo da Escola (Link / URL)</label>
+                  <label className="block text-sm font-medium text-zinc-400 mb-1 flex items-center gap-1"><Link size={16} /> Logo da Escola (Link / URL)</label>
                   <div className="flex items-center gap-2">
                     <input
                       type="url"
@@ -712,12 +714,12 @@ export default function Configuracoes() {
                       <Upload size={18} />
                       {fazendoUpload ? 'Enviando...' : 'Upload'}
                     </button>
-                    <input 
-                      type="file" 
-                      accept="image/*" 
-                      ref={fileInputRef} 
-                      onChange={handleUploadLogo} 
-                      className="hidden" 
+                    <input
+                      type="file"
+                      accept="image/*"
+                      ref={fileInputRef}
+                      onChange={handleUploadLogo}
+                      className="hidden"
                     />
                   </div>
                   <p className="text-xs text-zinc-500 mt-1">Cole o link público da imagem da sua logo. Recomendamos imagens com fundo transparente (PNG).</p>
@@ -799,6 +801,23 @@ export default function Configuracoes() {
                   </div>
                 </label>
 
+                <label className="flex items-start gap-3 cursor-pointer">
+                  <div className="pt-1">
+                    <input
+                      type="checkbox"
+                      name="config_abonar_feriados_prof"
+                      checked={formData.config_abonar_feriados_prof}
+                      onChange={(e) => setFormData(prev => ({ ...prev, config_abonar_feriados_prof: e.target.checked }))}
+                      className="w-4 h-4 text-emerald-500 bg-zinc-950 border-zinc-700 rounded focus:ring-emerald-500"
+                    />
+                  </div>
+                  <div>
+                    <span className="block text-sm font-medium text-white">Abonar Feriados para Professores Horistas</span>
+                    <span className="block text-xs text-zinc-500 mt-0.5">Se marcado, aulas que caírem em feriados/recessos serão remuneradas normalmente no fechamento do professor horista.</span>
+                  </div>
+                </label>
+
+
                 <div className="pt-2 border-t border-zinc-800">
                   <label className="block text-sm font-medium text-zinc-400 mb-1">Como pagar o Professor Substituto?</label>
                   <select
@@ -833,7 +852,7 @@ export default function Configuracoes() {
             {/* Sincronização de Calendário */}
             <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-6">
               <h2 className="text-lg font-semibold text-white mb-4 border-b border-zinc-800 pb-2 flex items-center gap-2">
-                <Calendar size={20} className="text-zinc-400"/>
+                <Calendar size={20} className="text-zinc-400" />
                 Sincronização de Calendário
               </h2>
               <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
@@ -843,11 +862,11 @@ export default function Configuracoes() {
                   </p>
                   <p className="text-xs text-zinc-500 mt-1">Este link não expira e é exclusivo para sua conta de administrador.</p>
                 </div>
-                
+
                 <div className="shrink-0 w-full sm:w-auto">
                   {calendarLink ? (
                     <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
-                      <button 
+                      <button
                         onClick={copiarLink}
                         type="button"
                         className="px-4 py-2 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 font-semibold text-xs rounded-lg transition-all flex items-center justify-center gap-2"
@@ -886,7 +905,7 @@ export default function Configuracoes() {
                       </a>
                     </div>
                   ) : (
-                    <button 
+                    <button
                       onClick={gerarLinkCalendario}
                       disabled={gerandoLink}
                       type="button"
