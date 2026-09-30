@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
-import { LogOut, KeyRound, BookOpen } from 'lucide-react';
+import { LogOut, KeyRound, BookOpen, Calendar, X } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import PasswordStrengthIndicator from './PasswordStrengthIndicator';
 import { avaliarSenha } from '../utils/passwordValidation';
 import ModalManualAluno from './ModalManualAluno';
+import CalendarioLetivo from '../pages/CalendarioLetivo';
 
 const _envApi = import.meta.env.VITE_API_URL;
 const _defaultLocal = 'http://localhost:3005';
@@ -18,6 +19,7 @@ export default function PortalLayout({ children }) {
 
   const [modalAberto, setModalAberto] = useState(false);
   const [manualAberto, setManualAberto] = useState(false);
+  const [calendarioAberto, setCalendarioAberto] = useState(false);
   const [senhaAtual, setSenhaAtual] = useState('');
   const [novaSenha, setNovaSenha] = useState('');
   const [mensagemSenha, setMensagemSenha] = useState('');
@@ -108,11 +110,20 @@ export default function PortalLayout({ children }) {
             <span className="text-sm text-zinc-300 hidden sm:inline-block">Olá, <strong className="text-white">{nome}</strong></span>
             
             <button 
-              onClick={() => setManualAberto(true)}
+              onClick={() => setCalendarioAberto(true)}
               className="flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3 py-1.5 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-300 transition-colors text-sm font-medium border border-emerald-500/30 shadow-sm"
+              title="Ver Calendário do Ano Letivo"
+            >
+              <Calendar size={16} className="text-emerald-400" />
+              <span className="hidden sm:inline">Calendário Escolar</span>
+            </button>
+
+            <button 
+              onClick={() => setManualAberto(true)}
+              className="flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3 py-1.5 rounded-lg bg-zinc-800/80 hover:bg-zinc-700 text-zinc-300 transition-colors text-sm font-medium border border-zinc-700/50 shadow-sm"
               title="Manual do Aluno e Responsável"
             >
-              <BookOpen size={16} className="text-emerald-400" />
+              <BookOpen size={16} className="text-zinc-400" />
               <span className="hidden sm:inline">Manual do Aluno</span>
             </button>
 
@@ -206,6 +217,22 @@ export default function PortalLayout({ children }) {
       )}
       {/* Modal do Manual do Aluno e Responsável */}
       <ModalManualAluno isOpen={manualAberto} onClose={() => setManualAberto(false)} />
+
+      {/* Modal do Calendário Escolar para Aluno/Responsável */}
+      {calendarioAberto && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-2 sm:p-4 overflow-y-auto">
+          <div className="bg-zinc-950 border border-zinc-800 rounded-2xl w-full max-w-6xl max-h-[92vh] overflow-y-auto p-4 sm:p-6 shadow-2xl relative my-auto">
+            <button 
+              onClick={() => setCalendarioAberto(false)}
+              className="absolute top-4 right-4 text-zinc-400 hover:text-white p-2 rounded-lg bg-zinc-900 border border-zinc-800 hover:bg-zinc-800 z-10 transition-colors"
+              title="Fechar"
+            >
+              <X size={20} />
+            </button>
+            <CalendarioLetivo modoVisualizacao={true} />
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -66,7 +66,7 @@ export default function Sidebar({ onLogout, tipoUsuario, isOpen, onClose }) {
       return;
     }
 
-    const token = localStorage.getItem('@sonatta:token');
+
     try {
       const resposta = await fetch(`${API_URL}/api/auth/trocar-senha`, {
         method: 'POST',
@@ -173,6 +173,15 @@ export default function Sidebar({ onLogout, tipoUsuario, isOpen, onClose }) {
                     <>
                       <FaMoneyBillWave size={20} className={isActive ? "text-white" : "text-amber-500"} />
                       Meus Recebimentos
+                    </>
+                  )}
+                </NavLink>
+
+                <NavLink to="/calendario-letivo" className={linkStyle} onClick={onClose}>
+                  {({ isActive }) => (
+                    <>
+                      <CalendarIcon className={`w-5 h-5 ${isActive ? 'text-white' : 'text-emerald-500'}`} />
+                      Calendário Escolar
                     </>
                   )}
                 </NavLink>
@@ -326,10 +335,11 @@ export default function Sidebar({ onLogout, tipoUsuario, isOpen, onClose }) {
                   Privacidade & LGPD
                 </NavLink>
 
-                <NavLink to="/feriados" className={linkStyle} onClick={onClose}>
+                <NavLink to="/calendario-letivo" className={linkStyle} onClick={onClose}>
                   <CalendarIcon className="w-5 h-5" />
-                  Feriados
+                  Calendário Escolar
                 </NavLink>
+
 
                 <NavLink to="/minha-assinatura" className={linkStyle} onClick={onClose}>
                   <CreditCard size={20} />
@@ -382,7 +392,7 @@ export default function Sidebar({ onLogout, tipoUsuario, isOpen, onClose }) {
               Trocar Senha
             </button>
           )}
-          
+
           <button
             onClick={onLogout}
             className="w-full px-4 py-2.5 bg-red-500/10 hover:bg-red-500/20 border border-red-500/30 text-red-400 hover:text-red-300 rounded-lg font-medium transition-all text-sm flex items-center justify-center gap-2"
@@ -390,7 +400,7 @@ export default function Sidebar({ onLogout, tipoUsuario, isOpen, onClose }) {
             <LogOut size={16} />
             Sair
           </button>
-          
+
           {(escolaNome || escolaLogo) && (
             <div className="text-center mt-4">
               <span className="text-[10px] text-emerald-500 font-medium tracking-widest uppercase">Powered by Sonatta</span>
@@ -423,7 +433,7 @@ export default function Sidebar({ onLogout, tipoUsuario, isOpen, onClose }) {
                 <X size={24} />
               </button>
             </div>
-            
+
             <form onSubmit={handleTrocarSenha} className="p-6 space-y-4">
               {senhaMensagem && (
                 <div className={`p-3 rounded-lg text-sm font-medium ${senhaMensagem.includes('sucesso') ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-red-500/10 text-red-400 border border-red-500/20'}`}>
@@ -464,8 +474,8 @@ export default function Sidebar({ onLogout, tipoUsuario, isOpen, onClose }) {
                   className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-emerald-500"
                 />
               </div>
-              <button 
-                type="submit" 
+              <button
+                type="submit"
                 className="w-full bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-medium py-2 px-4 rounded-lg transition-colors mt-2"
               >
                 Atualizar Senha
