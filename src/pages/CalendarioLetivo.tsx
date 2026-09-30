@@ -19,7 +19,9 @@ import {
     CheckSquare,
     Square,
     Plus,
-    Loader2
+    Loader2,
+    CalendarRange,
+    Clock
 } from 'lucide-react';
 
 interface IDiaCalendario {
@@ -84,6 +86,7 @@ export default function CalendarioLetivo({ modoVisualizacao = false }: Calendari
     const [modalDiaAberto, setModalDiaAberto] = useState<boolean>(false);
     const [modalConfigAberto, setModalConfigAberto] = useState<boolean>(false);
     const [modalImportarAberto, setModalImportarAberto] = useState<boolean>(false);
+    const [modalPeriodoAberto, setModalPeriodoAberto] = useState<boolean>(false);
 
     // Estados do Modal de Importação com Checkboxes
     const [sugestoes, setSugestoes] = useState<IFeriadoSugestao[]>([]);
@@ -104,8 +107,18 @@ export default function CalendarioLetivo({ modoVisualizacao = false }: Calendari
     const [formTipo, setFormTipo] = useState<string>('recesso');
     const [formDescricao, setFormDescricao] = useState<string>('');
     const [diaExistenteId, setDiaExistenteId] = useState<number | null>(null);
+    // Extensão para período dentro da modal de dia
+    const [diaAplicarComoPeriodo, setDiaAplicarComoPeriodo] = useState<boolean>(false);
+    const [diaDataFim, setDiaDataFim] = useState<string>('');
 
-    // Form Configuração do Ano
+    // Form Modal Dedicada de Recesso/Período
+    const [periodoDataInicio, setPeriodoDataInicio] = useState<string>('');
+    const [periodoDataFim, setPeriodoDataFim] = useState<string>('');
+    const [periodoTipo, setPeriodoTipo] = useState<string>('recesso');
+    const [periodoDescricao, setPeriodoDescricao] = useState<string>('');
+    const [salvandoPeriodo, setSalvandoPeriodo] = useState<boolean>(false);
+
+    // Form Configuração do Ano Letivo
     const [formDataInicio, setFormDataInicio] = useState<string>('');
     const [formDataFim, setFormDataFim] = useState<string>('');
 
@@ -182,12 +195,11 @@ export default function CalendarioLetivo({ modoVisualizacao = false }: Calendari
                 else if (registro.tipo === 'recesso' || registro.tipo === 'facultativo') totalRecessos++;
             }
 
-            // É letivo se: estiver dentro do período e for de segunda a sábado e não for feriado/recesso
-            if (dataIso >= dataInicioStr && dataIso <= dataFimStr) {
-                const diaValido = diaSemana >= 1 && diaSemana <= 6; // Seg a Sáb
-                if (diaValido && !registro) {
-                    totalLetivos++;
-                }
+            // É letivo se: estiver dentro do período oficial, for de segunda a sábado e não for feriado/recesso
+            const dentroPeriodo = dataIso >= dataInicioStr && dataIso <= dataFimStr;
+            const diaValido = diaSemana >= 1 && diaSemana <= 6; // Seg a Sáb
+            if (dentroPeriodo && diaValido && !registro) {
+                totalLetivos++;
             }
 
             cur.setDate(cur.getDate() + 1);
@@ -199,6 +211,9 @@ export default function CalendarioLetivo({ modoVisualizacao = false }: Calendari
     // Clique em um dia do calendário
     const handleClickDia = (dataIso: string) => {
         setDiaSelecionado(dataIso);
+        setDiaDataFim(dataIso);
+        setDiaAplicarComoPeriodo(false);
+
         const reg = mapaDias.get(dataIso);
         if (reg) {
             setDiaExistenteId(reg.id);
@@ -212,10 +227,62 @@ export default function CalendarioLetivo({ modoVisualizacao = false }: Calendari
         setModalDiaAberto(true);
     };
 
-    // Salva o dia individual no backend
-    const handleSalvarDia = async (e: React.FormEvent) => {
+    // Salva um período inteiro de datas (vários dias contínuos)
+    const handleSalvarPeriodo = async (dataIni: string, dataFim: string, desc: string, tipo: string) => {
+        if (!dataIni || !dataFim || !desc.trim()) {
+            alert('Informe a data de início, término e a descrição do período.');
+            return;
+        }
+
+        if (dataIni > dataFim) {
+            alert('A data de início deve ser anterior ou igual à data de término.');
+            return;
+        }
+
+        try {
+            setSalvandoPeriodo(true);
+            const token = localStorage.getItem('@sonatta:token');
+            const res = await fetch(`${API_URL}/api/calendario-letivo/periodo`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({
+                    data_inicio: dataIni,
+                    data_fim: dataFim,
+                    descricao: desc.trim(),
+                    tipo: tipo
+                })
+            });
+
+            if (!res.ok) {
+                const errData = await res.json().catch(() => ({}));
+                throw new Error(errData.erro || 'Erro ao cadastrar período');
+            }
+
+            const data = await res.json();
+            setModalPeriodoAberto(false);
+            setModalDiaAberto(false);
+            mostrarFeedback(data.mensagem || 'Período cadastrado com sucesso!');
+            await carregarCalendario(ano);
+        } catch (err: any) {
+            alert(err.message || 'Erro ao salvar período');
+        } finally {
+            setSalvandoPeriodo(false);
+        }
+    };
+
+    // Salva o dia individual ou período via modal de dia
+    const handleSalvarDiaOuPeriodo = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!formDescricao) {
+
+        if (diaAplicarComoPeriodo) {
+            await handleSalvarPeriodo(diaSelecionado, diaDataFim || diaSelecionado, formDescricao, formTipo);
+            return;
+        }
+
+        if (!formDescricao.trim()) {
             alert('Informe uma descrição para este dia.');
             return;
         }
@@ -229,7 +296,7 @@ export default function CalendarioLetivo({ modoVisualizacao = false }: Calendari
                 },
                 body: JSON.stringify({
                     data_feriado: diaSelecionado,
-                    descricao: formDescricao,
+                    descricao: formDescricao.trim(),
                     tipo: formTipo
                 })
             });
@@ -249,7 +316,7 @@ export default function CalendarioLetivo({ modoVisualizacao = false }: Calendari
         }
     };
 
-    // Remove o dia e torna-o letivo normal
+    // Remove apenas o dia individual
     const handleRemoverDia = async () => {
         if (!diaSelecionado) return;
         try {
@@ -270,7 +337,33 @@ export default function CalendarioLetivo({ modoVisualizacao = false }: Calendari
         }
     };
 
-    // Salvar Configuração do Período Letivo
+    // Remove todos os dias que compartilham a mesma descrição (ex: todo o recesso)
+    const handleRemoverPeriodoPorDescricao = async (descricao: string) => {
+        if (!confirm(`Deseja remover todos os dias cadastrados como "${descricao}"?`)) return;
+
+        try {
+            const token = localStorage.getItem('@sonatta:token');
+            const res = await fetch(`${API_URL}/api/calendario-letivo/remover-periodo`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({ descricao })
+            });
+
+            if (!res.ok) throw new Error('Erro ao remover período');
+            const data = await res.json();
+
+            setModalDiaAberto(false);
+            mostrarFeedback(data.mensagem || 'Recesso removido do calendário.');
+            await carregarCalendario(ano);
+        } catch (err: any) {
+            alert(err.message || 'Erro ao remover período');
+        }
+    };
+
+    // Salvar Configuração do Período Letivo Oficial
     const handleSalvarConfig = async (e: React.FormEvent) => {
         e.preventDefault();
         try {
@@ -455,6 +548,15 @@ export default function CalendarioLetivo({ modoVisualizacao = false }: Calendari
         setTimeout(() => setMensagemSucesso(''), 4000);
     };
 
+    // Calcula quantidade de dias entre duas datas ISO inclusivas
+    const calcularDiasPeriodo = (inicio: string, fim: string) => {
+        if (!inicio || !fim || inicio > fim) return 0;
+        const d1 = new Date(inicio + 'T00:00:00');
+        const d2 = new Date(fim + 'T00:00:00');
+        const diff = d2.getTime() - d1.getTime();
+        return Math.round(diff / (1000 * 3600 * 24)) + 1;
+    };
+
     // Formata data ISO para exibição amigável: DD/MM (Dia da Semana)
     const formatarDataAmigavel = (dataIso: string) => {
         const partes = dataIso.split('-');
@@ -494,26 +596,31 @@ export default function CalendarioLetivo({ modoVisualizacao = false }: Calendari
             const foraPeriodoLetivo = dataIso < dataInicioStr || dataIso > dataFimStr;
             const isDomingo = diaSemana === 0;
 
-            let estilo = 'bg-zinc-800/40 text-zinc-300 hover:bg-zinc-700/80';
-            let title = `Dia ${dia} - Letivo`;
+            let estilo = '';
+            let title = '';
 
             if (registro) {
                 if (registro.tipo === 'feriado_municipal') {
-                    estilo = 'bg-blue-500/20 text-blue-300 border border-blue-500/50 font-bold hover:bg-blue-500/30';
+                    estilo = 'bg-blue-500/25 text-blue-300 border border-blue-500/50 font-bold hover:bg-blue-500/35 hover:text-white';
                     title = `${registro.descricao} (Feriado Municipal)`;
                 } else if (registro.tipo === 'feriado_nacional' || registro.tipo === 'feriado_estadual') {
-                    estilo = 'bg-red-500/20 text-red-300 border border-red-500/50 font-bold hover:bg-red-500/30';
+                    estilo = 'bg-red-500/25 text-red-300 border border-red-500/50 font-bold hover:bg-red-500/35 hover:text-white';
                     title = `${registro.descricao} (${registro.tipo === 'feriado_nacional' ? 'Feriado Nacional' : 'Feriado Estadual'})`;
                 } else if (registro.tipo === 'recesso' || registro.tipo === 'facultativo') {
-                    estilo = 'bg-amber-500/20 text-amber-300 border border-amber-500/50 font-bold hover:bg-amber-500/30';
-                    title = `${registro.descricao} (Recesso)`;
+                    estilo = 'bg-amber-500/25 text-amber-300 border border-amber-500/50 font-bold hover:bg-amber-500/35 hover:text-white';
+                    title = `${registro.descricao} (Recesso Escolar)`;
                 } else if (registro.tipo === 'evento') {
-                    estilo = 'bg-purple-500/20 text-purple-300 border border-purple-500/50 font-bold hover:bg-purple-500/30';
+                    estilo = 'bg-purple-500/25 text-purple-300 border border-purple-500/50 font-bold hover:bg-purple-500/35 hover:text-white';
                     title = `${registro.descricao} (Evento Escolar)`;
                 }
-            } else if (foraPeriodoLetivo || isDomingo) {
-                estilo = 'bg-zinc-900/60 text-zinc-600 hover:bg-zinc-800/50';
-                title = isDomingo ? 'Domingo (Sem aulas)' : 'Fora do Período Letivo';
+            } else if (isDomingo || foraPeriodoLetivo) {
+                // Domingo ou dia fora do período letivo oficial: mesma cor neutra de descanso
+                estilo = 'bg-zinc-900/60 text-zinc-500 border border-zinc-800/40 hover:bg-zinc-800/50';
+                title = isDomingo ? 'Domingo (Sem aulas)' : 'Fora do Período Letivo (Sem aulas)';
+            } else {
+                // Dia Letivo Normal dentro do período oficial: Verde vibrante e destacado!
+                estilo = 'bg-emerald-500/25 text-emerald-300 border border-emerald-500/60 font-bold shadow-sm hover:bg-emerald-500/45 hover:text-white';
+                title = `Dia ${dia} - Dia Letivo Regular`;
             }
 
             celulas.push(
@@ -569,7 +676,7 @@ export default function CalendarioLetivo({ modoVisualizacao = false }: Calendari
                         Calendário do Ano Letivo
                     </h1>
                     <p className="text-sm text-zinc-400 mt-1">
-                        Defina o período oficial de aulas, feriados nacionais, estaduais, municipais e recessos escolares.
+                        Defina o período oficial de aulas, recessos escolares contínuos e feriados nacionais, estaduais e municipais.
                     </p>
                 </div>
 
@@ -596,6 +703,21 @@ export default function CalendarioLetivo({ modoVisualizacao = false }: Calendari
 
                     {!isSomenteLeitura && (
                         <>
+                            {/* Botão Configurar Recesso / Período */}
+                            <button
+                                onClick={() => {
+                                    setPeriodoDataInicio(`${ano}-07-15`);
+                                    setPeriodoDataFim(`${ano}-07-31`);
+                                    setPeriodoDescricao('Recesso Escolar de Julho');
+                                    setPeriodoTipo('recesso');
+                                    setModalPeriodoAberto(true);
+                                }}
+                                className="flex items-center gap-2 bg-zinc-800 hover:bg-zinc-700 text-amber-300 border border-amber-500/30 px-3.5 py-2 rounded-lg text-sm font-medium transition shadow-sm"
+                            >
+                                <Coffee size={16} className="text-amber-400" />
+                                + Recesso / Período
+                            </button>
+
                             {/* Botão Importar Feriados com Seleção */}
                             <button
                                 onClick={handleAbrirModalImportar}
@@ -611,7 +733,7 @@ export default function CalendarioLetivo({ modoVisualizacao = false }: Calendari
                                 className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-500 text-white px-3.5 py-2 rounded-lg text-sm font-medium transition shadow-sm"
                             >
                                 <Settings size={16} />
-                                Configurar Período
+                                Configurar Período Letivo
                             </button>
                         </>
                     )}
@@ -678,8 +800,8 @@ export default function CalendarioLetivo({ modoVisualizacao = false }: Calendari
             <div className="flex flex-wrap items-center gap-4 text-xs text-zinc-400 bg-zinc-900/40 p-3 rounded-lg border border-zinc-800/80">
                 <span className="font-semibold text-zinc-300">Legenda do Calendário:</span>
                 <div className="flex items-center gap-1.5">
-                    <span className="h-3 w-3 rounded-sm bg-zinc-800 border border-zinc-700" />
-                    <span>Dia Letivo Normal</span>
+                    <span className="h-3 w-3 rounded-sm bg-emerald-500/20 border border-emerald-500/50" />
+                    <span className="text-emerald-300 font-medium">Dia Letivo</span>
                 </div>
                 <div className="flex items-center gap-1.5">
                     <span className="h-3 w-3 rounded-sm bg-red-500/20 border border-red-500/50" />
@@ -699,7 +821,7 @@ export default function CalendarioLetivo({ modoVisualizacao = false }: Calendari
                 </div>
                 <div className="flex items-center gap-1.5">
                     <span className="h-3 w-3 rounded-sm bg-zinc-900 border border-zinc-800 opacity-60" />
-                    <span>Fora do Período</span>
+                    <span>Fora do Período / Domingos</span>
                 </div>
             </div>
 
@@ -715,7 +837,7 @@ export default function CalendarioLetivo({ modoVisualizacao = false }: Calendari
                 </div>
             )}
 
-            {/* MODAL 1: Informações ou Edição de Dia Selecionado */}
+            {/* MODAL 1: Informações ou Edição de Dia Selecionado (com suporte a período) */}
             {modalDiaAberto && (
                 <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
                     <div className="bg-zinc-900 border border-zinc-800 rounded-2xl w-full max-w-md p-6 shadow-2xl animate-scale-up">
@@ -749,8 +871,12 @@ export default function CalendarioLetivo({ modoVisualizacao = false }: Calendari
                                         </div>
                                         <p className="text-base font-medium text-white">{formDescricao}</p>
                                     </div>
-                                ) : (
+                                ) : (diaSelecionado < (config?.data_inicio ? config.data_inicio.substring(0, 10) : `${ano}-02-01`) || diaSelecionado > (config?.data_fim ? config.data_fim.substring(0, 10) : `${ano}-12-20`)) ? (
                                     <div className="p-4 rounded-xl bg-zinc-800/50 text-center text-zinc-400 text-sm">
+                                        Dia fora do período letivo oficial (sem aulas).
+                                    </div>
+                                ) : (
+                                    <div className="p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-center text-emerald-300 text-sm">
                                         Dia letivo regular programado no calendário escolar.
                                     </div>
                                 )}
@@ -763,9 +889,9 @@ export default function CalendarioLetivo({ modoVisualizacao = false }: Calendari
                                 </button>
                             </div>
                         ) : (
-                            <form onSubmit={handleSalvarDia} className="space-y-4">
+                            <form onSubmit={handleSalvarDiaOuPeriodo} className="space-y-4">
                                 <div>
-                                    <label className="block text-xs font-semibold text-zinc-300 uppercase mb-1.5">Tipo do Dia</label>
+                                    <label className="block text-xs font-semibold text-zinc-300 uppercase mb-1.5">Tipo do Dia / Período</label>
                                     <select
                                         value={formTipo}
                                         onChange={e => setFormTipo(e.target.value)}
@@ -785,40 +911,106 @@ export default function CalendarioLetivo({ modoVisualizacao = false }: Calendari
                                     <input
                                         type="text"
                                         required
-                                        placeholder="Ex: Feriado Municipal de São João, Recesso de Páscoa..."
+                                        placeholder="Ex: Recesso de Julho, Emenda de Feriado..."
                                         value={formDescricao}
                                         onChange={e => setFormDescricao(e.target.value)}
                                         className="w-full bg-zinc-800 border border-zinc-700 text-white rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-emerald-500 outline-none"
                                     />
                                 </div>
 
-                                <div className="flex items-center justify-between gap-3 pt-3 border-t border-zinc-800">
-                                    {diaExistenteId ? (
-                                        <button
-                                            type="button"
-                                            onClick={handleRemoverDia}
-                                            className="flex items-center gap-1.5 text-red-400 hover:text-red-300 text-xs font-medium py-2 px-3 rounded-lg hover:bg-red-500/10 transition"
-                                        >
-                                            <Trash2 size={16} />
-                                            Tornar Letivo Normal
-                                        </button>
-                                    ) : <div />}
+                                {/* Opção de Estender para Período (Vários Dias) */}
+                                <div className="p-3 bg-zinc-800/50 rounded-xl border border-zinc-700/60 space-y-2.5">
+                                    <label className="flex items-center gap-2 cursor-pointer select-none">
+                                        <input
+                                            type="checkbox"
+                                            checked={diaAplicarComoPeriodo}
+                                            onChange={e => {
+                                                setDiaAplicarComoPeriodo(e.target.checked);
+                                                if (e.target.checked && (!diaDataFim || diaDataFim < diaSelecionado)) {
+                                                    setDiaDataFim(diaSelecionado);
+                                                }
+                                            }}
+                                            className="rounded border-zinc-700 text-amber-500 focus:ring-amber-500 bg-zinc-900 h-4 w-4"
+                                        />
+                                        <span className="text-xs font-medium text-amber-300 flex items-center gap-1.5">
+                                            <CalendarRange size={14} />
+                                            Aplicar a vários dias consecutivos (Período)
+                                        </span>
+                                    </label>
 
-                                    <div className="flex gap-2">
+                                    {diaAplicarComoPeriodo && (
+                                        <div className="space-y-2 pt-1 border-t border-zinc-700/40 animate-fade-in">
+                                            <div className="grid grid-cols-2 gap-2 text-xs">
+                                                <div>
+                                                    <span className="text-zinc-400 block mb-1">Data Início:</span>
+                                                    <input
+                                                        type="date"
+                                                        value={diaSelecionado}
+                                                        onChange={e => setDiaSelecionado(e.target.value)}
+                                                        className="w-full bg-zinc-900 border border-zinc-700 text-white rounded p-2 text-xs outline-none"
+                                                    />
+                                                </div>
+                                                <div>
+                                                    <span className="text-zinc-400 block mb-1">Data Término:</span>
+                                                    <input
+                                                        type="date"
+                                                        value={diaDataFim}
+                                                        min={diaSelecionado}
+                                                        onChange={e => setDiaDataFim(e.target.value)}
+                                                        className="w-full bg-zinc-900 border border-zinc-700 text-white rounded p-2 text-xs outline-none focus:border-amber-500"
+                                                    />
+                                                </div>
+                                            </div>
+                                            <div className="text-[11px] text-amber-400 font-medium">
+                                                ⏱️ Duração: {calcularDiasPeriodo(diaSelecionado, diaDataFim)} dia(s) serão configurados.
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+
+                                <div className="space-y-2 pt-3 border-t border-zinc-800">
+                                    <div className="flex items-center justify-between gap-3">
+                                        {diaExistenteId ? (
+                                            <button
+                                                type="button"
+                                                onClick={handleRemoverDia}
+                                                className="flex items-center gap-1.5 text-red-400 hover:text-red-300 text-xs font-medium py-2 px-2.5 rounded-lg hover:bg-red-500/10 transition"
+                                                title="Remove apenas este dia específico"
+                                            >
+                                                <Trash2 size={15} />
+                                                Tornar Letivo
+                                            </button>
+                                        ) : <div />}
+
+                                        <div className="flex gap-2">
+                                            <button
+                                                type="button"
+                                                onClick={() => setModalDiaAberto(false)}
+                                                className="px-4 py-2 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-sm font-medium transition"
+                                            >
+                                                Cancelar
+                                            </button>
+                                            <button
+                                                type="submit"
+                                                disabled={salvandoPeriodo}
+                                                className="px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-medium transition flex items-center gap-1.5"
+                                            >
+                                                {salvandoPeriodo ? <Loader2 size={16} className="animate-spin" /> : <Check size={16} />}
+                                                {diaAplicarComoPeriodo ? 'Salvar Período' : 'Salvar Dia'}
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    {/* Botão de conveniência para remover todo o período de mesmo nome */}
+                                    {diaExistenteId && formTipo === 'recesso' && formDescricao && (
                                         <button
                                             type="button"
-                                            onClick={() => setModalDiaAberto(false)}
-                                            className="px-4 py-2 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-sm font-medium transition"
+                                            onClick={() => handleRemoverPeriodoPorDescricao(formDescricao)}
+                                            className="w-full text-center text-[11px] text-zinc-500 hover:text-red-400 transition py-1"
                                         >
-                                            Cancelar
+                                            Remover todos os dias cadastrados como "{formDescricao}"
                                         </button>
-                                        <button
-                                            type="submit"
-                                            className="px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-medium transition"
-                                        >
-                                            Salvar
-                                        </button>
-                                    </div>
+                                    )}
                                 </div>
                             </form>
                         )}
@@ -1261,6 +1453,165 @@ export default function CalendarioLetivo({ modoVisualizacao = false }: Calendari
                                 </button>
                             </div>
                         </div>
+                    </div>
+                </div>
+            )}
+
+            {/* MODAL 4: DEDICADA PARA CADASTRAR PERÍODO DE RECESSO / FÉRIAS (VÁRIOS DIAS) */}
+            {modalPeriodoAberto && (
+                <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
+                    <div className="bg-zinc-900 border border-zinc-800 rounded-2xl w-full max-w-lg p-6 shadow-2xl animate-scale-up">
+                        <div className="flex items-center justify-between border-b border-zinc-800 pb-3 mb-4">
+                            <div>
+                                <h3 className="text-lg font-bold text-white flex items-center gap-2">
+                                    <Coffee size={20} className="text-amber-400" />
+                                    Cadastrar Período de Recesso / Férias ({ano})
+                                </h3>
+                                <p className="text-xs text-zinc-400 mt-0.5">
+                                    Aplique o recesso escolar em vários dias contínuos de uma só vez.
+                                </p>
+                            </div>
+                            <button
+                                onClick={() => setModalPeriodoAberto(false)}
+                                className="text-zinc-500 hover:text-white p-1 rounded-lg hover:bg-zinc-800 transition"
+                            >
+                                <X size={20} />
+                            </button>
+                        </div>
+
+                        {/* Atalhos Rápidos */}
+                        <div className="mb-4">
+                            <span className="text-[11px] font-semibold text-zinc-400 uppercase tracking-wider block mb-1.5">
+                                Sugestões Rápidas:
+                            </span>
+                            <div className="flex flex-wrap gap-1.5">
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        setPeriodoDescricao('Recesso Escolar de Julho');
+                                        setPeriodoDataInicio(`${ano}-07-15`);
+                                        setPeriodoDataFim(`${ano}-07-31`);
+                                    }}
+                                    className="text-xs bg-zinc-800 hover:bg-amber-500/20 hover:text-amber-300 text-zinc-300 px-2.5 py-1 rounded-lg border border-zinc-700 transition"
+                                >
+                                    ☀️ Recesso de Julho (15 a 31)
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        setPeriodoDescricao('Recesso de Fim de Ano');
+                                        setPeriodoDataInicio(`${ano}-12-21`);
+                                        setPeriodoDataFim(`${ano}-12-31`);
+                                    }}
+                                    className="text-xs bg-zinc-800 hover:bg-amber-500/20 hover:text-amber-300 text-zinc-300 px-2.5 py-1 rounded-lg border border-zinc-700 transition"
+                                >
+                                    🎄 Fim de Ano (21 a 31/12)
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        setPeriodoDescricao('Semana da Criança / Recesso de Outubro');
+                                        setPeriodoDataInicio(`${ano}-10-12`);
+                                        setPeriodoDataFim(`${ano}-10-16`);
+                                    }}
+                                    className="text-xs bg-zinc-800 hover:bg-amber-500/20 hover:text-amber-300 text-zinc-300 px-2.5 py-1 rounded-lg border border-zinc-700 transition"
+                                >
+                                    🎈 Semana de Outubro (12 a 16)
+                                </button>
+                            </div>
+                        </div>
+
+                        <form
+                            onSubmit={(e) => {
+                                e.preventDefault();
+                                handleSalvarPeriodo(periodoDataInicio, periodoDataFim, periodoDescricao, periodoTipo);
+                            }}
+                            className="space-y-4"
+                        >
+                            <div>
+                                <label className="block text-xs font-semibold text-zinc-300 uppercase mb-1.5">Tipo do Período</label>
+                                <select
+                                    value={periodoTipo}
+                                    onChange={e => setPeriodoTipo(e.target.value)}
+                                    className="w-full bg-zinc-800 border border-zinc-700 text-white rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-amber-500 outline-none"
+                                >
+                                    <option value="recesso">🟡 Recesso Escolar / Férias</option>
+                                    <option value="evento">🟣 Evento / Semana de Apresentações</option>
+                                    <option value="facultativo">⚪ Ponto Facultativo Contínuo</option>
+                                </select>
+                            </div>
+
+                            <div>
+                                <label className="block text-xs font-semibold text-zinc-300 uppercase mb-1.5">Descrição do Período</label>
+                                <input
+                                    type="text"
+                                    required
+                                    placeholder="Ex: Recesso Escolar de Julho, Férias de Meio de Ano..."
+                                    value={periodoDescricao}
+                                    onChange={e => setPeriodoDescricao(e.target.value)}
+                                    className="w-full bg-zinc-800 border border-zinc-700 text-white rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-amber-500 outline-none"
+                                />
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-3">
+                                <div>
+                                    <label className="block text-xs font-semibold text-zinc-300 uppercase mb-1.5">Data de Início</label>
+                                    <input
+                                        type="date"
+                                        required
+                                        value={periodoDataInicio}
+                                        onChange={e => setPeriodoDataInicio(e.target.value)}
+                                        className="w-full bg-zinc-800 border border-zinc-700 text-white rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-amber-500 outline-none"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-xs font-semibold text-zinc-300 uppercase mb-1.5">Data de Término</label>
+                                    <input
+                                        type="date"
+                                        required
+                                        min={periodoDataInicio}
+                                        value={periodoDataFim}
+                                        onChange={e => setPeriodoDataFim(e.target.value)}
+                                        className="w-full bg-zinc-800 border border-zinc-700 text-white rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-amber-500 outline-none"
+                                    />
+                                </div>
+                            </div>
+
+                            {/* Duração em Tempo Real */}
+                            <div className="p-3 bg-amber-500/10 border border-amber-500/30 rounded-xl flex items-center gap-2.5 text-xs text-amber-300">
+                                <Clock size={16} className="text-amber-400 shrink-0" />
+                                <span>
+                                    <strong>{calcularDiasPeriodo(periodoDataInicio, periodoDataFim)} dia(s)</strong> serão marcados como {periodoTipo === 'recesso' ? 'Recesso' : periodoTipo} no calendário.
+                                </span>
+                            </div>
+
+                            <div className="flex justify-end gap-2 pt-3 border-t border-zinc-800">
+                                <button
+                                    type="button"
+                                    onClick={() => setModalPeriodoAberto(false)}
+                                    className="px-4 py-2 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-sm font-medium transition"
+                                >
+                                    Cancelar
+                                </button>
+                                <button
+                                    type="submit"
+                                    disabled={salvandoPeriodo}
+                                    className="px-4 py-2 rounded-lg bg-amber-600 hover:bg-amber-500 text-white text-sm font-medium transition flex items-center gap-2 shadow-sm"
+                                >
+                                    {salvandoPeriodo ? (
+                                        <>
+                                            <Loader2 size={16} className="animate-spin" />
+                                            Salvando...
+                                        </>
+                                    ) : (
+                                        <>
+                                            <Check size={16} />
+                                            Aplicar Período de Recesso
+                                        </>
+                                    )}
+                                </button>
+                            </div>
+                        </form>
                     </div>
                 </div>
             )}
