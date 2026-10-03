@@ -121,6 +121,7 @@ export default function Agenda() {
   const [professores, setProfessores] = useState([]);
   const [turmas, setTurmas] = useState([]);
   const [feriados, setFeriados] = useState([]);
+  const [configAnoLetivo, setConfigAnoLetivo] = useState(null);
   const [professorSelecionado, setProfessorSelecionado] = useState('');
   const [carregando, setCarregando] = useState(false);
   const [modalRegistroAberto, setModalRegistroAberto] = useState(false);
@@ -135,20 +136,23 @@ export default function Agenda() {
 
   const token = localStorage.getItem('@sonatta:token');
 
-  // Carregar feriados cadastrados da escola
-  const carregarFeriados = useCallback(async () => {
+  // Documentação: Carrega os feriados e a configuração do ano letivo da escola
+  const carregarFeriados = useCallback(async (anoParam) => {
+    const anoConsultar = anoParam || mesVisivel.ano;
     try {
-      const resposta = await fetch(`${API_URL}/api/feriados`, {
+      const resposta = await fetch(`${API_URL}/api/calendario-letivo/${anoConsultar}`, {
         headers: { 'Authorization': `Bearer ${localStorage.getItem('@sonatta:token')}` }
       });
       if (resposta.ok) {
         const dados = await resposta.json();
-        setFeriados(Array.isArray(dados) ? dados : (dados.dados || []));
+        setFeriados(dados.dias || []);
+        setConfigAnoLetivo(dados.config || null);
       }
     } catch (erro) {
-      console.error('Erro ao carregar feriados:', erro);
+      console.error('Erro ao carregar feriados e ano letivo:', erro);
     }
-  }, [token]);
+  }, [mesVisivel.ano]);
+
 
   // Carregar alunos
   const carregarAlunos = useCallback(async () => {
@@ -256,12 +260,12 @@ export default function Agenda() {
     }
   }, [token]);
 
-  // 1. Carregar dados estruturais fixos ao montar o componente
+  // 1. Carregar dados estruturais fixos apenas ao abrir a página (sem mesVisivel para não dar loading ao trocar de mês)
   useEffect(() => {
     carregarAlunos();
     carregarProfessores();
     carregarTurmas();
-    carregarFeriados();
+    carregarFeriados(mesVisivel.ano);
   }, [carregarAlunos, carregarProfessores, carregarTurmas, carregarFeriados]);
 
   // 2. Carregar dados dinâmicos mensais sempre que o mês/ano visível for alterado
@@ -269,7 +273,10 @@ export default function Agenda() {
     carregarRegistros();
     carregarAulasAgendadas();
     carregarExperimentais();
-  }, [mesVisivel, carregarRegistros, carregarAulasAgendadas, carregarExperimentais]);
+    carregarFeriados(mesVisivel.ano);
+  }, [mesVisivel, carregarRegistros, carregarAulasAgendadas, carregarExperimentais, carregarFeriados]);
+
+
 
   // Ouvir atualizações da Sidebar / outros contextos
   useEffect(() => {
@@ -306,6 +313,16 @@ export default function Agenda() {
           const dataMatriculaStr = typeof aluno.data_matricula === 'string'
             ? aluno.data_matricula.substring(0, 10)
             : new Date(aluno.data_matricula).toISOString().substring(0, 10);
+
+          // 🏫 Trava do Ano Letivo: Não projeta aulas regulares fora do período letivo da escola
+          if (configAnoLetivo) {
+            const inicioAno = configAnoLetivo.data_inicio ? String(configAnoLetivo.data_inicio).substring(0, 10) : null;
+            const fimAno = configAnoLetivo.data_fim ? String(configAnoLetivo.data_fim).substring(0, 10) : null;
+            if ((inicioAno && dataISO < inicioAno) || (fimAno && dataISO > fimAno)) {
+              return false;
+            }
+          }
+
 
           if (dataISO < dataMatriculaStr) return false;
         }
@@ -442,6 +459,16 @@ export default function Agenda() {
         return diaTurma.toLowerCase() === nomeDia.toLowerCase();
       })
       .map(turma => {
+
+        // 🏫 Trava do Ano Letivo: Não projeta turmas fora do período letivo da escola
+        if (configAnoLetivo) {
+          const inicioAno = configAnoLetivo.data_inicio ? String(configAnoLetivo.data_inicio).substring(0, 10) : null;
+          const fimAno = configAnoLetivo.data_fim ? String(configAnoLetivo.data_fim).substring(0, 10) : null;
+          if ((inicioAno && dataISO < inicioAno) || (fimAno && dataISO > fimAno)) {
+            return false;
+          }
+        }
+
         // Obter registros dos alunos desta turma para a data atual
         const turmaRegistros = registros.filter(r =>
           String(r.data_aula || '').substring(0, 10) === dataISO &&
@@ -485,7 +512,8 @@ export default function Agenda() {
       .sort((a, b) => (a.horario || '').localeCompare(b.horario || ''));
 
     return todasAsAulas;
-  }, [alunos, registros, experimentais, aulasAgendadas, turmas, dataSelecionada, professorSelecionado]);
+  }, [alunos, registros, experimentais, aulasAgendadas, turmas, dataSelecionada, professorSelecionado, configAnoLetivo]);
+
 
   const contagemAulas = useMemo(() => {
     const totais = aulasDoDia.length;
@@ -506,6 +534,7 @@ export default function Agenda() {
         restantes++;
         return;
       }
+
       const [h, m] = aula.horario.split(':').map(Number);
       const duracao = Number(aula.duracao_minutos) || 60;
       const minutosTerminoAula = h * 60 + (m || 0) + duracao; // Assumindo 1 hora de aula
@@ -518,6 +547,15 @@ export default function Agenda() {
 
     return { restantes, dadas, totais };
   }, [aulasDoDia, dataSelecionada]);
+
+  // Documentação: Valida se a data selecionada está fora do período letivo configurado para a escola
+  const isForaAnoLetivo = useMemo(() => {
+    if (!configAnoLetivo) return false;
+    const dataISO = formatarDataISO(dataSelecionada);
+    const inicioAno = configAnoLetivo.data_inicio ? String(configAnoLetivo.data_inicio).substring(0, 10) : null;
+    const fimAno = configAnoLetivo.data_fim ? String(configAnoLetivo.data_fim).substring(0, 10) : null;
+    return Boolean((inicioAno && dataISO < inicioAno) || (fimAno && dataISO > fimAno));
+  }, [dataSelecionada, configAnoLetivo]);
 
   // Abrir modal de registro
   const abrirRegistro = (aula) => {
@@ -644,7 +682,7 @@ export default function Agenda() {
           </div>
         ) : (
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-            {/* Coluna 1: Calendário */}
+            {/* Coluna 1: Calendário e Resumo do Dia */}
             <div className="lg:col-span-1">
               <div className="sticky top-0">
                 <h2 className="text-sm font-bold text-zinc-500 uppercase tracking-widest mb-4 flex items-center gap-2">
@@ -654,9 +692,12 @@ export default function Agenda() {
                   aulasDoMes={[...alunos, ...registros, ...experimentais, ...aulasAgendadas, ...turmas]}
                   onDiaSelected={setDataSelecionada}
                   onMesChange={handleMesChange}
+                  initialDate={new Date(mesVisivel.ano, mesVisivel.mes - 1, 1)}
+                  selectedDate={dataSelecionada}
                   feriadosCustomizados={feriados}
+                  configAnoLetivo={configAnoLetivo}
                 />
-                {!nomeFeriado && contagemAulas.totais > 0 && (
+                {!nomeFeriado && !isForaAnoLetivo && contagemAulas.totais > 0 && (
                   <div className="mt-6 grid grid-cols-2 gap-2 text-center bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg p-3">
                     <div>
                       <p className="text-xs text-zinc-500 mb-1">Dadas</p>
@@ -668,7 +709,7 @@ export default function Agenda() {
                     </div>
                   </div>
                 )}
-                {!nomeFeriado && contagemAulas.totais === 0 && (
+                {!nomeFeriado && !isForaAnoLetivo && contagemAulas.totais === 0 && (
                   <div className="mt-6 text-center">
                     <p className="text-sm font-semibold text-zinc-400">Nenhuma aula neste dia</p>
                   </div>
@@ -676,7 +717,7 @@ export default function Agenda() {
               </div>
             </div>
 
-            {/* Coluna 2 e 3: Timeline do Dia */}
+            {/* Coluna 2: Timeline das Aulas ou Banners de Feriado/Férias */}
             <div className="lg:col-span-2">
               <h2 className="text-sm font-bold text-zinc-500 uppercase tracking-widest mb-4 flex items-center gap-2">
                 <Clock size={16} />
@@ -690,6 +731,16 @@ export default function Agenda() {
                     <h3 className="text-4xl md:text-5xl font-black text-zinc-900 dark:text-white tracking-tighter">Feriado! Nenhuma aula hoje!</h3>
                     <p className="text-xl text-rose-400 font-bold uppercase tracking-[0.4em]">
                       {nomeFeriado}
+                    </p>
+                  </div>
+                </div>
+              ) : isForaAnoLetivo && aulasDoDia.length === 0 ? (
+                <div className="bg-amber-500/5 border border-amber-500/10 rounded-3xl p-20 text-center min-h-[500px] flex items-center justify-center shadow-lg dark:shadow-2xl">
+                  <div className="flex flex-col items-center gap-6">
+                    <span className="text-9xl mb-2 animate-pulse drop-shadow-2xl">🏖️</span>
+                    <h3 className="text-4xl font-black text-zinc-900 dark:text-white tracking-tight">Período de Férias Escolares</h3>
+                    <p className="text-sm text-amber-500 dark:text-amber-400 font-semibold uppercase tracking-widest max-w-md">
+                      Data fora do ano letivo configurado. Aulas regulares e turmas estão pausadas neste dia.
                     </p>
                   </div>
                 </div>

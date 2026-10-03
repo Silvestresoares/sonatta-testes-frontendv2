@@ -1,21 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ChevronLeft, ChevronRight, Calendar as CalendarIcon } from 'lucide-react';
-
-// ✅ Parse seguro de data LOCAL (sem conversão UTC)
-const parseDataLocal = (dataString) => {
-  if (!dataString) return null;
-  if (dataString instanceof Date) return dataString;
-
-  // Se é string YYYY-MM-DD, parsear como local
-  if (typeof dataString === 'string' && /^\d{4}-\d{2}-\d{2}/.test(dataString)) {
-    const [year, month, day] = dataString.split('-');
-    return new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
-  }
-
-  // Fallback: tentar novo Date (pode ser arriscado)
-  const parsed = new Date(dataString);
-  return isNaN(parsed.getTime()) ? null : parsed;
-};
+import { ChevronLeft, ChevronRight } from 'lucide-react';
 
 // ✅ Lista de Feriados Nacionais Fixos (Brasil)
 const FERIADOS_FIXOS = {
@@ -45,20 +29,35 @@ const obterNomeFeriado = (data, feriadosCustomizados = []) => {
   return feriadoCustom ? (feriadoCustom.descricao || 'Feriado/Recesso') : null;
 };
 
-export function CalendarioVisual({ aulasDoMes = [], onDiaSelected = () => { }, onMesChange, initialDate = new Date(), feriadosCustomizados = [] }) {
-  const [mesAtual, setMesAtual] = useState(initialDate);
-  const [diaSelecionado, setDiaSelecionado] = useState(initialDate);
+export function CalendarioVisual({
+  aulasDoMes = [],
+  onDiaSelected = () => { },
+  onMesChange,
+  initialDate,
+  selectedDate,
+  feriadosCustomizados = [],
+  configAnoLetivo = null
+}) {
+  const [mesAtual, setMesAtual] = useState(() => initialDate ? new Date(initialDate) : new Date());
+  const [diaSelecionado, setDiaSelecionado] = useState(() => selectedDate || initialDate || new Date());
 
+  // Chave estável (string '2026-9') para só rodar se o ANO ou MÊS realmente mudarem
+  const anoMesChave = initialDate ? `${new Date(initialDate).getFullYear()}-${new Date(initialDate).getMonth()}` : null;
+
+  // Sincroniza o mês visível apenas se o pai realmente mudou de mês/ano
   useEffect(() => {
-    if (onMesChange) {
-      onMesChange(mesAtual.getMonth() + 1, mesAtual.getFullYear());
+    if (initialDate) {
+      const dataParam = new Date(initialDate);
+      setMesAtual(prev => {
+        if (prev.getMonth() === dataParam.getMonth() && prev.getFullYear() === dataParam.getFullYear()) {
+          return prev;
+        }
+        return dataParam;
+      });
     }
-  }, [mesAtual, onMesChange]);
+  }, [anoMesChave]);
 
-  useEffect(() => {
-    setMesAtual(initialDate);
-    setDiaSelecionado(initialDate);
-  }, [initialDate.getFullYear(), initialDate.getMonth(), initialDate.getDate()]);
+
 
   const nomeMeses = [
     'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
@@ -138,6 +137,14 @@ export function CalendarioVisual({ aulasDoMes = [], onDiaSelected = () => { }, o
         const dataMatriculaStr = String(aula.data_matricula).substring(0, 10);
         if (dataISO < dataMatriculaStr) return false;
       }
+      // 🏫 Validação do Ano Letivo: Não conta aulas regulares se o dia estiver fora do ano letivo
+      if (configAnoLetivo) {
+        const inicioAno = configAnoLetivo.data_inicio ? String(configAnoLetivo.data_inicio).substring(0, 10) : null;
+        const fimAno = configAnoLetivo.data_fim ? String(configAnoLetivo.data_fim).substring(0, 10) : null;
+        if ((inicioAno && dataISO < inicioAno) || (fimAno && dataISO > fimAno)) {
+          return false;
+        }
+      }
 
       // 👉 ADICIONAR: Valida periodicidade (quinzenal / mensal)
       const diaDoMes = data.getDate();
@@ -172,9 +179,6 @@ export function CalendarioVisual({ aulasDoMes = [], onDiaSelected = () => { }, o
     return registrosDoDia.length + regularesDoDia.length;
   };
 
-  const temAulasHoje = (data) => {
-    return contarAulasDoDia(data) > 0;
-  };
 
   const ehHoje = (data) => {
     const hoje = new Date();
@@ -186,27 +190,39 @@ export function CalendarioVisual({ aulasDoMes = [], onDiaSelected = () => { }, o
   const handleMesAnterior = () => {
     const novoMes = new Date(mesAtual.getFullYear(), mesAtual.getMonth() - 1, 1);
     setMesAtual(novoMes);
+    if (onMesChange) {
+      onMesChange(novoMes.getMonth() + 1, novoMes.getFullYear());
+    }
   };
 
   const handleProximoMes = () => {
     const novoMes = new Date(mesAtual.getFullYear(), mesAtual.getMonth() + 1, 1);
     setMesAtual(novoMes);
+    if (onMesChange) {
+      onMesChange(novoMes.getMonth() + 1, novoMes.getFullYear());
+    }
   };
 
   const handleCliqueDia = (dia) => {
     setDiaSelecionado(dia.data);
     onDiaSelected(dia.data);
 
-    // Se clicou em um dia de outro mês, muda o mês automaticamente
+    // Se clicou em um dia cinza de outro mês, navega o calendário para aquele mês
     if (!dia.mesAtual) {
-      setMesAtual(new Date(dia.data.getFullYear(), dia.data.getMonth()));
+      const novoMes = new Date(dia.data.getFullYear(), dia.data.getMonth(), 1);
+      setMesAtual(novoMes);
+      if (onMesChange) {
+        onMesChange(novoMes.getMonth() + 1, novoMes.getFullYear());
+      }
     }
   };
 
   const estaSelecionado = (data) => {
-    if (!diaSelecionado) return false;
-    return data.toDateString() === diaSelecionado.toDateString();
+    const dataAlvo = selectedDate || diaSelecionado;
+    if (!dataAlvo) return false;
+    return new Date(data).toDateString() === new Date(dataAlvo).toDateString();
   };
+
 
   return (
     <div className="bg-white dark:bg-transparent border border-zinc-200 dark:border-zinc-800 rounded-2xl p-6 shadow-lg dark:shadow-2xl">
@@ -254,7 +270,7 @@ export function CalendarioVisual({ aulasDoMes = [], onDiaSelected = () => { }, o
           const temAulas = numAulas > 0;
           const ehHojeDia = ehHoje(item.data);
           const selecionado = estaSelecionado(item.data);
-          const nomeFeriado = obterNomeFeriado(item.data);
+          const nomeFeriado = obterNomeFeriado(item.data, feriadosCustomizados);
 
           return (
             <button

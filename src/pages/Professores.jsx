@@ -601,6 +601,12 @@ function AbaFinanceiro({ professorId, token }) {
               <div>
                 <p className="text-xs text-zinc-500">Aulas válidas no período</p>
                 <p className="text-2xl font-bold text-amber-400 font-mono">{dados.total_aulas}</p>
+                {(dados.total_aulas_abonadas > 0 || dados.total_aulas_abonadas_feriado > 0) && (
+                  <p className="text-[10px] text-emerald-400 mt-0.5">
+                    ✨ {dados.total_aulas_abonadas || dados.total_aulas_abonadas_feriado} abonada(s)
+                    {dados.total_aulas_abonadas_recesso > 0 && ` (${dados.total_aulas_abonadas_feriado} feriado / ${dados.total_aulas_abonadas_recesso} recesso)`}
+                  </p>
+                )}
               </div>
               <div className="text-right">
                 <p className="text-xs text-zinc-500">Valor por aula</p>
@@ -709,7 +715,14 @@ function AbaFinanceiro({ professorId, token }) {
                       <div className="grid grid-cols-2 gap-2 text-xs">
                         <div className="bg-zinc-800/50 rounded p-2">
                           <div className="text-zinc-500 mb-1">Aulas Válidas</div>
-                          <div className="font-mono text-zinc-300">{aluno.quantidade_aulas}</div>
+                          <div className="font-mono text-zinc-300">
+                            {aluno.quantidade_aulas}
+                            {(aluno.qtd_abonadas_total > 0 || aluno.qtd_abonadas_feriado > 0) && (
+                              <span className="ml-1 text-[10px] text-emerald-400 font-normal">
+                                ({aluno.qtd_abonadas_total || aluno.qtd_abonadas_feriado} abonada{(aluno.qtd_abonadas_total || aluno.qtd_abonadas_feriado) === 1 ? '' : 's'})
+                              </span>
+                            )}
+                          </div>
                         </div>
                         <div className="bg-zinc-800/50 rounded p-2 text-right">
                           <div className="text-zinc-500 mb-1">Subtotal</div>

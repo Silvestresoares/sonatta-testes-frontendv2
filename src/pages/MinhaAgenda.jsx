@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { RefreshCw, Calendar as CalendarIcon, Clock, LogIn, LogOut, CheckCircle2, Copy } from 'lucide-react';
 import RegistroAulaModal from '../components/RegistroAulaModal';
 import RegistroTurmaModal from '../components/RegistroTurmaModal';
@@ -18,11 +18,14 @@ const formatarDataISO = (data) => {
   return `${ano}-${mes}-${dia}`;
 };
 
-const obterNomeFeriado = (data) => {
+// Documentação: Retorna o nome do feriado checando os fixos nacionais e os personalizados da escola
+const obterNomeFeriado = (data, feriadosCustomizados = []) => {
   if (!data) return null;
   const dia = String(data.getDate()).padStart(2, '0');
   const mes = String(data.getMonth() + 1).padStart(2, '0');
-  const feriados = {
+
+  // 1. Checa feriados nacionais fixos (fallback)
+  const feriadosFixos = {
     '01-01': 'Ano Novo',
     '21-04': 'Tiradentes',
     '01-05': 'Dia do Trabalhador',
@@ -33,8 +36,19 @@ const obterNomeFeriado = (data) => {
     '20-11': 'Consciência Negra',
     '25-12': 'Natal'
   };
-  return feriados[`${dia}-${mes}`] || null;
+  const fixo = feriadosFixos[`${dia}-${mes}`];
+  if (fixo) return fixo;
+
+  // 2. Checa feriados e recessos cadastrados no calendário letivo da escola
+  const dataISO = `${data.getFullYear()}-${mes}-${dia}`;
+  const custom = feriadosCustomizados.find(f => {
+    const fData = f.data_feriado ? String(f.data_feriado).substring(0, 10) : '';
+    return fData === dataISO;
+  });
+
+  return custom ? (custom.descricao || 'Feriado/Recesso') : null;
 };
+
 
 export default function MinhaAgenda({ professorId }) {
   const [dados, setDados] = useState(null);
@@ -76,6 +90,7 @@ export default function MinhaAgenda({ professorId }) {
         setErroCalendar('Erro ao gerar link do calendário.');
       }
     } catch (err) {
+      console.error('Erro ao gerar link de calendário:', err);
       setErroCalendar('Falha na comunicação com o servidor.');
     } finally {
       setGerandoLink(false);
@@ -88,7 +103,7 @@ export default function MinhaAgenda({ professorId }) {
     setTimeout(() => setLinkCopiado(false), 2000);
   };
 
-  const carregarAgenda = async () => {
+  const carregarAgenda = useCallback(async () => {
     if (!profId) {
       setErro('ID do professor não encontrado. Tente fazer login novamente.');
       setCarregando(false);
@@ -115,9 +130,9 @@ export default function MinhaAgenda({ professorId }) {
     } finally {
       setCarregando(false);
     }
-  };
+  }, [profId, mesAtual, anoAtual]);
 
-  const carregarPonto = async () => {
+  const carregarPonto = useCallback(async () => {
     if (!profId) return;
     setCarregandoPonto(true);
     try {
@@ -133,7 +148,7 @@ export default function MinhaAgenda({ professorId }) {
     } finally {
       setCarregandoPonto(false);
     }
-  };
+  }, [profId]);
 
   const registrarPonto = async (tipo) => {
     try {
@@ -161,10 +176,20 @@ export default function MinhaAgenda({ professorId }) {
   useEffect(() => {
     carregarAgenda();
     carregarPonto();
-  }, [profId, mesAtual, anoAtual]);
+  }, [carregarAgenda, carregarPonto]);
+  const nomeFeriado = useMemo(() => {
 
-  const ehMesAtual = mesAtual === new Date().getMonth() + 1 && anoAtual === new Date().getFullYear();
-  const nomeFeriado = obterNomeFeriado(dataSelecionada);
+    return obterNomeFeriado(dataSelecionada, dados?.feriados_mes || []);
+  }, [dataSelecionada, dados?.feriados_mes]);
+  // Valida se o dia selecionado está fora do período letivo escolar
+  const isForaAnoLetivo = useMemo(() => {
+    if (!dados?.config_ano_letivo) return false;
+    const dataISO = formatarDataISO(dataSelecionada);
+    const inicioAno = dados.config_ano_letivo.data_inicio ? String(dados.config_ano_letivo.data_inicio).substring(0, 10) : null;
+    const fimAno = dados.config_ano_letivo.data_fim ? String(dados.config_ano_letivo.data_fim).substring(0, 10) : null;
+    return Boolean((inicioAno && dataISO < inicioAno) || (fimAno && dataISO > fimAno));
+  }, [dataSelecionada, dados?.config_ano_letivo]);
+
 
   const aulasDoDia = useMemo(() => {
     if (!dados?.aulas_mes) return [];
@@ -205,11 +230,28 @@ export default function MinhaAgenda({ professorId }) {
     return { restantes, dadas, totais };
   }, [aulasDoDia, dataSelecionada]);
 
+  // 🔒 Bloqueia o ponto se hoje for feriado/recesso, férias escolares ou se não houver aulas no dia
   const temAulaHoje = useMemo(() => {
+    const hoje = new Date();
+    // 1. Se hoje for feriado ou recesso, o ponto fica bloqueado
+    if (obterNomeFeriado(hoje, dados?.feriados_mes || [])) {
+      return false;
+    }
+    // 2. Se hoje estiver fora do ano letivo configurado, o ponto fica bloqueado
+    if (dados?.config_ano_letivo) {
+      const hojeISO = formatarDataISO(hoje);
+      const inicioAno = dados.config_ano_letivo.data_inicio ? String(dados.config_ano_letivo.data_inicio).substring(0, 10) : null;
+      const fimAno = dados.config_ano_letivo.data_fim ? String(dados.config_ano_letivo.data_fim).substring(0, 10) : null;
+      if ((inicioAno && hojeISO < inicioAno) || (fimAno && hojeISO > fimAno)) {
+        return false;
+      }
+    }
     if (!dados?.aulas_mes) return false;
-    const dataISO = formatarDataISO(new Date());
+    const dataISO = formatarDataISO(hoje);
     return dados.aulas_mes.some((aula) => aula.data_aula?.toString().substring(0, 10) === dataISO);
   }, [dados]);
+
+
 
   const atualizarMes = (mes, ano) => {
     if (mes === mesAtual && ano === anoAtual) return;
@@ -222,21 +264,6 @@ export default function MinhaAgenda({ professorId }) {
     setDataSelecionada(new Date(ano, mes - 1, dia));
   };
 
-  const mesAnterior = () => {
-    if (mesAtual === 1) {
-      atualizarMes(12, anoAtual - 1);
-      return;
-    }
-    atualizarMes(mesAtual - 1, anoAtual);
-  };
-
-  const mesSeguinte = () => {
-    if (mesAtual === 12) {
-      atualizarMes(1, anoAtual + 1);
-      return;
-    }
-    atualizarMes(mesAtual + 1, anoAtual);
-  };
 
   const abrirRegistro = (aula) => {
     if (aula.tipo_aula === 'aula_turma' || aula.turma_id) {
@@ -357,6 +384,9 @@ export default function MinhaAgenda({ professorId }) {
                   {gerandoLink ? 'Gerando...' : 'Sincronizar com minha agenda pessoal'}
                 </button>
               )}
+              {erroCalendar && (
+                <span className="text-xs text-rose-500 font-medium ml-2">{erroCalendar}</span>
+              )}
             </div>
           </div>
           <div className="flex flex-wrap gap-2 items-center">
@@ -420,9 +450,12 @@ export default function MinhaAgenda({ professorId }) {
                 onDiaSelected={(data) => setDataSelecionada(data)}
                 onMesChange={(mes, ano) => atualizarMes(mes, ano)}
                 initialDate={new Date(anoAtual, mesAtual - 1, 1)}
+                selectedDate={dataSelecionada}
+                feriadosCustomizados={dados?.feriados_mes || []}
+                configAnoLetivo={dados?.config_ano_letivo}
               />
               {/* Contador de aulas para a data selecionada */}
-              {contagemAulas.totais > 0 ? (
+              {!nomeFeriado && !isForaAnoLetivo && contagemAulas.totais > 0 && (
                 <div className="mt-4 grid grid-cols-2 gap-2 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg p-3">
                   <div className="text-center">
                     <p className="text-xs text-zinc-500 mb-1">Dadas</p>
@@ -433,11 +466,13 @@ export default function MinhaAgenda({ professorId }) {
                     <p className="text-xl font-bold text-blue-400">{contagemAulas.restantes}</p>
                   </div>
                 </div>
-              ) : (
+              )}
+              {!nomeFeriado && !isForaAnoLetivo && contagemAulas.totais === 0 && (
                 <div className="mt-4 p-3 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg text-center">
                   <p className="text-sm font-semibold text-zinc-400">Nenhuma aula neste dia</p>
                 </div>
               )}
+
             </div>
           </div>
 
@@ -456,9 +491,20 @@ export default function MinhaAgenda({ professorId }) {
                     <p className="text-xl text-rose-400 font-bold uppercase tracking-[0.4em]">{nomeFeriado}</p>
                   </div>
                 </div>
+              ) : isForaAnoLetivo && aulasDoDia.length === 0 ? (
+                <div className="bg-amber-500/5 border border-amber-500/10 rounded-3xl p-20 text-center min-h-[420px] flex items-center justify-center shadow-lg dark:shadow-2xl">
+                  <div className="flex flex-col items-center gap-6">
+                    <span className="text-9xl mb-2 animate-pulse drop-shadow-2xl">🏖️</span>
+                    <h3 className="text-4xl font-black text-zinc-900 dark:text-white tracking-tight">Período de Férias Escolares</h3>
+                    <p className="text-sm text-amber-500 dark:text-amber-400 font-semibold uppercase tracking-widest max-w-md">
+                      Data fora do ano letivo configurado. Suas aulas regulares e turmas estão pausadas neste dia.
+                    </p>
+                  </div>
+                </div>
               ) : (
                 <AulasTimeline aulas={aulasDoDia} onAbrirRegistro={abrirRegistro} showActions={false} />
               )}
+
             </div>
           </div>
         </div>

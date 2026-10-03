@@ -180,9 +180,12 @@ export default function MeusRecebimentos({ professorId }) {
             <TrendingUp size={20} className="text-blue-400" />
             Detalhamento por Hora
           </h2>
-          {dados.total_aulas_abonadas_feriado > 0 && (
+          {(dados.total_aulas_abonadas > 0 || dados.total_aulas_abonadas_feriado > 0) && (
             <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 mt-2">
-              ✨ Inclui {dados.total_aulas_abonadas_feriado} aula(s) abonada(s) por feriado
+              ✨ Inclui {dados.total_aulas_abonadas || dados.total_aulas_abonadas_feriado} aula(s) abonada(s)
+              {dados.total_aulas_abonadas_recesso > 0 
+                ? ` (${dados.total_aulas_abonadas_feriado} feriado${dados.total_aulas_abonadas_feriado === 1 ? '' : 's'} / ${dados.total_aulas_abonadas_recesso} recesso${dados.total_aulas_abonadas_recesso === 1 ? '' : 's'})` 
+                : ' por feriado'}
             </span>
           )}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">

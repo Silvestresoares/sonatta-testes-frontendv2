@@ -46,6 +46,7 @@ export default function Configuracoes() {
     config_pagar_5_semana: false,
     config_descontar_falta_prof: false,
     config_abonar_feriados_prof: true,
+    config_abonar_recessos_prof: true,
     config_pagamento_substituto: 'valor_normal_professor',
     config_valor_fixo_substituto: '',
     dia_vencimento_mensalidade: 10
@@ -119,6 +120,7 @@ export default function Configuracoes() {
           config_pagar_5_semana: !!data.config_pagar_5_semana,
           config_descontar_falta_prof: !!data.config_descontar_falta_prof,
           config_abonar_feriados_prof: data.config_abonar_feriados_prof !== false,
+          config_abonar_recessos_prof: data.config_abonar_recessos_prof !== false,
           config_pagamento_substituto: data.config_pagamento_substituto || 'valor_normal_professor',
           config_valor_fixo_substituto: data.config_valor_fixo_substituto || '',
           dia_vencimento_mensalidade: data.dia_vencimento_mensalidade || 10
@@ -813,7 +815,23 @@ export default function Configuracoes() {
                   </div>
                   <div>
                     <span className="block text-sm font-medium text-white">Abonar Feriados para Professores Horistas</span>
-                    <span className="block text-xs text-zinc-500 mt-0.5">Se marcado, aulas que caírem em feriados/recessos serão remuneradas normalmente no fechamento do professor horista.</span>
+                    <span className="block text-xs text-zinc-500 mt-0.5">Se marcado, aulas que caírem em feriados oficiais durante o ano letivo serão remuneradas normalmente no fechamento do professor horista.</span>
+                  </div>
+                </label>
+
+                <label className="flex items-start gap-3 cursor-pointer">
+                  <div className="pt-1">
+                    <input
+                      type="checkbox"
+                      name="config_abonar_recessos_prof"
+                      checked={formData.config_abonar_recessos_prof}
+                      onChange={(e) => setFormData(prev => ({ ...prev, config_abonar_recessos_prof: e.target.checked }))}
+                      className="w-4 h-4 text-emerald-500 bg-zinc-950 border-zinc-700 rounded focus:ring-emerald-500"
+                    />
+                  </div>
+                  <div>
+                    <span className="block text-sm font-medium text-white">Abonar Recessos Escolares para Professores Horistas</span>
+                    <span className="block text-xs text-zinc-500 mt-0.5">Se marcado, aulas regulares que coincidirem com períodos cadastrados como recesso escolar serão remuneradas normalmente no fechamento.</span>
                   </div>
                 </label>
 
