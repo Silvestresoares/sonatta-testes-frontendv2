@@ -33,6 +33,8 @@ const Privacidade = React.lazy(() => import('./pages/Privacidade'));
 const ContratoSaaS = React.lazy(() => import('./pages/ContratoSaaS'));
 const ManualUsuario = React.lazy(() => import('./pages/ManualUsuario'));
 import ModalAceiteContratoSaaS from './components/ModalAceiteContratoSaaS';
+const Equipe = React.lazy(() => import('./pages/Equipe'));
+
 
 // Páginas de Autenticação / Recuperação
 const RedefinirSenha = React.lazy(() => import('./pages/RedefinirSenha'));
@@ -171,6 +173,27 @@ export default function App() {
     sse.onmessage = (event) => {
       try {
         const data = JSON.parse(event.data);
+
+        // 🔄 Atualização de permissões granulares em tempo real para secretárias
+        if (data.tipo === 'PERMISSOES_ATUALIZADAS') {
+          const meuId = localStorage.getItem('@sonatta:usuario_id');
+          if (String(data.usuarioId) === String(meuId)) {
+            // Se o usuário foi inativado pelo Dono, encerra a sessão imediatamente
+            if (data.permissoes?.__ativo === false) {
+              alert('Seu acesso ao sistema foi suspenso pela administração.');
+              localStorage.clear();
+              setEstaLogado(false);
+              return;
+            }
+
+            const novasPermissoes = { ...data.permissoes };
+            delete novasPermissoes.__ativo;
+            localStorage.setItem('@sonatta:permissoes', JSON.stringify(novasPermissoes));
+            window.dispatchEvent(new window.CustomEvent('permissoes_atualizadas', { detail: novasPermissoes }));
+          }
+          return;
+        }
+
         setAvisoGlobal(data.aviso || null);
       } catch (err) {
         console.error('Erro ao parsear aviso SSE', err);
@@ -185,6 +208,35 @@ export default function App() {
     return () => {
       sse.close();
     };
+  }, [estaLogado]);
+
+  // Sincroniza permissões no foco da janela (fallback garantido em caso de oscilação de rede)
+  useEffect(() => {
+    const sincronizarAoFocar = async () => {
+      const tipo = localStorage.getItem('@sonatta:tipo_usuario');
+      const token = localStorage.getItem('@sonatta:token');
+      if (tipo === 'secretaria' && token && estaLogado) {
+        try {
+          const res = await fetch(`${API_URL}/api/auth/me`, {
+            headers: { Authorization: `Bearer ${token}` }
+          });
+          if (res.ok) {
+            const data = await res.json();
+            const novas = data.usuario?.permissoes || {};
+            const atuais = localStorage.getItem('@sonatta:permissoes');
+            if (JSON.stringify(novas) !== atuais) {
+              localStorage.setItem('@sonatta:permissoes', JSON.stringify(novas));
+              window.dispatchEvent(new window.CustomEvent('permissoes_atualizadas', { detail: novas }));
+            }
+          }
+        } catch {
+          // Ignora falhas temporárias de rede
+        }
+      }
+    };
+
+    window.addEventListener('focus', sincronizarAoFocar);
+    return () => window.removeEventListener('focus', sincronizarAoFocar);
   }, [estaLogado]);
 
   // Verifica token ao montar
@@ -218,6 +270,8 @@ export default function App() {
         if (resposta.ok) {
           const dados = await resposta.json();
           setUsuarioInfo(dados.usuario);
+          localStorage.setItem('@sonatta:usuario_id', dados.usuario?.id || '');
+          localStorage.setItem('@sonatta:permissoes', JSON.stringify(dados.usuario?.permissoes || {}));
           localStorage.setItem('@sonatta:tipo_usuario', dados.usuario?.tipo_usuario || 'admin');
           localStorage.setItem('@sonatta:professor_id', dados.usuario?.professor_id || '');
           localStorage.setItem('@sonatta:is_super_admin', dados.usuario?.is_super_admin || false);
@@ -459,6 +513,8 @@ export default function App() {
           <Route path="/calendario-letivo" element={<LayoutComSidebar onLogout={handleLogout} tipoUsuario={tipoUsuario} professorId={professorId} isSuperAdmin={isSuperAdmin} isBlocked={isBlocked} currentRoute={location.pathname}><CalendarioLetivo /></LayoutComSidebar>} />
           <Route path="/feriados" element={<Navigate to="/calendario-letivo" replace />} />
           <Route path="/relatorios" element={<LayoutComSidebar onLogout={handleLogout} tipoUsuario={tipoUsuario} professorId={professorId} isSuperAdmin={isSuperAdmin} isBlocked={isBlocked} currentRoute={location.pathname}><Relatorios /></LayoutComSidebar>} />
+
+          <Route path="/equipe" element={<LayoutComSidebar onLogout={handleLogout} tipoUsuario={tipoUsuario} professorId={professorId} isSuperAdmin={isSuperAdmin} isBlocked={isBlocked} currentRoute={location.pathname}><Equipe /></LayoutComSidebar>} />
           <Route path="/eventos" element={<LayoutComSidebar onLogout={handleLogout} tipoUsuario={tipoUsuario} professorId={professorId} isSuperAdmin={isSuperAdmin} isBlocked={isBlocked} currentRoute={location.pathname}><Eventos /></LayoutComSidebar>} />
           <Route path="/materiais" element={<LayoutComSidebar onLogout={handleLogout} tipoUsuario={tipoUsuario} professorId={professorId} isSuperAdmin={isSuperAdmin} isBlocked={isBlocked} currentRoute={location.pathname}><Materiais /></LayoutComSidebar>} />
           <Route path="/configuracoes" element={<LayoutComSidebar onLogout={handleLogout} tipoUsuario={tipoUsuario} professorId={professorId} isSuperAdmin={isSuperAdmin} isBlocked={isBlocked} currentRoute={location.pathname}><Configuracoes /></LayoutComSidebar>} />

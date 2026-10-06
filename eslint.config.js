@@ -38,6 +38,7 @@ export default [
         alert: "readonly",
         confirm: "readonly",
         Event: "readonly",
+        CustomEvent: "readonly",
         EventSource: "readonly",
         URL: "readonly",
         Blob: "readonly",

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import { LogOut, PlusCircle, Repeat, RotateCcw, Lightbulb, X, Folder, Settings, CreditCard, CheckSquare, Shield, FileText, BookOpen } from 'lucide-react';
 import { FaGraduationCap, FaUserGraduate, FaCalendarAlt, FaMoneyBillWave } from 'react-icons/fa';
@@ -19,6 +19,36 @@ export default function Sidebar({ onLogout, tipoUsuario, isOpen, onClose }) {
   const escolaNome = localStorage.getItem('@sonatta:escola_nome') || '';
   const escolaLogo = localStorage.getItem('@sonatta:escola_logo') || '';
   const ehProfessor = tipoUsuario === 'professor';
+  const ehSecretaria = tipoUsuario === 'secretaria';
+
+  // Permissões granulares configuradas pelo Dono da escola (com sincronização em tempo real)
+  const [permissoes, setPermissoes] = useState(() => {
+    try {
+      return JSON.parse(localStorage.getItem('@sonatta:permissoes') || '{}');
+    } catch {
+      return {};
+    }
+  });
+
+  // Ouve eventos de atualização instantânea emitidos via SSE / window
+  useEffect(() => {
+    const handleAtualizacao = (event) => {
+      if (event.detail) {
+        setPermissoes(event.detail);
+      }
+    };
+
+    window.addEventListener('permissoes_atualizadas', handleAtualizacao);
+    return () => {
+      window.removeEventListener('permissoes_atualizadas', handleAtualizacao);
+    };
+  }, []);
+
+  // Função auxiliar: Se for admin/dono, libera tudo. Se for secretária, checa a permissão específica.
+  const temPermissao = (modulo) => {
+    if (!ehSecretaria) return true;
+    return permissoes[modulo] === true;
+  };
 
   // Função auxiliar para deixar o botão azul quando estiver na página ativa
   const linkStyle = ({ isActive }) =>
@@ -221,135 +251,172 @@ export default function Sidebar({ onLogout, tipoUsuario, isOpen, onClose }) {
                   )}
                 </NavLink>
 
-                <NavLink to="/relatorios" className={linkStyle} onClick={onClose}>
-                  {({ isActive }) => (
-                    <>
-                      <ChartBarIcon className={`w-5 h-5 ${isActive ? 'text-white' : 'text-blue-500'}`} />
-                      Relatórios (BI)
-                    </>
-                  )}
-                </NavLink>
+                {temPermissao('relatorios') && (
+                  <NavLink to="/relatorios" className={linkStyle} onClick={onClose}>
+                    {({ isActive }) => (
+                      <>
+                        <ChartBarIcon className={`w-5 h-5 ${isActive ? 'text-white' : 'text-blue-500'}`} />
+                        Relatórios (BI)
+                      </>
+                    )}
+                  </NavLink>
+                )}
+                {temPermissao('alunos') && (
+                  <NavLink to="/alunos" className={linkStyle} onClick={onClose}>
+                    {({ isActive }) => (
+                      <>
+                        <UsersIcon className={`w-5 h-5 ${isActive ? 'text-white' : 'text-emerald-500'}`} />
+                        Alunos
+                      </>
+                    )}
+                  </NavLink>
+                )}
+                {temPermissao('responsaveis') && (
+                  <NavLink to="/responsaveis" className={linkStyle} onClick={onClose}>
+                    {({ isActive }) => (
+                      <>
+                        <UserGroupIcon className={`w-5 h-5 ${isActive ? 'text-white' : 'text-orange-500'}`} />
+                        Responsáveis
+                      </>
+                    )}
+                  </NavLink>
+                )}
+                {temPermissao('professores') && (
+                  <NavLink to="/professores" className={linkStyle} onClick={onClose}>
+                    {({ isActive }) => (
+                      <>
+                        <AcademicCapIcon className={`w-5 h-5 ${isActive ? 'text-white' : 'text-purple-500'}`} />
+                        Professores
+                      </>
+                    )}
+                  </NavLink>
+                )}
 
-                <NavLink to="/alunos" className={linkStyle} onClick={onClose}>
-                  {({ isActive }) => (
-                    <>
-                      <UsersIcon className={`w-5 h-5 ${isActive ? 'text-white' : 'text-emerald-500'}`} />
-                      Alunos
-                    </>
-                  )}
-                </NavLink>
+                {!ehSecretaria && (
+                  <NavLink to="/equipe" className={linkStyle} onClick={onClose}>
+                    {({ isActive }) => (
+                      <>
+                        <UserGroupIcon className={`w-5 h-5 ${isActive ? 'text-white' : 'text-cyan-400'}`} />
+                        Equipe & Secretaria
+                      </>
+                    )}
+                  </NavLink>
+                )}
 
-                <NavLink to="/responsaveis" className={linkStyle} onClick={onClose}>
-                  {({ isActive }) => (
-                    <>
-                      <UserGroupIcon className={`w-5 h-5 ${isActive ? 'text-white' : 'text-orange-500'}`} />
-                      Responsáveis
-                    </>
-                  )}
-                </NavLink>
+                {temPermissao('turmas') && (
+                  <NavLink to="/cursos-turmas" className={linkStyle} onClick={onClose}>
+                    {({ isActive }) => (
+                      <>
+                        <BookOpenIcon className={`w-5 h-5 ${isActive ? 'text-white' : 'text-pink-500'}`} />
+                        Cursos e Turmas
+                      </>
+                    )}
+                  </NavLink>
+                )}
+                {temPermissao('salas') && (
+                  <>
+                    <NavLink to="/salas" className={linkStyle} onClick={onClose}>
+                      {({ isActive }) => (
+                        <>
+                          <MapPinIcon className={`w-5 h-5 ${isActive ? 'text-white' : 'text-rose-500'}`} />
+                          Salas Físicas
+                        </>
+                      )}
+                    </NavLink>
+                    <NavLink to="/locacao-salas" className={linkStyle} onClick={onClose}>
+                      {({ isActive }) => (
+                        <>
+                          <svg className={`w-5 h-5 ${isActive ? 'text-white' : 'text-rose-500'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" /></svg>
+                          Locação de Salas
+                        </>
+                      )}
+                    </NavLink>
+                  </>
+                )}
 
-                <NavLink to="/professores" className={linkStyle} onClick={onClose}>
-                  {({ isActive }) => (
-                    <>
-                      <AcademicCapIcon className={`w-5 h-5 ${isActive ? 'text-white' : 'text-purple-500'}`} />
-                      Professores
-                    </>
-                  )}
-                </NavLink>
+                {temPermissao('agenda') && (
+                  <NavLink to="/agenda" className={linkStyle} onClick={onClose}>
+                    {({ isActive }) => (
+                      <>
+                        <CalendarIcon className={`w-5 h-5 ${isActive ? 'text-white' : 'text-indigo-500'}`} />
+                        Agenda de Aulas
+                      </>
+                    )}
+                  </NavLink>
+                )}
 
-                <NavLink to="/cursos-turmas" className={linkStyle} onClick={onClose}>
-                  {({ isActive }) => (
-                    <>
-                      <BookOpenIcon className={`w-5 h-5 ${isActive ? 'text-white' : 'text-pink-500'}`} />
-                      Cursos e Turmas
-                    </>
-                  )}
-                </NavLink>
+                {temPermissao('financeiro') && (
+                  <NavLink to="/financeiro" className={linkStyle} onClick={onClose}>
+                    {({ isActive }) => (
+                      <>
+                        <BanknotesIcon className={`w-5 h-5 ${isActive ? 'text-white' : 'text-amber-500'}`} />
+                        Financeiro
+                      </>
+                    )}
+                  </NavLink>
+                )}
 
-                <NavLink to="/salas" className={linkStyle} onClick={onClose}>
-                  {({ isActive }) => (
-                    <>
-                      <MapPinIcon className={`w-5 h-5 ${isActive ? 'text-white' : 'text-rose-500'}`} />
-                      Salas Físicas
-                    </>
-                  )}
-                </NavLink>
+                {temPermissao('lojinha') && (
+                  <NavLink to="/lojinha" className={linkStyle} onClick={onClose}>
+                    {({ isActive }) => (
+                      <>
+                        <ShoppingCartIcon className={`w-5 h-5 ${isActive ? 'text-white' : 'text-amber-500'}`} />
+                        Lojinha (PDV)
+                      </>
+                    )}
+                  </NavLink>
+                )}
 
-                <NavLink to="/locacao-salas" className={linkStyle} onClick={onClose}>
-                  {({ isActive }) => (
-                    <>
-                      <svg className={`w-5 h-5 ${isActive ? 'text-white' : 'text-rose-500'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" /></svg>
-                      Locação de Salas
-                    </>
-                  )}
-                </NavLink>
+                {temPermissao('eventos') && (
+                  <NavLink to="/eventos" className={linkStyle} onClick={onClose}>
+                    {({ isActive }) => (
+                      <>
+                        <CheckSquare className={`w-5 h-5 ${isActive ? 'text-white' : 'text-teal-500'}`} />
+                        Eventos & Audições
+                      </>
+                    )}
+                  </NavLink>
+                )}
 
-                <NavLink to="/agenda" className={linkStyle} onClick={onClose}>
-                  {({ isActive }) => (
-                    <>
-                      <CalendarIcon className={`w-5 h-5 ${isActive ? 'text-white' : 'text-indigo-500'}`} />
-                      Agenda de Aulas
-                    </>
-                  )}
-                </NavLink>
+                {temPermissao('materiais') && (
+                  <NavLink to="/materiais" className={linkStyle} onClick={onClose}>
+                    <Folder size={20} />
+                    Arquivos
+                  </NavLink>
+                )}
 
-                <NavLink to="/financeiro" className={linkStyle} onClick={onClose}>
-                  {({ isActive }) => (
-                    <>
-                      <BanknotesIcon className={`w-5 h-5 ${isActive ? 'text-white' : 'text-amber-500'}`} />
-                      Financeiro
-                    </>
-                  )}
-                </NavLink>
+                {temPermissao('configuracoes') && (
+                  <NavLink to="/configuracoes" className={linkStyle} onClick={onClose}>
+                    <Settings size={20} />
+                    Configurações
+                  </NavLink>
+                )}
 
-                <NavLink to="/lojinha" className={linkStyle} onClick={onClose}>
-                  {({ isActive }) => (
-                    <>
-                      <ShoppingCartIcon className={`w-5 h-5 ${isActive ? 'text-white' : 'text-amber-500'}`} />
-                      Lojinha (PDV)
-                    </>
-                  )}
-                </NavLink>
+                {temPermissao('agenda') && (
+                  <NavLink to="/calendario-letivo" className={linkStyle} onClick={onClose}>
+                    <CalendarIcon className="w-5 h-5" />
+                    Calendário Escolar
+                  </NavLink>
+                )}
 
-                <NavLink to="/eventos" className={linkStyle} onClick={onClose}>
-                  {({ isActive }) => (
-                    <>
-                      <CheckSquare className={`w-5 h-5 ${isActive ? 'text-white' : 'text-teal-500'}`} />
-                      Eventos & Audições
-                    </>
-                  )}
-                </NavLink>
+                {!ehSecretaria && (
+                  <>
+                    <NavLink to="/lgpd" className={linkStyle} onClick={onClose}>
+                      <Shield size={20} />
+                      Privacidade & LGPD
+                    </NavLink>
 
-                <NavLink to="/materiais" className={linkStyle} onClick={onClose}>
-                  <Folder size={20} />
-                  Arquivos
-                </NavLink>
+                    <NavLink to="/minha-assinatura" className={linkStyle} onClick={onClose}>
+                      <CreditCard size={20} />
+                      Minha Assinatura
+                    </NavLink>
 
-                <NavLink to="/configuracoes" className={linkStyle} onClick={onClose}>
-                  <Settings size={20} />
-                  Configurações
-                </NavLink>
-
-                <NavLink to="/lgpd" className={linkStyle} onClick={onClose}>
-                  <Shield size={20} />
-                  Privacidade & LGPD
-                </NavLink>
-
-                <NavLink to="/calendario-letivo" className={linkStyle} onClick={onClose}>
-                  <CalendarIcon className="w-5 h-5" />
-                  Calendário Escolar
-                </NavLink>
-
-
-                <NavLink to="/minha-assinatura" className={linkStyle} onClick={onClose}>
-                  <CreditCard size={20} />
-                  Minha Assinatura
-                </NavLink>
-
-                <NavLink to="/contrato-saas" className={linkStyle} onClick={onClose}>
-                  <FileText size={20} />
-                  Contrato & Termos SaaS
-                </NavLink>
+                    <NavLink to="/contrato-saas" className={linkStyle} onClick={onClose}>
+                      <FileText size={20} />
+                      Contrato & Termos SaaS
+                    </NavLink>
+                  </>
+                )}
 
                 <NavLink to="/manuais" className={linkStyle} onClick={onClose}>
                   {({ isActive }) => (
