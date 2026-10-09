@@ -36,6 +36,11 @@ export default function Dashboard() {
   const [carregando, setCarregando] = useState(true);
   const [executandoRotina, setExecutandoRotina] = useState(false);
 
+  // Perfil do usuário logado e controle de visibilidade financeira
+  const tipoUsuario = localStorage.getItem('@sonatta:tipo_usuario') || 'admin';
+  const ehSecretaria = tipoUsuario === 'secretaria';
+  const mostrarFinanceiro = !metricas.ocultarFinanceiro;
+
   const forcarViradaMes = async () => {
     const mesAtualStr = `${new Date().getFullYear()}-${new Date().getMonth()}`;
     const ultimaVirada = localStorage.getItem('@sonatta:ultima_virada');
@@ -179,13 +184,15 @@ export default function Dashboard() {
           <p className="text-sm text-zinc-400 mt-1">Visão geral do desempenho e saúde financeira.</p>
         </div>
         <div className="flex flex-wrap items-center gap-3">
-          <button 
-            onClick={() => setModalAberto('financeiro')}
-            className="bg-transparent hover:bg-white/5 text-zinc-300 px-4 py-2 rounded-lg text-sm font-medium transition-colors border border-white/10 flex items-center gap-2 shadow-sm"
-          >
-            <TrendingUp size={16} className="text-emerald-500" />
-            Gráfico Financeiro
-          </button>
+          {mostrarFinanceiro && (
+            <button 
+              onClick={() => setModalAberto('financeiro')}
+              className="bg-transparent hover:bg-white/5 text-zinc-300 px-4 py-2 rounded-lg text-sm font-medium transition-colors border border-white/10 flex items-center gap-2 shadow-sm"
+            >
+              <TrendingUp size={16} className="text-emerald-500" />
+              Gráfico Financeiro
+            </button>
+          )}
           <button 
             onClick={() => setModalAberto('movimentacao')}
             className="bg-transparent hover:bg-white/5 text-zinc-300 px-4 py-2 rounded-lg text-sm font-medium transition-colors border border-white/10 flex items-center gap-2 shadow-sm"
@@ -200,7 +207,7 @@ export default function Dashboard() {
             <PieChartIcon size={16} className="text-amber-500" />
             Alunos por Instrumento
           </button>
-          {new Date().getDate() <= 5 && (
+          {!ehSecretaria && new Date().getDate() <= 5 && (
             <button
               onClick={forcarViradaMes}
               disabled={executandoRotina}
@@ -213,6 +220,7 @@ export default function Dashboard() {
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        {/* Alunos Ativos - Sempre visível */}
         <div className="bg-transparent p-5 rounded-xl flex items-center gap-4 transition-all hover:bg-white/5">
           <div className="bg-blue-500/20 p-3 rounded-lg text-blue-400 shrink-0">
             <Users size={24} />
@@ -222,62 +230,8 @@ export default function Dashboard() {
             <span className="text-2xl font-bold text-white">{metricas.alunosAtivos}</span>
           </div>
         </div>
-        <div className="bg-transparent p-5 rounded-xl flex items-center gap-4 transition-all hover:bg-white/5">
-          <div className="bg-emerald-500/20 p-3 rounded-lg text-emerald-400 shrink-0">
-            <TrendingUp size={24} />
-          </div>
-          <div>
-            <span className="text-xs font-semibold uppercase text-zinc-400 block mb-1">Mensalidades</span>
-            <span className="text-2xl font-bold text-emerald-400">R$ {Number(metricas.receitasMensalidades || 0).toFixed(2)}</span>
-          </div>
-        </div>
-        <div className="bg-transparent p-5 rounded-xl flex items-center gap-4 transition-all hover:bg-white/5">
-          <div className="bg-amber-500/20 p-3 rounded-lg text-amber-400 shrink-0">
-            <ShoppingCart size={24} />
-          </div>
-          <div>
-            <span className="text-xs font-semibold uppercase text-zinc-400 block mb-1">Vendas Lojinha</span>
-            <span className="text-2xl font-bold text-amber-400">R$ {Number(metricas.receitasLojinha || 0).toFixed(2)}</span>
-          </div>
-        </div>
-        <div className="bg-transparent p-5 rounded-xl flex items-center gap-4 transition-all hover:bg-white/5">
-          <div className="bg-sky-500/20 p-3 rounded-lg text-sky-400 shrink-0">
-            <FileText size={24} />
-          </div>
-          <div>
-            <span className="text-xs font-semibold uppercase text-zinc-400 block mb-1">Lançam. Manuais</span>
-            <span className="text-2xl font-bold text-sky-400">R$ {Number(metricas.receitasManuais || 0).toFixed(2)}</span>
-          </div>
-        </div>
-        <div className="bg-transparent p-5 rounded-xl flex items-center gap-4 transition-all hover:bg-white/5">
-          <div className="bg-fuchsia-500/20 p-3 rounded-lg text-fuchsia-400 shrink-0">
-            <Key size={24} />
-          </div>
-          <div>
-            <span className="text-xs font-semibold uppercase text-zinc-400 block mb-1">Locação de Salas</span>
-            <span className="text-2xl font-bold text-fuchsia-400">R$ {Number(metricas.receitasLocacao || 0).toFixed(2)}</span>
-          </div>
-        </div>
-        <div className="bg-transparent p-5 rounded-xl flex items-center gap-4 transition-all hover:bg-white/5">
-          <div className="bg-rose-500/20 p-3 rounded-lg text-rose-400 shrink-0">
-            <TrendingDown size={24} />
-          </div>
-          <div>
-            <span className="text-xs font-semibold uppercase text-zinc-400 block mb-1">Saídas (Mês)</span>
-            <span className="text-2xl font-bold text-rose-400">R$ {Number(metricas.despesasMes).toFixed(2)}</span>
-          </div>
-        </div>
-        <div className="bg-transparent p-5 rounded-xl flex items-center gap-4 transition-all hover:bg-white/5">
-          <div className="bg-amber-500/20 p-3 rounded-lg text-amber-400 shrink-0">
-            <Wallet size={24} />
-          </div>
-          <div>
-            <span className="text-xs font-semibold uppercase text-zinc-400 block mb-1">Saldo</span>
-            <span className={`text-2xl font-bold ${metricas.saldoCaixa >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
-              R$ {Number(metricas.saldoCaixa).toFixed(2)}
-            </span>
-          </div>
-        </div>
+
+        {/* Professores - Sempre visível */}
         <div className="bg-transparent p-5 rounded-xl flex items-center gap-4 transition-all hover:bg-white/5">
           <div className="bg-purple-500/20 p-3 rounded-lg text-purple-400 shrink-0">
             <GraduationCap size={24} />
@@ -290,24 +244,99 @@ export default function Dashboard() {
             </div>
           </div>
         </div>
-        <div className="bg-transparent p-5 rounded-xl flex items-center gap-4 transition-all hover:bg-white/5">
-          <div className="bg-indigo-500/20 p-3 rounded-lg text-indigo-400 shrink-0">
-            <Activity size={24} />
+
+        {/* Card Operacional extra de Alertas se a visualização financeira estiver oculta para a secretária */}
+        {!mostrarFinanceiro && (
+          <div className="bg-transparent p-5 rounded-xl flex items-center gap-4 transition-all hover:bg-white/5">
+            <div className="bg-amber-500/20 p-3 rounded-lg text-amber-400 shrink-0">
+              <Activity size={24} />
+            </div>
+            <div>
+              <span className="text-xs font-semibold uppercase text-zinc-400 block mb-1">Alertas Frequência</span>
+              <span className="text-2xl font-bold text-amber-400">{alertasFrequencia.length}</span>
+            </div>
           </div>
-          <div>
-            <span className="text-xs font-semibold uppercase text-zinc-400 block mb-1">MRR (Mensal)</span>
-            <span className="text-2xl font-bold text-indigo-400">R$ {Number(metricas.mrr || 0).toFixed(2)}</span>
-          </div>
-        </div>
-        <div className="bg-transparent p-5 rounded-xl flex items-center gap-4 transition-all hover:bg-white/5">
-          <div className="bg-orange-500/20 p-3 rounded-lg text-orange-400 shrink-0">
-            <TrendingDown size={24} />
-          </div>
-          <div>
-            <span className="text-xs font-semibold uppercase text-zinc-400 block mb-1">Inadimplência</span>
-            <span className="text-2xl font-bold text-orange-400">R$ {Number(metricas.inadimplencia || 0).toFixed(2)}</span>
-          </div>
-        </div>
+        )}
+
+        {/* Cards Financeiros - Exibidos apenas se liberado */}
+        {mostrarFinanceiro && (
+          <>
+            <div className="bg-transparent p-5 rounded-xl flex items-center gap-4 transition-all hover:bg-white/5">
+              <div className="bg-emerald-500/20 p-3 rounded-lg text-emerald-400 shrink-0">
+                <TrendingUp size={24} />
+              </div>
+              <div>
+                <span className="text-xs font-semibold uppercase text-zinc-400 block mb-1">Mensalidades</span>
+                <span className="text-2xl font-bold text-emerald-400">R$ {Number(metricas.receitasMensalidades || 0).toFixed(2)}</span>
+              </div>
+            </div>
+            <div className="bg-transparent p-5 rounded-xl flex items-center gap-4 transition-all hover:bg-white/5">
+              <div className="bg-amber-500/20 p-3 rounded-lg text-amber-400 shrink-0">
+                <ShoppingCart size={24} />
+              </div>
+              <div>
+                <span className="text-xs font-semibold uppercase text-zinc-400 block mb-1">Vendas Lojinha</span>
+                <span className="text-2xl font-bold text-amber-400">R$ {Number(metricas.receitasLojinha || 0).toFixed(2)}</span>
+              </div>
+            </div>
+            <div className="bg-transparent p-5 rounded-xl flex items-center gap-4 transition-all hover:bg-white/5">
+              <div className="bg-sky-500/20 p-3 rounded-lg text-sky-400 shrink-0">
+                <FileText size={24} />
+              </div>
+              <div>
+                <span className="text-xs font-semibold uppercase text-zinc-400 block mb-1">Lançam. Manuais</span>
+                <span className="text-2xl font-bold text-sky-400">R$ {Number(metricas.receitasManuais || 0).toFixed(2)}</span>
+              </div>
+            </div>
+            <div className="bg-transparent p-5 rounded-xl flex items-center gap-4 transition-all hover:bg-white/5">
+              <div className="bg-fuchsia-500/20 p-3 rounded-lg text-fuchsia-400 shrink-0">
+                <Key size={24} />
+              </div>
+              <div>
+                <span className="text-xs font-semibold uppercase text-zinc-400 block mb-1">Locação de Salas</span>
+                <span className="text-2xl font-bold text-fuchsia-400">R$ {Number(metricas.receitasLocacao || 0).toFixed(2)}</span>
+              </div>
+            </div>
+            <div className="bg-transparent p-5 rounded-xl flex items-center gap-4 transition-all hover:bg-white/5">
+              <div className="bg-rose-500/20 p-3 rounded-lg text-rose-400 shrink-0">
+                <TrendingDown size={24} />
+              </div>
+              <div>
+                <span className="text-xs font-semibold uppercase text-zinc-400 block mb-1">Saídas (Mês)</span>
+                <span className="text-2xl font-bold text-rose-400">R$ {Number(metricas.despesasMes).toFixed(2)}</span>
+              </div>
+            </div>
+            <div className="bg-transparent p-5 rounded-xl flex items-center gap-4 transition-all hover:bg-white/5">
+              <div className="bg-amber-500/20 p-3 rounded-lg text-amber-400 shrink-0">
+                <Wallet size={24} />
+              </div>
+              <div>
+                <span className="text-xs font-semibold uppercase text-zinc-400 block mb-1">Saldo</span>
+                <span className={`text-2xl font-bold ${metricas.saldoCaixa >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
+                  R$ {Number(metricas.saldoCaixa).toFixed(2)}
+                </span>
+              </div>
+            </div>
+            <div className="bg-transparent p-5 rounded-xl flex items-center gap-4 transition-all hover:bg-white/5">
+              <div className="bg-indigo-500/20 p-3 rounded-lg text-indigo-400 shrink-0">
+                <Activity size={24} />
+              </div>
+              <div>
+                <span className="text-xs font-semibold uppercase text-zinc-400 block mb-1">MRR (Mensal)</span>
+                <span className="text-2xl font-bold text-indigo-400">R$ {Number(metricas.mrr || 0).toFixed(2)}</span>
+              </div>
+            </div>
+            <div className="bg-transparent p-5 rounded-xl flex items-center gap-4 transition-all hover:bg-white/5">
+              <div className="bg-orange-500/20 p-3 rounded-lg text-orange-400 shrink-0">
+                <TrendingDown size={24} />
+              </div>
+              <div>
+                <span className="text-xs font-semibold uppercase text-zinc-400 block mb-1">Inadimplência</span>
+                <span className="text-2xl font-bold text-orange-400">R$ {Number(metricas.inadimplencia || 0).toFixed(2)}</span>
+              </div>
+            </div>
+          </>
+        )}
       </div>
 
       <div className="grid grid-cols-1 gap-6">

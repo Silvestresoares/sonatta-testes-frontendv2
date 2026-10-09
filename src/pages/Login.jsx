@@ -183,19 +183,8 @@ export default function Login({ aoLogar }) {
       {/* Lado Direito - Painel de Login e Ações */}
       <div className="w-full lg:w-[45%] flex flex-col items-center justify-center p-6 sm:p-12 relative min-h-screen lg:min-h-0 bg-zinc-950">
 
-        {/* Botão Superior para Área do Aluno */}
-        <div className="absolute top-6 right-6 lg:top-8 lg:right-10 w-full flex justify-end px-6 lg:px-0 animate-in fade-in slide-in-from-top-4 duration-700 fill-mode-both delay-500">
-          <button
-            onClick={() => window.location.href = '/portal/login'}
-            className="flex items-center gap-2 px-5 py-2.5 bg-zinc-900 border border-zinc-800 hover:border-emerald-500/50 hover:bg-zinc-800 text-zinc-300 hover:text-white rounded-full text-sm font-medium transition-all group shadow-sm"
-          >
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-emerald-500 group-hover:scale-110 transition-transform"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
-            Sou Aluno ou Responsável
-          </button>
-        </div>
-
         {/* Branding Mobile Apenas */}
-        <div className="lg:hidden text-center mb-10 mt-16">
+        <div className="lg:hidden text-center mb-8">
           <a href="/" className="hover:opacity-80 transition-opacity inline-block">
             <h1 className="text-5xl font-bold text-white tracking-tight" style={{ fontFamily: "'Dancing Script', cursive" }}>Sonatta</h1>
           </a>
@@ -255,12 +244,57 @@ export default function Login({ aoLogar }) {
 
             <button
               type="submit"
-              className="w-full bg-emerald-500 hover:bg-emerald-400 text-zinc-950 font-bold py-3 rounded-xl text-[15px] transition-all shadow-lg hover:shadow-emerald-500/25 mt-2"
+              className="w-full bg-emerald-500 hover:bg-emerald-400 text-zinc-950 font-bold py-3 rounded-xl text-[15px] transition-all shadow-lg hover:shadow-emerald-500/25 mt-2 cursor-pointer"
             >
               Entrar no Sistema
             </button>
           </form>
 
+          {/* Card Central de Alto Destaque para Alunos e Família */}
+          <div className="mt-8 pt-6 border-t border-zinc-800/80">
+            
+            {/* Divisor com texto 'OU' para deixar a escolha óbvia */}
+            <div className="relative flex py-2 items-center justify-center mb-4">
+              <div className="flex-grow border-t border-zinc-800"></div>
+              <span className="flex-shrink mx-4 text-xs font-bold text-zinc-400 uppercase tracking-widest bg-zinc-950 px-3">
+                Ou acesse como aluno
+              </span>
+              <div className="flex-grow border-t border-zinc-800"></div>
+            </div>
+
+            {/* Card com Glow Esmeralda, Borda Iluminada e Gradiente */}
+            <div className="relative p-5 rounded-2xl bg-gradient-to-br from-emerald-950/40 via-zinc-900/90 to-zinc-950 border-2 border-emerald-500/50 hover:border-emerald-400 transition-all shadow-[0_0_25px_rgba(16,185,129,0.18)] hover:shadow-[0_0_35px_rgba(16,185,129,0.35)]">
+              
+              {/* Badge superior informando a finalidade */}
+              <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-extrabold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 mb-3 tracking-wide">
+                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span>
+                ÁREA DO ALUNO & FAMÍLIA
+              </div>
+
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                <div className="flex items-center gap-3.5">
+                  <div className="w-12 h-12 rounded-xl bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center text-2xl shadow-inner shrink-0">
+                    🎓
+                  </div>
+                  <div>
+                    <h4 className="text-base font-bold text-white tracking-tight">Portal do Aluno</h4>
+                    <p className="text-xs text-zinc-300 leading-relaxed">
+                      Consulte sua agenda de aulas, partituras e boletos/PIX.
+                    </p>
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => window.location.href = '/portal/login'}
+                  className="w-full sm:w-auto px-5 py-3 bg-emerald-500 hover:bg-emerald-400 text-zinc-950 font-black rounded-xl text-sm transition-all shadow-[0_0_15px_rgba(16,185,129,0.4)] hover:shadow-[0_0_25px_rgba(16,185,129,0.6)] hover:scale-105 flex items-center justify-center gap-2 group cursor-pointer shrink-0"
+                >
+                  <span>Entrar no Portal</span>
+                  <span className="group-hover:translate-x-1 transition-transform">→</span>
+                </button>
+              </div>
+            </div>
+          </div>
 
         </div>
 

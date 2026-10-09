@@ -148,9 +148,6 @@ export default function LoginPortal() {
                     {mostrarSenha ? <EyeOff size={18} /> : <Eye size={18} />}
                   </button>
                 </div>
-                <div className="text-xs text-zinc-500 mt-2 text-right">
-                  🔐 Senha enviada por email/Whatsapp.
-                </div>
               </div>
 
               <button
@@ -165,10 +162,10 @@ export default function LoginPortal() {
               <div className="flex flex-col items-center gap-2 mt-4">
                 <button
                   type="button"
-                  onClick={() => navigate('/')}
-                  className="text-center text-sm text-zinc-400 hover:text-white transition-colors"
+                  onClick={() => navigate('/login')}
+                  className="text-center text-sm text-zinc-400 hover:text-emerald-400 transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
                 >
-                  Voltar para Área Administrativa
+                  <span>←</span> Voltar para Login Administrativo / Professor
                 </button>
                 <Link
                   to="/privacidade"
